@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="AUXILIARY">
+      <UniqueIdentifier>{597998b7-694e-4c39-a8d5-91e5a9107595}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CURVES">
+      <UniqueIdentifier>{17dacd9b-8d40-4b2b-9bff-96c2c69f7ef7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="INFRASTRUCTURE">
+      <UniqueIdentifier>{03c12309-53c4-40a3-9495-720bee5792b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BASICS">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="OPERATIONS">
+      <UniqueIdentifier>{d4c73a7b-29e7-4d7f-a68d-f8dbf168d384}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="strings.cpp">
+      <Filter>AUXILIARY</Filter>
+    </ClCompile>
+    <ClCompile Include="export.cpp">
+      <Filter>AUXILIARY</Filter>
+    </ClCompile>
+    <ClCompile Include="tmisc.cpp">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="tbasics.h">
+      <Filter>BASICS</Filter>
+    </ClInclude>
+    <ClInclude Include="export.h">
+      <Filter>AUXILIARY</Filter>
+    </ClInclude>
+    <ClInclude Include="strings.h">
+      <Filter>AUXILIARY</Filter>
+    </ClInclude>
+    <ClInclude Include="tbasecurve.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="tbeziersegment.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="tbeziercurve.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="tlsqsegment.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="torthosegment.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="tpointcurve.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="tsplinecurve.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
+    <ClInclude Include="tgaussint.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tjacobipoly.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tlsqfitting.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tmatrix.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tmisc.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tplane.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tpoint.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tpoints.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tsystems.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="ttransform.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="tvalues.h">
+      <Filter>INFRASTRUCTURE</Filter>
+    </ClInclude>
+    <ClInclude Include="toperations.h">
+      <Filter>OPERATIONS</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

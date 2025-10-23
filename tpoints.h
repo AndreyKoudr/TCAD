@@ -1,0 +1,1166 @@
+/**
+BSD 2-Clause License
+
+Copyright (c) 2025, Andrey Kudryavtsev (andrewkoudr@hotmail.com)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/*******************************************************************************
+
+  Templated CAD
+
+  tpoints.h
+
+  Operations on 3D points as std::vector<TPoint<T>> like min/max etc.
+
+*******************************************************************************/
+
+#pragma once
+
+#include "tbasics.h"
+#include "tpoint.h"
+#include "tmisc.h"
+#include "tplane.h"
+
+#include <vector>
+#include <algorithm>
+
+namespace tcad {
+
+/** Operators on lists of points. */
+
+template <class T> std::vector<TPoint<T>> operator + (const std::vector<TPoint<T>> &points0, 
+  const std::vector<TPoint<T>> &points1)
+{
+  assert(points0.size() == points1.size());
+
+  std::vector<TPoint<T>> points;
+  for (int i = 0; i < int(points0.size()); i++)
+  {
+    points.push_back(points0[i] + points1[i]);
+  }
+
+  return points;
+}
+
+template <class T> std::vector<TPoint<T>> operator - (const std::vector<TPoint<T>> &points0, 
+  const std::vector<TPoint<T>> &points1)
+{
+  assert(points0.size() == points1.size());
+
+  std::vector<TPoint<T>> points;
+  for (int i = 0; i < int(points0.size()); i++)
+  {
+    points.push_back(points0[i] - points1[i]);
+  }
+
+  return points;
+}
+
+template <class T> std::vector<TPoint<T>> operator * (const std::vector<TPoint<T>> &points0, 
+  const std::vector<T> &coefs)
+{
+  assert(points0.size() == coefs.size());
+
+  std::vector<TPoint<T>> points;
+  for (int i = 0; i < int(points0.size()); i++)
+  {
+    points.push_back(points0[i] * coefs[i]);
+  }
+
+  return points;
+}
+
+/** Get start direction (first derivative) for point list. */
+template <class T> TPoint<T> startDirection(std::vector<TPoint<T>> &points)
+{
+  return points[1] - points[0];
+}
+
+/** Get end direction (first derivative) for point list, directod from end "inside". */
+template <class T> TPoint<T> endDirection(std::vector<TPoint<T>> &points)
+{
+  return points[points.size() - 2] - points[points.size() - 1];
+}
+
+/** Calculate min/max among a list of points; imin, imax contain corresponding indices as reals. */
+template <class T> bool calculateMinMax(std::vector<TPoint<T>> &points, TPoint<T> *min, TPoint<T> *max,
+  TPoint<T> *imin = nullptr, TPoint<T> *imax = nullptr)
+{
+  if (points.empty())
+    return false;
+
+  *min = *max = points[0];
+  TPoint<T> point;
+
+  if (imin)
+  {
+    *imin = TPoint<T>(0,0,0);
+  }
+
+  if (imax)
+  {
+    *imax = TPoint<T>(0,0,0);
+  }
+
+  for (int i = 1; i < int(points.size()); i++)
+  {
+    point = points[i];
+    if (point.X > max->X) 
+    {
+      max->X = point.X;
+      if (imax)
+        imax->X = i;
+    }
+    if (point.Y > max->Y) 
+    {
+      max->Y = point.Y;
+      if (imax)
+        imax->Y = i;
+    }
+    if (point.Z > max->Z) 
+    {
+      max->Z = point.Z;
+      if (imax)
+        imax->Z = i;
+    }
+
+    if (point.X < min->X) 
+    {
+      min->X = point.X;
+      if (imin)
+        imin->X = i;
+    }
+    if (point.Y < min->Y) 
+    {
+      min->Y = point.Y;
+      if (imin)
+        imin->Y = i;
+    }
+    if (point.Z < min->Z) 
+    {
+      min->Z = point.Z;
+      if (imin)
+        imin->Z = i;
+    }
+  }
+
+  return true;
+}
+
+/** Calculate length. */
+template <class T> T calculateLength(std::vector<TPoint<T>> &points)
+{
+  T len = 0.0;
+
+  if (points.size() > 0)
+  {
+    for (int i = 1; i < points.size(); i++)
+    {
+      len += !(points[i] - points[i - 1]);
+    }
+  }
+
+  return len;
+}
+
+/** Calculate max difference. */
+template <class T> T difference(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &other)
+{
+  if (points.size() != other.size())
+    return -1.0;
+
+  T maxdiff = 0.0;
+  if (points.size() > 0)
+  {
+    for (int i = 0; i < points.size(); i++)
+    {
+      T diff = !(other[i] - points[i]);
+      maxdiff = std::max<T>(diff,maxdiff);
+    }
+  }
+
+  return maxdiff;
+}
+
+/** Get parameters [0..1]. Note : it is better to use parameterisation by numbers
+  everywhere, especially in TPointCurve and TOrthoSegment! */
+template <class T> void prepareParameters(std::vector<TPoint<T>> &points, 
+  std::vector<T> &parms, bool normalise = true, bool bynumbers = false)
+{
+  parms.clear();
+
+  if (bynumbers)
+  {
+    for (int i = 0; i < points.size(); i++)
+    {
+      T U = T(i) / T(points.size() - 1);
+      parms.push_back(U);
+    }
+
+    // these parms are already scaled
+  } else
+  {
+    T len = 0.0;
+    parms.push_back(len);
+    for (int i = 1; i < points.size(); i++)
+    {
+      len += !(points[i] - points[i - 1]);
+      parms.push_back(len);
+    }
+                          
+    // scale parms from 0 to 1
+    if (normalise)
+    {    
+      for (auto &p : parms)
+      {
+        p /= parms.back();
+      }
+    }
+  }
+}
+
+/** Split points into x,y,z arrays. */
+template <class T> void splitXYZ(std::vector<TPoint<T>> &points, std::vector<T> &x, std::vector<T> &y, std::vector<T> &z)
+{
+  x.clear();
+  y.clear();
+  z.clear();
+
+  for (auto &p : points)
+  {
+    x.push_back(p.X);  
+    y.push_back(p.Y);
+    z.push_back(p.Z);
+  }
+}
+
+/** Combine points x,y,z into points. */
+template <class T> void combineXYZ(std::vector<T> &x, std::vector<T> &y, std::vector<T> &z, std::vector<TPoint<T>> &points)
+{
+  points.clear();
+
+  for (int i = 0; i < int(x.size()); i++)
+  {
+    points.push_back(TPoint<T>(x[i],y[i],z[i]));
+  }
+}
+
+/** Find closest vector. */
+template <class T> int findClosest(std::vector<TPoint<T>> &points, TPoint<T> value, T *mindist = nullptr)
+{
+  T min = std::numeric_limits<T>::max();
+  int index = -1;
+
+  for (int i = 0; i < points.size(); i++)
+  {
+    T dist = !(points[i] - value);
+    if (dist < min)
+    {
+      min = dist;
+      index = i;
+    }
+  }
+
+  if (mindist)
+    *mindist = min;
+
+  return index;
+}
+
+/** Find closest vector among not busy. */
+template <class T> int findClosestNotBusy(std::vector<TPoint<T>> &points, TPoint<T> value,
+  std::vector<bool> &busy, T *mindist = nullptr)
+{
+  T min = std::numeric_limits<T>::max();
+  int index = -1;
+
+  for (int i = 0; i < points.size(); i++)
+  {
+    if (busy[i])
+      continue;
+
+    T dist = !(points[i] - value);
+    if (dist < min)
+    {
+      min = dist;
+      index = i;
+    }
+  }
+
+  if (index < 0)
+    min = 0.0;
+
+  if (mindist)
+    *mindist = min;
+
+  return index;
+}
+
+/** Find closest vector among not busy. */
+template <class T> int findClosestNotBusyExcept(std::vector<TPoint<T>> &points, TPoint<T> value,
+  std::vector<bool> &busy, int except, T *mindist = nullptr)
+{
+  T min = std::numeric_limits<T>::max();
+  int index = -1;
+
+  for (int i = 0; i < points.size(); i++)
+  {
+    if (busy[i] || i == except)
+      continue;
+
+    T dist = !(points[i] - value);
+    if (dist < min)
+    {
+      min = dist;
+      index = i;
+    }
+  }
+
+  if (index < 0)
+    min = 0.0;
+
+  if (mindist)
+    *mindist = min;
+
+  return index;
+}
+
+/** Calculate number of intersections of segment p0->p1 with edges in XY plane. */
+template <class T> int numEdgeIntersectionsXY(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
+  TPoint<T> p0, TPoint<T> p1, T tolerance)
+{
+  int count = 0;
+
+  for (int i = 0; i < edges.size(); i++)
+  {
+    TPoint<T> v0 = edges[i].first;
+    TPoint<T> v1 = edges[i].second;
+    
+    T t1 = 0.0;
+    T t2 = 0.0;
+    T Xi = p1.X;
+    T Yi = p1.Y;
+
+    if (intersectSegmentsXY(p0.X,p0.Y,p1.X,p1.Y,v0.X,v0.Y,v1.X,v1.Y,&t1,&t2,&Xi,&Yi) &&
+      (t1 >= 0.0) && (t1 <= 1.0) && (t2 >= 0.0) && (t2 <= 1.0))
+    {
+      TPoint<T> intr(Xi,Yi);
+      bool startend = (
+        (!(p0 - intr) < tolerance) || 
+        (!(p1 - intr) < tolerance) || 
+        (!(v0 - intr) < tolerance) || 
+        (!(v1 - intr) < tolerance));
+
+      if (!startend) 
+        count++;
+    }
+  }
+
+  return count;
+}
+
+/** Calculate number of intersections of segment p0->p1 with edges. */
+template <class T> int numEdgeIntersections(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
+  TPoint<T> p0, TPoint<T> p1, T tolerance)
+{
+  int count = 0;
+
+  for (int i = 0; i < edges.size(); i++)
+  {
+    TPoint<T> v0 = edges[i].first;
+    TPoint<T> v1 = edges[i].second;
+    
+    T t1 = 0.0;
+    T t2 = 0.0;
+    T dist = 0.0;
+    TPoint<T> ip,iv;
+    if (intersectSegments(p0,p1,v0,v1,t1,t2,dist,&ip,&iv) &&
+      (t1 >= 0.0) && (t1 <= 1.0) && (t2 >= 0.0) && (t2 <= 1.0) && dist < tolerance) //!!!
+    {
+      bool startend = (
+        (!(p0 - ip) < tolerance) || 
+        (!(p1 - ip) < tolerance) || 
+        (!(v0 - iv) < tolerance) || 
+        (!(v1 - iv) < tolerance));
+
+      if (!startend) 
+        count++;
+    }
+  }
+
+  return count;
+}
+
+/** Find intersections between two curves represented as points. Every point MUST contain 
+  their U parameter in W as per createPoints() in tbasecurve. UV contains intersection U 
+  parameters for both curves in X and Y. */
+template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::vector<TPoint<T>> &points1, 
+  std::vector<TPoint<T>> &UV, T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  UV.clear();
+
+  for (int i = 0; i < points0.size() - 1; i++)
+  {
+    TPoint<T> p0 = points0[i];
+    TPoint<T> p1 = points0[i + 1];
+
+    for (int j = 0; j < points1.size() - 1; j++)
+    {
+      TPoint<T> v0 = points1[j];
+      TPoint<T> v1 = points1[j + 1];
+    
+      T t1 = 0.0;
+      T t2 = 0.0;
+      T dist = 0.0;
+      TPoint<T> ip,iv;
+      if (intersectSegments(p0,p1,v0,v1,t1,t2,dist,&ip,&iv) &&
+        (t1 >= 0.0 - parmtolerance) && (t1 <= 1.0 + parmtolerance) && 
+        (t2 >= 0.0 - parmtolerance) && (t2 <= 1.0 + parmtolerance) && dist < tolerance) //!!!
+      {
+        LIMIT(t1,0.0,1.0);
+        LIMIT(t2,0.0,1.0);
+
+        T U1 = p0.W + (p1.W - p0.W) * t1;
+        T U2 = v0.W + (v1.W - v0.W) * t2;
+        UV.push_back(TPoint<T>(U1,U2));
+      }
+    }
+  }
+
+  // remove all duplicates
+  removeDuplicates(UV,true,parmtolerance * 4.0);
+
+  return int(UV.size());
+}
+
+/** Find edge closest to edges. Set maxedge to -1.0 or/and alledges to empty to avoid corresponding checks. */
+template <class T> int findClosestNotBusy(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> &alledges,
+  TPoint<T> value, std::vector<bool> &busy, bool &reversed, T maxedge, T tolerance, 
+  T *mindist = nullptr)
+{
+  T min = std::numeric_limits<T>::max();
+  int index = -1;
+
+  for (int i = 0; i < edges.size(); i++)
+  {
+    if (busy[i])
+      continue;
+
+    T dist0 = !(edges[i].first - value);
+    T dist1 = !(edges[i].second - value);
+    if (dist0 < min)
+    {
+      min = dist0;
+      reversed = false;
+      index = i;
+    }
+    if (dist1 < min)
+    {
+      min = dist1;
+      reversed = true;
+      index = i;
+    }
+  }
+
+  if (index >= 0)
+  {
+    if (min > maxedge)
+    {
+      //busy[index] = true;
+      index = -index;
+    } else
+    {
+      if (!alledges.empty())
+      {
+        int count = numEdgeIntersections(alledges,value,reversed ? edges[index].second : 
+          edges[index].first,tolerance);
+
+        if (count)
+        {
+          //busy[index] = true;
+          index = -index;
+        }
+      }
+    }
+  }
+
+  if (index < 0)
+    min = 0.0;
+
+  if (mindist)
+    *mindist = min;
+
+  return index;
+}
+
+/** Make up curve from unordered pieces, like hanging edges on triangles boundary. */
+template <class T> bool makeUpCurve(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> &alledges, T maxedge, 
+  std::vector<TPoint<T>> &line, T tolerance, bool bothways = true)
+{
+  if (edges.empty())
+    return false;
+
+  std::vector<bool> busy(edges.size(),false);
+
+  line.push_back(edges[0].first);
+  line.push_back(edges[0].second);
+  busy[0] = true;
+
+  while (!allBusy(busy))
+  {
+    // this fails only if all edges are busy; if distance > maxedge,
+    // busy[index] is marked as true and -1 is returned
+    bool reversed = false;
+    int index = findClosestNotBusy(edges,alledges,line.back(),busy,reversed,maxedge,tolerance);
+
+    if (index < 0)
+    {
+      if (bothways)
+      {
+        bool reversed1 = false;
+        int index1 = findClosestNotBusy(edges,alledges,line.front(),busy,reversed1,maxedge,tolerance);
+        if (index1 < 0)
+        {
+          busy[std::abs(index1)] = true;
+        } else
+        {
+          if (reversed1)
+          {
+            line.insert(line.begin(),edges[index1].first);
+            busy[index1] = true;
+          } else
+          {
+            line.insert(line.begin(),edges[index1].second);
+            busy[index1] = true;
+          }
+        }
+      } else
+      {
+        busy[std::abs(index)] = true;
+      }
+    } else
+    {
+      if (reversed)
+      {
+        line.push_back(edges[index].first);
+        busy[index] = true;
+      } else
+      {
+        line.push_back(edges[index].second);
+        busy[index] = true;
+      }
+    }
+  }
+
+  return true;
+}
+
+/** Make up curve from pieces in contours. */
+template <class T> bool curveFromPieces(std::vector<std::vector<TPoint<T>>> &pieces,
+  std::vector<TPoint<T>> &line, T tolerance, bool degenerateedges = false)
+{
+  // make edges
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
+
+  T maxedge = 0.0;
+  for (int i = 0; i < pieces.size(); i++)
+  {
+    if (degenerateedges)
+    {
+      // get max edge size
+      for (int j = 0; j < pieces[i].size() - 1; j++)
+      {
+        TPoint<T> p0 = pieces[i][j];
+        TPoint<T> p1 = pieces[i][j + 1];
+        T dist = !(p1 - p0);
+        maxedge = std::max<T>(maxedge,dist);
+      }
+      // make degenerated edges
+      for (int j = 0; j < pieces[i].size(); j++)
+      {
+        TPoint<T> p0 = pieces[i][j];
+        edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p0));
+      }
+    } else
+    {
+      for (int j = 0; j < pieces[i].size() - 1; j++)
+      {
+        TPoint<T> p0 = pieces[i][j];
+        TPoint<T> p1 = pieces[i][j + 1];
+        T dist = !(p1 - p0);
+        maxedge = std::max<T>(maxedge,dist);
+
+        edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p1));
+      }
+    }
+  }
+
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
+  bool ok = false;
+
+  if (degenerateedges)
+  {
+    ok = connectClosedCurve(edges,alledges,maxedge + tolerance,line,tolerance,true); 
+  } else
+  {
+    ok = connectClosedCurve(edges,alledges,tolerance,line,tolerance,true); 
+  }
+
+  return ok;
+}
+
+/** Closed? */
+template <class T> bool closed(const std::vector<TPoint<T>> &points, T tolerance)
+{
+  if (points.empty())
+    return false;
+
+  return (!(points.front() - points.back()) < tolerance);
+}
+
+/** Get three neighbours around point index. */
+template <class T> bool findHeighbours(const std::vector<TPoint<T>> &points, int index, 
+  int &prev, int &next, T tolerance)
+{
+  if (points.size() < 3)
+    return false;
+
+  bool cl = closed(points,tolerance);
+
+  if (cl)
+  {
+    prev = index - 1;
+    if (prev < 0)
+      prev += int(points.size());
+    next = index + 1;
+    if (next >= points.size())
+      next -= int(points.size());
+  } else
+  {
+    prev = index - 1;
+    if (prev < 0)
+      return false;
+    next = index + 1;
+    if (next >= int(points.size()))
+      return false;
+  }
+
+  return true;
+}
+
+/** Get three neighbours around point index. */
+template <class T> bool findThreePoints(const std::vector<TPoint<T>> &points, int index, 
+  TPoint<T> &p0, TPoint<T> &p1, TPoint<T> &p2, T tolerance)
+{
+  int prev = -1;
+  int next = -1;
+
+  if (findHeighbours(points,index,prev,next,tolerance))
+  {
+    p0 = points[prev];
+    p1 = points[index];
+    p2 = points[next];
+
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Get angle in degrees around point index. Returns -1.0 in case of failure. */
+template <class T> T calcThreeAngle(const std::vector<TPoint<T>> &points, int index, T tolerance)
+{
+  if (points.size() < 3)
+    return false;
+
+  TPoint<T> p0,p1,p2;
+
+  if (findThreePoints(points,index,p0,p1,p2,tolerance))
+  {
+    T angle = ((p1 - p0) < (p2 - p1)) * PCI;
+    return angle;
+  } else
+  {
+    return -1.0;
+  }
+}
+
+/** Find sharp corners. First, try to find ratio if angle at sharp corner to angles 
+  of its closest neighbour, typically 2.0-40.0-3.0 (max ~6.0) or so. 
+  If ratio is > 5.0, it is a sharp corner. Otherwise use just sharp angle. */
+template <class T> bool findSharpCorners(const std::vector<TPoint<T>> &points,
+  std::vector<int> &indices, T tolerance, T sharpangledeg = 45.0, T sharpangleratio = 0.0)
+{ 
+  indices.clear();
+
+  if (points.empty())
+    return false;
+
+  for (int i = 1; i < points.size() - 1; i++)
+  {
+    bool sharp = false;
+
+    T a0 = calcThreeAngle(points,i - 1,tolerance);
+    T a1 = calcThreeAngle(points,i,tolerance);
+    T a2 = calcThreeAngle(points,i + 1,tolerance);
+
+    T ratio = 0.0;
+
+    if ((sharpangleratio > 0.0) && (a0 >= 0.0) && (a1 >= 0.0) && (a2 >= 0.0))
+    {
+      T a02 = std::max<T>(a0,a2);
+      if (a02 < tolerance)
+      {
+        if (a1 < tolerance)
+        {
+          // both are zeroes
+        } else
+        {
+          // sharp edge between flat parts
+          if (a1 > sharpangledeg)
+          {
+            indices.push_back(i);
+            sharp = true;
+          }
+        }
+      } else 
+      {
+        if (a1 < tolerance)
+        {
+          // flat
+        } else
+        {
+          ratio = a1 / a02;
+          if (ratio > sharpangleratio)
+          {
+            indices.push_back(i);
+            sharp = true;
+          }
+        }
+      }
+    } else
+    {
+      if (a1 > sharpangledeg)
+      {
+        indices.push_back(i);
+        sharp = true;
+      }
+    }
+  }
+
+  return !indices.empty();
+}
+
+/** Remove duplicates; call after connectLinePieces(). */
+template <class T> int removeDuplicatesPrim(std::vector<TPoint<T>> &points, T tolerance, 
+  void *psharp)
+{
+  if (points.size() < 2)
+    return 0;
+
+  std::vector<TPoint<T>> *sharp = (std::vector<TPoint<T>> *) psharp;
+
+  int count = 0;
+  bool found = false;
+  do {
+    found = false;
+    for (int i = 1; i < int(points.size()); i++)
+    {
+      TPoint<T> p0 = points[i - 1];
+      TPoint<T> p1 = points[i];
+      T d = !(p1 - p0);
+      if (d < tolerance)
+      {
+        // check sharp corners
+        if (sharp)
+        {
+          T mindist0 = 0.0;
+          T mindist1 = 0.0;
+          int closest0 = findClosest(*sharp,p0,&mindist0);
+          int closest1 = findClosest(*sharp,p1,&mindist1);
+
+          if (closest1 < 0 || mindist1 > tolerance)
+          {
+            points.erase(points.begin() + i);
+            count++;
+            found = true;
+            break;
+          } else if (closest0 < 0 || mindist0 > tolerance)
+          {
+            points.erase(points.begin() + i - 1);
+            count++;
+            found = true;
+            break;
+          }
+        } else
+        {
+          points.erase(points.begin() + i);
+          count++;
+          found = true;
+          break;
+        }
+      }
+    }
+  } while (found && points.size() > 2);
+
+  return count;
+}
+
+/** Remove duplicates. */
+template <class T> int removeDuplicates(std::vector<TPoint<T>> &points, T tolerance, 
+  bool treatSharpCorners, T sharpangledeg = 45.0)
+{
+  if (points.size() < 2)
+    return 0;
+
+  if (treatSharpCorners)
+  {
+    // do not exclude sharp corners
+    std::vector<int> indices;
+    findSharpCorners(points,indices,tolerance,sharpangledeg,-1.0);
+
+    std::vector<TPoint<T>> corners;
+    // just in case
+    corners.push_back(points.front());
+    corners.push_back(points.back());
+    // ...then all sharp
+    for (int i = 0; i < int(indices.size()); i++)
+      corners.push_back(points[indices[i]]);
+
+    return removeDuplicatesPrim(points,tolerance,&corners);
+  } else
+  {
+    return removeDuplicatesPrim(points,tolerance,nullptr);
+  }
+}
+
+template <class T> bool segmentLenMinMax(std::vector<TPoint<T>> &line, T &min, T &max, 
+  int *imin = nullptr, int *imax = nullptr)
+{
+  if (line.size() < 2)
+    return false;
+
+  min = std::numeric_limits<T>::max();
+  max = 0.0;
+  int index0 = -1;
+  int index1 = -1;
+
+  for (int i = 0; i < int(line.size() - 1); i++)
+  {
+    TPoint<T> p0 = line[i];
+    TPoint<T> p1 = line[i + 1];
+    T len = !(p1 - p0);
+
+    if (len < min)
+    {
+      min = len;
+      index0 = i;
+    }
+    if (len > max)
+    {
+      max = len;
+      index1 = i;
+    }
+  }
+
+  if (imin)
+    *imin = index0;
+  if (imax)
+    *imax = index1;
+
+  return true;
+} 
+
+/** Find projection of point on points segments. */
+template <class T> bool projectPointOnPoints(std::vector<TPoint<T>> &points, TPoint<T> p, TPoint<T> &proj, 
+  int *seg = nullptr, T *Useg = nullptr, T parmtolerance = PARM_TOLERANCE)
+{
+  if (seg)
+    *seg = -1;
+  if (Useg)
+    *Useg = 0.0;
+  T minDist = std::numeric_limits<T>::max();
+
+  bool found = false;
+  for (int i = 0; i < points.size() - 1; i++)
+  {
+    T t = 0;
+    TPoint<T> intr;
+    if (projectPointOnSegment(p,points[i],points[i + 1],&intr,&t,parmtolerance))
+    {
+      T dist = !(intr - p);
+      if (dist < minDist)
+      {
+        minDist = dist;
+        if (seg)
+          *seg = i;
+        if (Useg)
+        {
+          *Useg = t;
+          LIMIT(*Useg,0.0,1.0);
+        }
+        proj = intr;
+        found = true;
+      }
+    }
+  }
+
+  return found;
+}
+
+/** Straight line?. It is assumed the line points are ordered and its first/last points are
+  line ends. */
+template <class T> bool straightLine(std::vector<TPoint<T>> &line, T toleranceCoef = 0.001)
+{
+  if (line.size() < 3)
+    return true;
+
+  T len = getLength(line);
+  T tolerance = len * toleranceCoef;
+
+  TPoint<T> V0 = line.front();
+  TPoint<T> V1 = line.back();
+
+  for (int i = 1; i < line.size() - 1; i++)
+  {
+    TPoint<T> intr;
+    T t;
+    TPoint<T> V = line[i];
+    if (projectPointOnSegment(V,V0,V1,&intr,&t,0.0))
+    {
+      T dist = !(V - intr);
+      if (dist > tolerance)
+        return false;
+    } else
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** Get mass centre for points. */
+template <class T> bool calculateCentre(std::vector<TPoint<T>> &points, TPoint<T> &centre)
+{
+  centre = TPoint<T>(0.0,0.0,0.0);
+
+  if (points.size() < 1)
+    return false;
+
+  for (auto c : points)
+  {
+    centre += c;
+  }
+
+  centre /= T(points.size());
+
+  return true;
+}
+
+/** Close points. */
+template <class T> bool closePoints(std::vector<TPoint<T>> &points, T tolerance)
+{
+  T dist = !(points.back() - points.front());
+  if (dist > tolerance)
+  {
+    points.push_back(points.front());
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Find all intersections by plane, returns list of parameters along point line.
+  //!!! The points MUST have a parameter value in W. */
+template <class T> int intersectByPlane(std::vector<TPoint<T>> &points, TPlane<T> &plane, 
+  std::vector<T> &Upoints, T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  Upoints.clear();
+
+  if (points.size() < 2)
+    return 0;
+
+  for (int i = 0; i < points.size() - 1; i++)
+  {
+    TPoint<T> p0 = points[i];
+    TPoint<T> p1 = points[i + 1];
+    TPoint<T> intr;
+    T U = 0.5;
+    bool ok = plane.segmentIntersect(p0,p1,&intr,&U,tolerance);
+    if (ok && U > 0.0 - parmtolerance && U < 1.0 + parmtolerance)
+    {
+      LIMIT(U,0.0,1.0);
+  
+      T Up = p0.W + (p1.W - p0.W) * U;
+      Upoints.push_back(Up);
+    }
+  }
+
+  return int(Upoints.size());
+}
+
+// comparator for equality
+template <class T> bool comparePoint(TPoint<T> p1, TPoint<T> p2)
+{
+  if (p1.X < p2.X)
+  {
+    return true;
+  } else if (p1.X > p2.X)
+  {
+    return false;
+  } else
+  {
+    if (p1.Y < p2.Y)
+    {
+      return true;
+    } else if (p1.Y > p2.Y)
+    {
+      return false;
+    } else
+    {
+      if (p1.Z < p2.Z)
+      {
+        return true;
+      } else if (p1.Z > p2.Z)
+      {
+        return false;
+      } else
+      {
+        return false;
+      }
+    }
+  }
+}
+
+/** Exclude duplicates between points. 
+
+  sortcoords = false for exclusion of node duplicates among close point neighbours (use it for
+    lines of points)
+
+  sortcoords = true for exclusion and renumbering all nodes like in triangles with duplicate 
+    nodes : nodes are sorted by XYZ, their order is not restored
+
+  replacement is an array to establish corresponence between old and new node numbers after 
+  node exclusions :
+  int newnode = replacement[oldnode];
+*/
+template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool sortcoords, 
+  T tolerance, std::vector<LINT> *replacement = nullptr)
+{
+                              // list is empty
+  if (points.size() < 2) 
+    return true;
+                              // just one vector
+  if (points.size() == 1)
+  {
+    if (replacement)
+      replacement->push_back(0);
+    return true;
+  }
+                              // put index number in W as original point indices
+  for (size_t i = 0; i < points.size(); i++)
+  {
+    points[i].W = static_cast<T>(i);
+  }
+                              // sort points by X,Y,Z
+  if (sortcoords)
+    std::sort(points.begin(),points.end(),comparePoint<T>);
+
+                              // replacement indices for node numbering
+  std::vector<LINT> rep;
+  rep.resize(points.size(),-1);
+
+  // now move down and remove duplicates which are neighbours to each other
+  for (int i = int(points.size()) - 1; i >= 0; i--)
+  {
+    // len is number of same points closed to each other
+    int len = 0;
+    for (int j = i; j >= 0; j--)
+    {
+      // len cannot be 0, it includes the leftmost node as well
+      T dist = !(points[i] - points[j]);
+      if (dist <= tolerance)
+      {
+        len++;
+      } else
+      {
+        break;
+      }
+    }
+
+    // this number is leftmost remaining, all the rest to the right (len - 1) 
+    // points are deleted
+    int i1 = i - len + 1;
+    int count = len;
+    for (int j = i; j >= 0; j--)
+    {
+      rep[ROUND(points[j].W)] = i1;
+      if (--count == 0)
+        break;
+    }
+
+    // delete len - 1 nodes to the right from i1;
+    // we are deleting points - correct replacement indices 
+    if (len > 1)
+    {
+      for (int j = len - 1; j >= 1; j--)
+      {
+        // removing node n
+        int n = i1 + j;
+        points.erase(points.begin() + n);
+
+        // correct replacements
+        for (auto &k : rep)
+        {
+          if (k >= n)
+            k--;
+        }
+      }
+    }
+
+    // skip len - 1 nodes
+    i -= (len - 1);
+  }
+
+  // all replacements must be filled up
+#ifdef _DEBUG
+  for (auto r : rep)
+  {
+    assert(r >= 0);
+  }
+#endif
+
+  if (replacement)
+    *replacement = rep;
+
+  return true;
+}
+
+}

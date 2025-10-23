@@ -1,0 +1,372 @@
+/**
+BSD 2-Clause License
+
+Copyright (c) 2025, Andrey Kudryavtsev (andrewkoudr@hotmail.com)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/*******************************************************************************
+
+  Templated CAD
+
+  tmisc.h
+
+  Miscellaneous functions
+
+*******************************************************************************/
+
+#pragma once
+
+#include "tbasics.h"
+#include "tsystems.h"
+#include "tpoint.h"
+
+namespace tcad {
+
+/** How to straighten three vectors. */
+typedef enum {By13,By12,By23,None} StraightenTypes;
+
+/** Parametric tolerance on length */
+template <class T> T parmTolerance(T len, T tolerance = 0.0)
+{
+  double parmtol = (len < TOLERANCE(T) || tolerance <= 0.0) ? PARM_TOLERANCE : (tolerance / len);
+  return parmtol;
+}
+
+/** Get sign. */
+template <class T> T sign(T value)
+{
+  return (value >= 0.0) ? +1 : -1; 
+}
+
+/** All busy? */
+bool allBusy(std::vector<bool> &ibusy);
+
+/** Find first not busy, return index, -1 in case of failure. */
+int findFirstNotBusy(std::vector<bool> &ibusy);
+
+/** Get next increasing element of an array. */
+template <class TI> TI Tnext(TI size, TI &index)
+{
+  if (++index >= TI(size))
+  {
+    index = 0;
+  }
+  return index;
+}
+
+/** Derivative of (x^n)' = n * x ^ (n - 1) */
+template <class T> T derivativeXn(T x, int power)
+{
+  return (power > 0) ? T(power) * pow(x,power - 1) : 0.0;
+}
+
+/** Intersection of segments in XY. */
+template <typename T> bool intersectSegmentsXY(T X1, T Y1, T X2, T Y2, T X3, T Y3, T X4, T Y4,
+  T *t1, T *t2, T *Xi, T *Yi)
+{
+  T a11, a12, a21, a22, b1, b2;
+  a11 = X2 - X1; a12 = X3 - X4;
+  a21 = Y2 - Y1; a22 = Y3 - Y4;
+  b1 = X3 - X1; b2 = Y3 - Y1;
+  *t1 = *t2 = 0;
+  if (solveSystem2x2(a11,a12,a21,a22,b1,b2,t1,t2))
+  {
+    *Xi = X1 + (X2 - X1) * (*t1); 
+    *Yi = Y1 + (Y2 - Y1) * (*t1);
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Find closest points between two straight-line segments in 3D. */
+template <class T> bool intersectSegments(TPoint<T> p0, TPoint<T> p1, TPoint<T> v0, TPoint<T> v1,
+  T &l, T &m, T &dist, TPoint<T> *ip = nullptr, TPoint<T> *iv = nullptr)
+{
+  l = m = dist = 0.0;
+
+  TPoint<T> a = p0;
+  TPoint<T> b = p1 - p0;
+  TPoint<T> c = v0;
+  TPoint<T> d = v1 - v0;
+
+  std::vector<T> A(4);
+  std::vector<T> B(2);
+
+  TPoint<T> ac = a - c;
+  A[0] = b * b;
+  A[1] = - (d * b);
+  A[2] = b * d;
+  A[3] = - (d * d);
+
+  B[0] = - (ac * b);
+  B[1] = - (ac * d);
+
+  bool ok = solveSystem2x2(A[0],A[1],A[2],A[3],B[0],B[1],&l,&m);
+
+  if (ok)
+  {
+    TPoint<T> p = p0 + b * l;
+    TPoint<T> v = v0 + d * m;
+
+    dist = !(p - v);
+
+    if (ip)
+      *ip = p;
+    if (iv)
+      *iv = v;
+  }
+
+  return ok;
+}
+
+/** Calculate porjection of a point on straight-line segment. */
+template <typename T> bool projectPointOnSegment(TPoint<T> p, TPoint<T> p0, TPoint<T> p1, 
+  TPoint<T> *intr, T *t, T parmtolerance = PARM_TOLERANCE)
+{
+  TPoint<T> v10 = p1 - p0;
+  T len = !v10;
+  TPoint<T> dir = v10 / len;
+
+  TPoint<T> v00 = p - p0;
+  *t = v00 * dir;
+  *intr = p0 + dir * (*t);
+  *t /= len;
+
+  if (*t >= 0.0 - parmtolerance && *t <= 1.0 + parmtolerance)
+  {
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Find interval in a MONOTONICALLY INCREASING table [0..1], returns -1 as failure. */
+template <class T> int findParametricInterval(const std::vector<T> &table, const T value, T *u = nullptr)
+{
+  if (table.size() < 2)
+    return -1;
+
+  for (int i = 0; i < int(table.size()) - 1; i++)
+  {
+    T tolerance = (i == int(table.size()) - 2) ? TOLERANCE(T) : 0.0;
+    if (table[i + 1] + tolerance >= value)
+    {
+      if (u)
+      {
+        T dt = table[i + 1] - table[i];
+        *u = (dt > TOLERANCE(T)) ? (value - table[i]) / dt : 0.0;
+        LIMIT(*u,0.0,1.0);
+      }
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+/** Find interval in a table. */
+template <class T> int findInterval(const std::vector<T> &table, const T value)
+{
+  // size, signed integer to avoid problems with size() - 2 (last interval)
+  int size = static_cast<int>(table.size());
+
+  // increasing?
+  bool increasing = ((table[size - 1] - table[0]) >= 0.0);
+
+  // table must be monotonic
+#ifdef _DEBUG
+  if (increasing)
+  {
+    for (int i = 0; i < size - 1; i++)
+    {
+      if (table[i + 1] < table[i])
+        assert(false && "Table not monotonic");
+    }
+  }
+  else
+  {
+    for (int i = 0; i < size - 1; i++)
+    {
+      if (table[i + 1] > table[i])
+        assert(false && "Table not monotonic");
+    }
+  }
+#endif
+
+  // lower and upper, originally out of scope
+  int lower = -1;
+  int upper = size - 1;
+
+  // min/max
+  T min = increasing ? table[0] : table[size - 1];
+  T max = increasing ? table[size - 1] : table[0];
+
+  // tolerance
+  T tolerance = TOLERANCE(T);
+
+  // obvious outcome
+  if (value < min - tolerance)
+    return -1;
+  if (value > max + tolerance)
+    return -1;
+
+  while ((upper - lower) > 1)
+  {
+    // middle point
+    int middle = (lower + upper) >> 1;
+    if ((value >= table[middle]) == increasing)
+    {
+      lower = middle;
+    }
+    else
+    {
+      upper = middle;
+    }
+  }
+
+  // we are going to return lower, correct it just in case
+  if (lower < 0) lower = 0;
+  if (lower > size - 2) lower = size - 2;
+
+  // done!
+  return lower;
+}
+
+
+/** Spline basis. */
+template <class T> void splineBasis(int order, T U, std::vector<T> &knots, std::vector<T> &basis)
+{
+  T d, e;
+  int i;
+
+  // just 0.0 and 1.0
+  T zero = static_cast<T>(0.0);
+  T unit = static_cast<T>(1.0);
+
+  // number of points
+  int numpoints = static_cast<int>(knots.size());
+
+  // clear
+  std::fill(basis.begin(),basis.end(),0.0);
+
+  // degree
+  int degree = order - 1;
+
+  // tolerance
+  T tolerance = TOLERANCE(T);
+
+  // if we calculate basis functions at all points
+  int point0 = 0;
+  int point1 = numpoints;
+
+  // B-spline basis has local support, so most of basis function values are zero
+  // find knots interval for U by bisection
+  int interval = findInterval<T>(knots,U);
+  assert(interval != -1 && "Unable to find parametric interval for parameter");
+
+  // take only points around i
+  point0 = interval - degree - 1;
+  point1 = interval + degree + 2;
+  if (point0 < 0) point0 = 0;
+  if (point1 > numpoints) point1 = numpoints;
+
+  // calculate first order basis functions
+  for (i = point0; i < (point1 - 1); i++)
+  {
+    T d = knots[i + 1] - knots[i];
+    if ((U >= knots[i]) && (U < knots[i + 1]) && d > tolerance)
+      basis[i] = unit;
+  }
+
+  if (std::abs(U - knots[numpoints - 1]) <= tolerance)
+  {
+    basis[numpoints - order - 1] = unit;
+  }
+
+  // calculate higher order basis functions
+  for (int k = 2; k <= order; k++)
+  {
+    for (i = point0; i < point1 - k; i++)
+    {
+      // if lower order basis function is zero bail out
+      T kd = knots[i + k - 1] - knots[i];
+
+      if (std::abs(kd) > tolerance) d = ((U - knots[i]) * basis[i]) / kd;
+      else d = zero;
+
+      kd = knots[i + k] - knots[i + 1];
+      if (std::abs(kd) > tolerance) e = ((knots[i + k] - U) * basis[i + 1]) / kd;
+      else e = zero;
+
+      basis[i] = d + e;
+    }
+  }
+
+#ifdef _DEBUG
+  T sum = 0.0;
+  T sumtolerance = 0.00000001;
+
+  for (int i = 0; i < numpoints; i++)
+  {
+    sum += basis[i];
+  }
+  if (fabs(sum - unit) > sumtolerance)
+  {
+    assert((fabs(sum - unit) <= sumtolerance) && "Error in spline basis");
+  }
+#endif
+
+}
+ 
+template <class T> void straightenThreePoints(TPoint<T> &p1, TPoint<T> &p2, TPoint<T> &p3,
+  StraightenTypes straightenType = By13)
+{
+  if (straightenType == None)
+    return;
+
+  TPoint<T> p13 = p3 - p1; T len13 = !p13;
+  TPoint<T> p12 = p2 - p1; T len12 = !p12;
+  TPoint<T> p23 = p3 - p2; T len23 = !p23;
+
+  T tolerance = TOLERANCE(T);
+
+  if ((len13 > tolerance) && (len12 > tolerance) && (len23 > tolerance))
+  {
+    switch (straightenType) {
+      case By13: { p13 = +p13; break; }
+      case By12: { p13 = +p12; break; }
+      case By23: { p13 = +p23; break; }
+      default : return;
+    }
+
+    p12 = p13; p12 = p12 * len12; p1 = p2 - p12;
+    p23 = p13; p23 = p23 * len23; p3 = p2 + p23;
+  }
+}
+
+}
