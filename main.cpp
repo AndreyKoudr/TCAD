@@ -45,7 +45,7 @@
 using namespace tcad;
 
 // save debugging files here, end this with slash "/"
-#define DEBUG_DIR std::string("")
+#define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/") //!!!!!!!
 
 // Let us choose double as our basic real type
 #define T double
