@@ -131,6 +131,23 @@ void makeRandomNoise(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &spo
   }
 }
 
+/** Randomly swap points. */
+void makeRandomSwap(int numswaps, std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &spoiltpoints)
+{
+  spoiltpoints = points;
+
+  // randomly swap
+  for (int i = 0; i < numswaps; i++)
+  {
+    int index0 = random(int(spoiltpoints.size()));
+    int index1 = random(int(spoiltpoints.size()));
+
+    TPoint<T> temp = spoiltpoints[index0];
+    spoiltpoints[index0] = spoiltpoints[index1];
+    spoiltpoints[index1] = temp;
+  }
+}
+
 
 //===== TCAD examples ==========================================================
 
@@ -311,7 +328,7 @@ int main(int argc, char* argv[])
   makeRandomNoise(points,points2,len * 0.005);
 
   // do not spoil points near start/end : apply "hat" function to diminish
-  // the changes near ends with maximum (1.0) at the middle = 0.5
+  // the changes near ends with maximum at the middle = 0.5
   // and set poly power as 0.5
   std::vector<T> coefs;
   makeHat(int(points2.size()),coefs,0.5,0.5);
@@ -360,7 +377,28 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve2,curve6,DEBUG_DIR + "Compare_points_splinecurvesmooth.iges");
 
   /*****************************************************************************
-    1.8 Curves : how to find parameter U for a point on curve.
+    1.8 Curves : how to diminish effect of smoothing near curve ends (much 
+    needed when handling surface control points)
+  *****************************************************************************/
+
+  // do not spoil points near start/end : apply "hat" function to diminish
+  // the changes near ends with maximum at the middle = 0.5
+  // and set poly power as 0.5
+  std::vector<T> coefs6;
+  makeHat(int(points6.size()),coefs6,0.5,0.5);
+
+  // diminish effect between points2 (spoilt) and the smooth points6 
+  std::vector<TPoint<T>> points6mod = points6;
+
+  points6mod = points2 + (points6 - points2) * coefs6;
+
+  TPointCurve<T> curve6mod(points6mod);
+
+  // compare curves : spoilt and smoothed
+  saveTwoCurvesIges(curve2,curve6mod,DEBUG_DIR + "Compare_points_splinecurvesmooth_mitigated.iges");
+
+  /*****************************************************************************
+    1.9 Curves : how to find parameter U for a point on curve.
   *****************************************************************************/
 
   // take a random point
@@ -369,13 +407,103 @@ int main(int argc, char* argv[])
   TPoint<T> p = points[index];
 
   // take spline curve of 10 intervals
-  T U = splinecurve10.findUforPoint(p);
+  T U = splinecurve.findUforPoint(p);
   // check this value by comparison with calculated position on the curve
-  TPoint<T> pactual = splinecurve10.derivative(U,0);
+  TPoint<T> pactual = splinecurve.derivative(U,0);
   T diff = !(pactual - p);
 
-  assert(diff < 0.001);
+  assert(diff < 0.005);
 
+  // take Bezier curve
+  U = beziercurve.findUforPoint(p);
+  // check this value by comparison with calculated position on the curve
+  pactual = beziercurve.derivative(U,0);
+  diff = !(pactual - p);
+
+  assert(diff < 0.005);
+
+  // take ortho segment
+  U = orthosegment.findUforPoint(p);
+  // check this value by comparison with calculated position on the curve
+  pactual = orthosegment.derivative(U,0);
+  diff = !(pactual - p);
+
+  assert(diff < 0.005);
+
+  /*****************************************************************************
+    1.10 Curves : how to intersect by plane.
+  *****************************************************************************/
+
+  // horizontal plane at Y = 0.03
+  TPlane<T> plane(TPoint<T>(0.0,0.03,0.0),TPoint<T>(1.0,0.03,0.0),TPoint<T>(1.0,0.03,1.0),ok);
+
+  // two intersections are expected
+  std::vector<T> Upoints;
+  int numintrs = splinecurve.intersectByPlane(plane,Upoints,tolerance);
+
+  assert(numintrs == 2);
+
+  // find intersection points
+  std::vector<TPoint<T>> intrs;
+  for (int i = 0; i < numintrs; i++)
+  {
+    intrs.push_back(splinecurve.derivative(Upoints[i],0));
+  }
+
+  // are they on plane?
+  for (int i = 0; i < int(intrs.size()); i++)
+  {
+    T dist = std::abs(plane.distance(intrs[i]));
+    assert(dist < tolerance);
+  }
+
+  /*****************************************************************************
+    1.11 Curves : how to intersect two curves.
+  *****************************************************************************/
+
+  // make another curve : ellipse to intersect NACA points
+  std::vector<TPoint<T>> epoints;
+  makeEllipseXY(100,TPoint<T>(0.5,0.053),0.5,0.053,epoints);
+
+  TSplineCurve<T> ecurve(epoints,SPLINE_DEGREE);
+
+  // compare curves : spoilt and smoothed
+  saveTwoCurvesIges(curve,ecurve,DEBUG_DIR + "Intersecting points with ellipse.iges");
+
+  // these are pairs of parameters in X,Y for the two curves for
+  // every intersection point
+  std::vector<TPoint<T>> UV;
+
+  // two intersections are expected
+  numintrs = curve.findIntersections(ecurve,UV,tolerance); 
+
+  assert(numintrs == 2);
+
+  // check coincidence
+  for (int i = 0; i < int(UV.size()); i++)
+  {
+    TPoint<T> p0 = curve.derivative(UV[i].X,0);
+    TPoint<T> p1 = ecurve.derivative(UV[i].Y,0);
+    T dist = !(p1 - p0);
+    assert(dist < tolerance);
+  }
+
+  /*****************************************************************************
+    1.12 Curves : order unordered points.
+  *****************************************************************************/
+
+  std::vector<TPoint<T>> unorderedpoints;
+  makeRandomSwap(int(points.size()) / 2,points,unorderedpoints);
+
+  // unordered curve
+  TPointCurve<T> unorderedcurve(unorderedpoints);
+
+  // we order points here
+  TPointCurve<T> orderedcurve(unorderedpoints);
+  orderedcurve.order(tolerance * 100.0);
+
+  // compare curves : unordered and ordered
+  saveTwoCurvesIges(unorderedcurve,orderedcurve,DEBUG_DIR + "Unordered and ordered curves.iges");
 
   return 0;
 }

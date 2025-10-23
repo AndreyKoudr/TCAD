@@ -475,7 +475,7 @@ template <typename T, size_t N, size_t M> void Matrix<T,N,M>::setTranslation(T x
 
   (*this)[0][3] = x;
   (*this)[1][3] = y;
-  (*this)[2][3] = x;
+  (*this)[2][3] = z;
 }
 
 template <typename T, size_t N, size_t M> void Matrix<T,N,M>::setScaling(T coefx, T coefy, T coefz)

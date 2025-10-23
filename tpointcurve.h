@@ -357,12 +357,15 @@ public:
   void order(T tolerance)
   {
     // order points
-    std::vector<std::vector<TPoint<T>>> pieces;
-    pieces.push_back(this->cpoints);
-    tcad::curveFromPieces(pieces,this->cpoints,tolerance,nullptr,true);
+    std::vector<TPoint<T>> pieces = this->cpoints;
+    this->cpoints.clear();
+
+    tcad::curveFromPieces(pieces,this->cpoints,tolerance,true);
 
     // fix 
     unclose();
+
+    this->update();
   }
 
   /** First derivative on parameter at node index. */

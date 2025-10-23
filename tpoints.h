@@ -42,6 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tpoint.h"
 #include "tmisc.h"
 #include "tplane.h"
+#include "ttransform.h"
 
 #include <vector>
 #include <algorithm>
@@ -489,7 +490,6 @@ template <class T> int findClosestNotBusy(std::vector<std::pair<TPoint<T>,TPoint
   {
     if (min > maxedge)
     {
-      //busy[index] = true;
       index = -index;
     } else
     {
@@ -500,7 +500,6 @@ template <class T> int findClosestNotBusy(std::vector<std::pair<TPoint<T>,TPoint
 
         if (count)
         {
-          //busy[index] = true;
           index = -index;
         }
       }
@@ -526,9 +525,23 @@ template <class T> bool makeUpCurve(std::vector<std::pair<TPoint<T>,TPoint<T>>> 
 
   std::vector<bool> busy(edges.size(),false);
 
-  line.push_back(edges[0].first);
-  line.push_back(edges[0].second);
-  busy[0] = true;
+  // we need to start at an edge close to the middle as in case of
+  // degenerated edges (separate points) we cannot calculate maxedge,
+  // it is set as a large fraction of the whole size
+  TPoint<T> middle;
+  for (int i = 0; i < int(edges.size()); i++)
+  {
+    TPoint<T> m = (edges[i].first + edges[i].second) * 0.5;
+    middle += m;
+  }
+  middle /= T(edges.size());
+
+  bool reversed = false;
+  int startedge = findClosestNotBusy(edges,alledges,middle,busy,reversed,maxedge,tolerance);
+
+  line.push_back(edges[startedge].first);
+  line.push_back(edges[startedge].second);
+  busy[startedge] = true;
 
   while (!allBusy(busy))
   {
@@ -580,42 +593,40 @@ template <class T> bool makeUpCurve(std::vector<std::pair<TPoint<T>,TPoint<T>>> 
 }
 
 /** Make up curve from pieces in contours. */
-template <class T> bool curveFromPieces(std::vector<std::vector<TPoint<T>>> &pieces,
+template <class T> bool curveFromPieces(std::vector<TPoint<T>> &pieces,
   std::vector<TPoint<T>> &line, T tolerance, bool degenerateedges = false)
 {
   // make edges
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
 
   T maxedge = 0.0;
-  for (int i = 0; i < pieces.size(); i++)
+  if (degenerateedges)
   {
-    if (degenerateedges)
+    // make degenerated edges
+    for (int j = 0; j < int(pieces.size()); j++)
     {
-      // get max edge size
-      for (int j = 0; j < pieces[i].size() - 1; j++)
-      {
-        TPoint<T> p0 = pieces[i][j];
-        TPoint<T> p1 = pieces[i][j + 1];
-        T dist = !(p1 - p0);
-        maxedge = std::max<T>(maxedge,dist);
-      }
-      // make degenerated edges
-      for (int j = 0; j < pieces[i].size(); j++)
-      {
-        TPoint<T> p0 = pieces[i][j];
-        edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p0));
-      }
-    } else
-    {
-      for (int j = 0; j < pieces[i].size() - 1; j++)
-      {
-        TPoint<T> p0 = pieces[i][j];
-        TPoint<T> p1 = pieces[i][j + 1];
-        T dist = !(p1 - p0);
-        maxedge = std::max<T>(maxedge,dist);
+      TPoint<T> p0 = pieces[j];
+      edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p0));
+    }
 
-        edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p1));
-      }
+    // we cannot get a reliable egde length here, so set it as a large 
+    // part of the whole length and start making line from a node
+    // close to the middle
+    TPoint<T> min,max;
+    if (calculateMinMax(pieces,&min,&max))
+    {
+      maxedge = !(max - min) * 0.1; //!!!
+    }
+  } else
+  {
+    for (int j = 0; j < int(pieces.size()) - 1; j++)
+    {
+      TPoint<T> p0 = pieces[j];
+      TPoint<T> p1 = pieces[j + 1];
+      T dist = !(p1 - p0);
+      maxedge = std::max<T>(maxedge,dist);
+
+      edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p1));
     }
   }
 
@@ -624,10 +635,10 @@ template <class T> bool curveFromPieces(std::vector<std::vector<TPoint<T>>> &pie
 
   if (degenerateedges)
   {
-    ok = connectClosedCurve(edges,alledges,maxedge + tolerance,line,tolerance,true); 
+    ok = makeUpCurve(edges,alledges,maxedge + tolerance,line,tolerance,true); 
   } else
   {
-    ok = connectClosedCurve(edges,alledges,tolerance,line,tolerance,true); 
+    ok = makeUpCurve(edges,alledges,tolerance,line,tolerance,true); 
   }
 
   return ok;
@@ -1161,6 +1172,45 @@ template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool so
     *replacement = rep;
 
   return true;
+}
+
+/** Make transform. */
+template <class T> void makeTransform(std::vector<TPoint<T>> &points, TTransform<T> *transform)
+{
+  for (auto &p : points)
+  {
+    p = transform->applyTransform(p);
+  }
+}
+
+/** Make circle in XY plane. */
+template <class T> void makeCircleXY(int numpoints, TPoint<T> centre, T R, std::vector<TPoint<T>> &points,
+  T adegfrom = 0.0, T adegto = 360.0)
+{
+  int numsegments = numpoints - 1;
+  T da = (adegfrom - adegto) / T(numsegments);
+
+  for (int i = 0; i <= numsegments; i++)
+  {
+    T a = T(i) * da;
+    TPoint<T> p(R * cos(a * CPI),R * sin(a * CPI));
+    points.push_back(centre + p);
+  }
+}
+
+/** Make ellipse in XY plane. */
+template <class T> void makeEllipseXY(int numpoints, TPoint<T> centre, T a, T b, std::vector<TPoint<T>> &points,
+  T adegfrom = 0.0, T adegto = 360.0)
+{
+  makeCircleXY(numpoints,TPoint<T>(0,0,0),a,points,adegfrom,adegto);
+
+  TTransform<T> t0;
+  t0.Resize(TPoint<T>(1.0,b / a,1.0));
+  makeTransform(points,&t0);
+
+  TTransform<T> t1;
+  t1.Translate(centre);
+  makeTransform(points,&t1);
 }
 
 }
