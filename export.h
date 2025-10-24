@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tpoint.h"
 #include "tpoints.h"
 #include "tsplinecurve.h"
+#include "ttriangles.h"
 #include "strings.h"
 
 #include <vector>
@@ -266,6 +267,24 @@ template <class T> bool saveThreeCurvesIges(tcad::TBaseCurve<T> &curve0, tcad::T
 
   return saveLinesIges(points,filename);
 }
+
+//===== STL ====================================================================
+
+template <class T> bool saveTrianglesStl(tcad::TTriangles<T> &triangles, const std::string &filename, 
+  const std::string &partname = "TCAD", const bool binary = true)
+{
+  return triangles.saveSTL(filename,partname,binary);
+}
+
+//===== OBJ ====================================================================
+
+template <class T> bool saveTrianglesObj(tcad::TTriangles<T> &triangles, const std::string &filename, 
+  const std::string &partname = "TCAD")
+{
+  return triangles.saveOBJ(filename,partname);
+}
+
+
 
 //===== Step-specific ==========================================================
 

@@ -67,5 +67,24 @@ main.cpp, see examples on how to use curves, like create, smooth, intersect, ord
 - 1.14 Curves : order unordered points.
 
 
+Surfaces
+========
+
+<B>Example code how to use</B><br />
+
+- 2.1 Surfaces : triangles : save in STL
+- 2.2 Surfaces : triangles : manifold? solid?
+- 2.3 Surfaces : triangles : cut by plane
+
+
+
+Doing...
+========
+
+
+
+
+
+
 
 

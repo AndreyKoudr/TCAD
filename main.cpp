@@ -535,7 +535,7 @@ int main(int argc, char* argv[])
   TTriangles<T> NACAtris;
   NACAtris.makeNACA0012(50,10,4.0);
 
-  NACAtris.saveSTL(DEBUG_DIR + "NACA.stl","NACA",true);
+  saveTrianglesStl(NACAtris,DEBUG_DIR + "NACA.stl");
 
   /*****************************************************************************
     2.2 Surfaces : triangles : manifold? solid?
