@@ -325,7 +325,7 @@ bool containsOnlyChars(const std::string &s, char from, char to)
   return true;
 }
 
-void DebugOutput(const std::string &str)
+void outputDebugString(const std::string &str)
 {
   OutputDebugStringA((str + std::string("\n")).c_str());
 }

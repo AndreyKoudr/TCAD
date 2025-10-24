@@ -369,4 +369,68 @@ template <class T> void straightenThreePoints(TPoint<T> &p1, TPoint<T> &p2, TPoi
   }
 }
 
+/* Test piercing triangle by vector point0->point1; if pierced, returns U - 
+  parameter to mark point between point0 and point1 */
+template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
+  const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, const T tolerance)
+{
+                                      // get vector point0->point1 
+  TPoint<T> v01 = point1 - point0;
+                                      // get facet plane 
+  TPoint<T> N; T D;
+  if (!makePlaneOf3Vectors(coords[0],coords[1],coords[2],N,D,tolerance))
+    return false;
+                                      // N * (p1 - p0) 
+  T r = N * v01;
+  U = std::abs(r);
+                                      // view direction parallel to facet plane 
+  if (U < tolerance)  
+    return false;
+                                      // get intersection between point0  &point1 
+  U = (-D - point0 * N) / r;
+                                      // test if intersection inside facet contour 
+  TPoint<T> c = v01 * U; 
+  intersection = point0 + c;
+                                      // scan each facet side 
+  TPoint<T> olddir;
+  for (int i = 0; i < 3; i++)
+  {
+    int i1 = (i < 2) ? (i + 1) : 0;
+
+    TPoint<T> v = intersection - coords[i];
+    TPoint<T> dv = coords[i1] - coords[i];
+    TPoint<T> dir = dv ^ v;
+
+    if (i > 0) 
+    {
+      if ((dir * olddir) < T(0.0)) 
+        return false;
+    }
+
+    olddir = dir;
+  }
+
+  return true;
+}
+
+/** Linear rectangle, U,V [-1..+1] */
+template <class T> void rectShapeFunc(T U, T V, T func[4])
+{
+  func[0] = (1.0 - U) * (1.0 - V) * 0.25;
+  func[1] = (1.0 + U) * (1.0 - V) * 0.25;
+  func[2] = (1.0 + U) * (1.0 + V) * 0.25;
+  func[3] = (1.0 - U) * (1.0 + V) * 0.25;
+}
+
+/** Linear rectangle, U,V [-1..+1] */
+template <class T> TPoint<T> rectCoord(TPoint<T> corners[4], T U, T V)
+{
+  T func[4];
+  rectShapeFunc<T>(U,V,func);
+
+  TPoint<T> sum = corners[0] * func[0] + corners[1] * func[1] + corners[2] * func[2] + corners[3] * func[3];
+  
+  return sum;
+}
+
 }

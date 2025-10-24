@@ -21,6 +21,9 @@
     <Filter Include="OPERATIONS">
       <UniqueIdentifier>{d4c73a7b-29e7-4d7f-a68d-f8dbf168d384}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SURFACES">
+      <UniqueIdentifier>{f6ac58e8-e8c9-48a6-bb5a-a14dd8076a31}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -34,6 +37,9 @@
     </ClCompile>
     <ClCompile Include="tmisc.cpp">
       <Filter>INFRASTRUCTURE</Filter>
+    </ClCompile>
+    <ClCompile Include="ttriangles.cpp">
+      <Filter>SURFACES</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -102,6 +108,9 @@
     </ClInclude>
     <ClInclude Include="toperations.h">
       <Filter>OPERATIONS</Filter>
+    </ClInclude>
+    <ClInclude Include="ttriangles.h">
+      <Filter>SURFACES</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

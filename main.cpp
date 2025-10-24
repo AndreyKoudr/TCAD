@@ -38,6 +38,9 @@
 // you can only use high-level operations
 #include "toperations.h"
 
+//!!!!!!!
+#include "ttriangles.h"
+
 // this stuff is for export and debugging
 #include "strings.h"
 #include "export.h"
@@ -156,7 +159,7 @@ int main(int argc, char* argv[])
 
   /*****************************************************************************
 
-    Part 1 : Curves. What can we do with them?
+    Part 1 : CURVES. What can we do with them?
 
   *****************************************************************************/
 
@@ -518,6 +521,46 @@ int main(int argc, char* argv[])
 
   // compare curves : unordered and ordered
   saveTwoCurvesIges(unorderedcurve,orderedcurve,DEBUG_DIR + "Unordered and ordered curves.iges");
+
+  /*****************************************************************************
+
+    Part 2 : SURFACES
+
+  *****************************************************************************/
+
+  /*****************************************************************************
+    2.1 Surfaces : triangles : save in STL
+  *****************************************************************************/
+
+  TTriangles<T> NACAtris;
+  NACAtris.makeNACA0012(50,10,4.0);
+
+  NACAtris.saveSTL(DEBUG_DIR + "NACA.stl","NACA",true);
+
+  /*****************************************************************************
+    2.2 Surfaces : triangles : manifold? solid?
+  *****************************************************************************/
+
+  // is manifold?
+  std::vector<std::pair<LINT,LINT>> badedges;
+  bool manifold = NACAtris.manifold(tolerance,badedges);
+  assert(manifold);
+
+  // is solid?
+  bool solid = NACAtris.solid(tolerance,badedges);
+  assert(solid);
+
+  /*****************************************************************************
+    2.3 Surfaces : triangles : cut by plane
+  *****************************************************************************/
+
+  TPlane<T> cutplane(TPoint<T>(0.0,0.0,0.5),TPoint<T>(1.0,0.0,0.5),TPoint<T>(1.0,1.0,0.5),ok);
+  std::vector<TPoint<T>> NACAcutpoints;
+  NACAtris.cutByPlane(cutplane,NACAcutpoints,tolerance);
+
+  TBezierCurve<T> NACAcutcurve(NACAcutpoints,50,END_CLAMPED,END_CLAMPED);
+
+  saveCurveIges(NACAcutcurve,DEBUG_DIR + "NACA cut curve.iges");
 
   return 0;
 }
