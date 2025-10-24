@@ -9,13 +9,16 @@
 The plan :
 - point (done)
 - curves (done)
-- surfaces (doing)
+- surfaces (<B>doing... a week-two</B>)
+
+<B>to do</B>
 - volumes
 - blocks
 - FFD
 - intersections, maybe implicit
 - booleans, maybe implicit
-- 3D mesh generation
+- 3D mesh
+- level sets
 - finite elements
 - GUI?
 
@@ -43,7 +46,7 @@ Some operations are some n-squared (yet).
 
 <B>Example code how to use</B><br />
 
-main.cpp, see examples 1.1 .. 1.12 : how to use curves, like create, smooth, intersect, order points etc.<br />
+main.cpp, see examples on how to use curves, like create, smooth, intersect, order points etc.<br />
 <B>Important : set DEBUG_DIR for place to output of debug CAD files.</B>
 
 - 1.1 Curves : how to exclude neighbour duplicate nodes
