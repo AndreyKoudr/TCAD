@@ -48,7 +48,7 @@ namespace tcad {
 
 // type of curve ends when we appriximate/interpolate a set of points representing a curve
 enum CurveEndType {
-  END_UNCORRECTED,    // curve end left as it is after approximation (for all base segment/curve types)
+  END_FREE,           // curve end left as it is after approximation (for all base segment/curve types)
 
   END_FIXED,          // end coordinate is coincident with the original point, working with
                       //  TBezierSegment
@@ -234,6 +234,20 @@ public:
     other.createPoints(otherpoints,numpoints);
 
     return tcad::findIntersections(points,otherpoints,UV,tolerance,parmtolerance);
+  }
+
+  /** Cut out a piece of curve from U0 to U1 into list of points. */
+  template <class T> void cutPiece(int numpoints, T Ufrom, T Uto, std::vector<TPoint<T>> &points)
+  {
+    points.clear();
+    T DU = (Uto - Ufrom) / T(numpoints - 1);
+
+    for (int i = 0; i < numpoints; i++)
+    {
+      T U = Ufrom + T(i) * DU;
+      TPoint<T> p = derivative(U,0);
+      points.push_back(p);
+    }
   }
 
 protected:

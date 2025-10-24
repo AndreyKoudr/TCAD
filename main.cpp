@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve,curve1,DEBUG_DIR + "Compare_removed_duplicates.iges");
 
   /*****************************************************************************
-    1.1 Curves : compare points and low-power LSQ segment, do not expect
+    1.2 Curves : compare original points and low-power LSQ segment, do not expect
       a good correspondence - the lsq is a simple poly of power 3
   *****************************************************************************/
 
@@ -277,7 +277,7 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve,lsqsegment,DEBUG_DIR + "Compare_points_and_lsq_segment.iges");
 
   /*****************************************************************************
-    1.2 Curves : compare points and Bezier segment, do not expect
+    1.3 Curves : compare points and Bezier segment, do not expect
       a good correspondence - Bezier segment is qubic
   *****************************************************************************/
 
@@ -286,16 +286,16 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve,beziersegment,DEBUG_DIR + "Compare_points_and_bezier_segment.iges");
 
   /*****************************************************************************
-    1.3 Curves : compare points and segment of orthogonal polynomials of
-      degree 4. "beta" 0.5 is set to handle the round LE.
+    1.4 Curves : compare points and segment of orthogonal polynomials of
+      degree 4. Starting END_ROUNDED end is set to handle the round LE.
   *****************************************************************************/
 
-  TOrthoSegment<T> orthosegment(points,END_ROUNDED,END_UNCORRECTED,8,GAUSSINT_20);
+  TOrthoSegment<T> orthosegment(points,END_ROUNDED,END_FREE,8,GAUSSINT_20);
   // save to compare two curves
   saveTwoCurvesIges(curve,orthosegment,DEBUG_DIR + "Compare_points_and_orthopoly_segment.iges");
 
   /*****************************************************************************
-    1.4 Curves : compare points and Bezier curve.
+    1.5 Curves : compare points and Bezier curve (collection of Bezier segments).
   *****************************************************************************/
 
   TBezierCurve<T> beziercurve(points,10,END_FIXED,END_FIXED);
@@ -303,24 +303,24 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve,beziercurve,DEBUG_DIR + "Compare_points_and_bezier_curve.iges");
 
   /*****************************************************************************
-    1.5 Curves : compare points and b-spline.
+    1.6 Curves : compare points and approximated b-spline.
   *****************************************************************************/
 
-  TSplineCurve<T> splinecurve(points,int(points.size() - 1),3,END_CLAMPED,END_CLAMPED); 
+  TSplineCurve<T> splinecurve(points,int(points.size() - 1),SPLINE_DEGREE,END_CLAMPED,END_CLAMPED); 
   // save to compare two curves
   saveTwoCurvesIges(curve,splinecurve,DEBUG_DIR + "Compare_points_and_spline_curve.iges");
 
   /*****************************************************************************
-    1.6 Curves : compare points and b-spline of degree 2. You can also select 
-    less b-spline control points (10 here).
+    1.7 Curves : compare points and approximated b-spline with less number 
+    of control points (10 here).
   *****************************************************************************/
 
-  TSplineCurve<T> splinecurve10(points,10,3,END_CLAMPED,END_CLAMPED); 
+  TSplineCurve<T> splinecurve10(points,10,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED); 
   // save to compare two curves
   saveTwoCurvesIges(curve,splinecurve10,DEBUG_DIR + "Compare_points_and_spline_curve_K10.iges");
 
   /*****************************************************************************
-    1.7 Curves : how to smooth a curve (curve2 below).
+    1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants.
   *****************************************************************************/
 
   // make random noise, points2 is a spoilt set
@@ -338,7 +338,7 @@ int main(int argc, char* argv[])
   //===== smooth by orthogonal polynomials =====================================
   // these will be smoothed points
   std::vector<TPoint<T>> points3 = points2;
-  smoothPointsByOrtho(points3,END_ROUNDED,END_UNCORRECTED);
+  smoothPointsByOrtho(points3,END_ROUNDED,END_FREE);
 
   TPointCurve<T> curve2(points2);
   TPointCurve<T> curve3(points3);
@@ -377,7 +377,7 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve2,curve6,DEBUG_DIR + "Compare_points_splinecurvesmooth.iges");
 
   /*****************************************************************************
-    1.8 Curves : how to diminish effect of smoothing near curve ends (much 
+    1.9 Curves : how to diminish effect of smoothing near curve ends (much 
     needed when handling surface control points)
   *****************************************************************************/
 
@@ -398,7 +398,7 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve2,curve6mod,DEBUG_DIR + "Compare_points_splinecurvesmooth_mitigated.iges");
 
   /*****************************************************************************
-    1.9 Curves : how to find parameter U for a point on curve.
+    1.10 Curves : how to find parameter U for a point on curve.
   *****************************************************************************/
 
   // take a random point
@@ -431,7 +431,7 @@ int main(int argc, char* argv[])
   assert(diff < 0.005);
 
   /*****************************************************************************
-    1.10 Curves : how to intersect by plane.
+    1.11 Curves : how to intersect by plane.
   *****************************************************************************/
 
   // horizontal plane at Y = 0.03
@@ -458,7 +458,7 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    1.11 Curves : how to intersect two curves.
+    1.12 Curves : how to intersect two curves.
   *****************************************************************************/
 
   // make another curve : ellipse to intersect NACA points
@@ -489,7 +489,21 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    1.12 Curves : order unordered points.
+    1.13 Curves : cut a piece of curve from the previous example
+  *****************************************************************************/
+
+  // curve was cut from UV[0].X to UV[1].X
+  std::vector<TPoint<T>> cutpoints;
+  curve.cutPiece(51,UV[0].X,UV[1].X,cutpoints);
+
+  // we order points here
+  TSplineCurve<T> cutcurve(cutpoints,40,SPLINE_DEGREE);
+
+  // compare curves : unordered and ordered
+  saveCurveIges(cutcurve,DEBUG_DIR + "Piece of curve.iges");
+
+  /*****************************************************************************
+    1.14 Curves : order unordered points.
   *****************************************************************************/
 
   std::vector<TPoint<T>> unorderedpoints;
@@ -500,7 +514,7 @@ int main(int argc, char* argv[])
 
   // we order points here
   TPointCurve<T> orderedcurve(unorderedpoints);
-  orderedcurve.order(tolerance * 100.0);
+  orderedcurve.order(tolerance);
 
   // compare curves : unordered and ordered
   saveTwoCurvesIges(unorderedcurve,orderedcurve,DEBUG_DIR + "Unordered and ordered curves.iges");

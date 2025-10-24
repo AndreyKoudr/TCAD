@@ -1,9 +1,10 @@
 # TCAD - templated 3D CAD
 
 - (1) As simple as both STLs, the Standard Template Library or STereoLithography
-- (2) All at your fingertips, no objs, libs, millions of dlls
-- (3) Easy debugging
-- (4) Free to change
+- (2) All in front of you, no objs, libs, millions of dlls
+- (3) Simple, mostly one-line code
+- (4) Easy debugging, heavily commented
+- (5) Free to change
 
 The plan :
 - point (done)
@@ -16,6 +17,7 @@ The plan :
 - booleans, maybe implicit
 - 3D mesh generation
 - finite elements
+- GUI?
 
 Point
 =====
@@ -24,7 +26,8 @@ Point
 Curves
 ======
 
-Curves of various kinds, parametric, dependent of one parameter U.
+Curves of various kinds, parametric, dependent of one parameter U. Most operations are linearised. 
+Some operations are some n-squared (yet).
 
 <B>Files</B><br />
 
@@ -42,6 +45,24 @@ Curves of various kinds, parametric, dependent of one parameter U.
 
 main.cpp, see examples 1.1 .. 1.12 : how to use curves, like create, smooth, intersect, order points etc.<br />
 <B>Important : set DEBUG_DIR for place to output of debug CAD files.</B>
+
+- 1.1 Curves : how to exclude neighbour duplicate nodes
+- 1.2 Curves : compare original points and low-power LSQ segment, do not expecta good correspondence - 
+  the lsq is a simple poly of power 3
+- 1.3 Curves : compare points and Bezier segment, do not expect a good correspondence - Bezier segment is qubic
+- 1.4 Curves : compare points and segment of orthogonal polynomials of degree 4. Starting END_ROUNDED 
+  end is set to handle the round LE.
+- 1.5 Curves : compare points and Bezier curve (collection of Bezier segments).
+- 1.6 Curves : compare points and approximated b-spline.
+- 1.7 Curves : compare points and approximated b-spline with less number of control points (10 here).
+- 1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants.
+- 1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)
+- 1.10 Curves : how to find parameter U for a point on curve.
+- 1.11 Curves : how to intersect by plane.
+- 1.12 Curves : how to intersect two curves.
+- 1.13 Curves : cut a piece of curve from the previous example
+- 1.14 Curves : order unordered points.
+
 
 
 
