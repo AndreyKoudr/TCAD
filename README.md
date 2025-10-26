@@ -58,7 +58,7 @@ main.cpp, see examples on how to use curves, like create, smooth, intersect, ord
 - 1.5 Curves : compare points and Bezier curve (collection of Bezier segments).
 - 1.6 Curves : compare points and approximated b-spline.
 - 1.7 Curves : compare points and approximated b-spline with less number of control points (10 here).
-- 1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants.
+- 1.8 Curves : how to smooth a curve (curve2 below) with various approximants.
 - 1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)
 - 1.10 Curves : how to find parameter U for a point on curve.
 - 1.11 Curves : how to intersect by plane.
@@ -75,11 +75,13 @@ Surfaces
 - 2.1 Surfaces : triangles : save in STL
 - 2.2 Surfaces : triangles : manifold? solid?
 - 2.3 Surfaces : triangles : cut by plane
+- 2.4 Surfaces : triangles : how to find a sharpest point in intersection curve
+- 2.5 Surfaces : triangles : how to get triangulation boundary
+- 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane
 
 
-
-Doing...
-========
+Traingles are ready, doing Coons, Bezier and spline surfaces ...
+================================================================
 
 
 

@@ -66,6 +66,9 @@ bool allBusy(std::vector<bool> &ibusy);
 /** Find first not busy, return index, -1 in case of failure. */
 int findFirstNotBusy(std::vector<bool> &ibusy);
 
+/** Divide point indices (into sharp corners). size is the number of points. */
+void divideByIndices(std::vector<int> &indices, int size, std::vector<std::pair<int,int>> &division);
+
 /** Get next increasing element of an array. */
 template <class TI> TI Tnext(TI size, TI &index)
 {

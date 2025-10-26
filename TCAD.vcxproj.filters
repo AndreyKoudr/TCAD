@@ -112,5 +112,8 @@
     <ClInclude Include="ttriangles.h">
       <Filter>SURFACES</Filter>
     </ClInclude>
+    <ClInclude Include="import.h">
+      <Filter>AUXILIARY</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

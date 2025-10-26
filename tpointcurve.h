@@ -210,23 +210,58 @@ public:
     this->update();
   }
 
-  /** Shift this->cpoints to end (positive shift) or to start (negative shift). */
-  void shift(int shift)
-  { 
-    for (int i = 0; i < std::abs(shift); i++)
-    {
-      if (shift > 0)
-      {
-        this->cpoints.push_back(this->cpoints.front());
-        this->cpoints.erase(this->cpoints.begin());
-      } else
-      {
-        this->cpoints.insert(this->cpoints.begin(),this->cpoints.back());
-        this->cpoints.erase(this->cpoints.end() - 1);
-      }
-    }
+  /** Is closed? */
+  bool closed(T tolerance = TOLERANCE(T))
+  {
+    T dist = !(this->cpoints.back() - this->cpoints.front());
+    return (dist < tolerance);
+  }
 
-    this->update();
+  /** Close curve if not closed. */
+  bool close(T tolerance = TOLERANCE(T))
+  {
+    if (!closed(tolerance))
+    {
+      this->cpoints.push_back(this->cpoints.front());
+      return true;
+    } else
+    {
+      return false;
+    }
+  }
+
+  /** Shift this->cpoints to end (positive shift) or to start (negative shift). 
+    It amkes sense for closed curves. */
+  bool shiftClosed(int shift, T tolerance = TOLERANCE(T))
+  { 
+    if (closed(tolerance))
+    {
+      for (int i = 0; i < std::abs(shift); i++)
+      {
+        if (shift > 0)
+        {
+          this->cpoints.push_back(this->cpoints.front());
+          this->cpoints.erase(this->cpoints.begin());
+        } else
+        {
+          this->cpoints.insert(this->cpoints.begin(),this->cpoints.back());
+          this->cpoints.erase(this->cpoints.end() - 1);
+        }
+      }
+
+      // remove duplicates
+      removeDuplicates(this->cpoints,false,tolerance);
+
+      // close
+      close(tolerance);
+
+      this->update();
+
+      return true;
+    } else
+    {
+      return false;
+    }
   }
 
   /** Get max distance from other by projecting this this->cpoints on other (the other must be not shorter). 
@@ -334,36 +369,17 @@ public:
     return (ok && (singlepointok || projections.size() > 1)) ? maxdiff : -1.0;
   }
 
-  /** Unclose line : a fix after order(). */
-  void unclose()
-  {
-    // find longest segment imax
-    T min,dist1;
-    int imin,imax;
-    if (tcad::segmentLenMinMax(this->cpoints,min,dist1,&imin,&imax))
-    {
-      // distance between start and end
-      T dist0 = !(this->cpoints.front() - this->cpoints.back());
-
-      if (dist1 > dist0)
-      {
-        shift(imax + 1);
-      }
-    }
-  }
-
   /** Order unordered points by finding closest edges to current line ends. 
-    These edges are degenerated. */
+    These edges are degenerated. It is supposed there is only ONE curve
+    represented by pieces, not many. */
   void order(T tolerance)
   {
     // order points
-    std::vector<TPoint<T>> pieces = this->cpoints;
+    std::vector<std::vector<TPoint<T>>> pieces;
+    pieces.push_back(this->cpoints);
     this->cpoints.clear();
 
     tcad::curveFromPieces(pieces,this->cpoints,tolerance,true);
-
-    // fix 
-    unclose();
 
     this->update();
   }
@@ -428,6 +444,33 @@ public:
     }
   }
 
+  /** Find point with maximum curvature (angle) between neightbour points. */
+  int findPointOfMaxCurvature(int start = -1, int end = -1)
+  {
+    if (start < 0)
+      start = 0;
+    if (end < 0)
+      end = int(this->cpoints.size()) - 1;
+
+    T maxangle = 0.0;
+    int index = -1;
+    for (int i = start; i <= end; i++)
+    {
+      TPoint<T> p0,p1,p2;
+      if (findThreePoints(this->cpoints,i,p0,p1,p2,TOLERANCE(T)))
+      {
+        T angle = ((p1 - p0) < (p2 - p1)) * PCI;
+
+        if (angle > maxangle)
+        {
+          maxangle = angle;
+          index = i;
+        }
+      }
+    }
+
+    return index;
+  }
 
 public:
 

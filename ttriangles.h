@@ -45,7 +45,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <algorithm>
 #include <fstream>
-//!!!!!!! #include <iostream>
 
 // output all debug info
 #define DEBUG_TRIS
@@ -67,6 +66,12 @@ three coordinates for an i-th triangle can be extracted as
   coord0 = coords[corners[i * 3]];
   coord1 = coords[corners[i * 3 + 1]];
   coord2 = coords[corners[i * 3 + 2]];
+
+  There is a massive infrastructure to handle face topology like getCornerTris() (find all triangles around
+corner), getEdgeTris() (find all triangles around an edge) etc. There are two functions to define
+if a triangulation is manifold() or solid(). buildConnectivityArray() excludes node duplicates and renumbers
+corners accordingly. Tolerance there is very important. cutByPlane() cuts triangles and reconstructs
+the intersection line. getBoundary() makes a boundary as an ordered closed set of points.
   
   Triangles can be loaded and saved from/into STL files. No checks about node numeration :
 it is supposed that face normal is defined by counter-clockwise numeration of nodes when
@@ -333,14 +338,8 @@ public:
   /** Get signed distance to face plane. */
   T signedDist(LINT faceNo, const TPoint<T> &point) const;
 
-  /** Order intersected edges into intersection line. iedges and intrs define
-    the intersection. The intersection line is built upon this and edgeTris (triangles
-    around edges) data. */
-  bool orderIntersections(std::map<std::pair<LINT,LINT>,std::vector<LINT>,EdgeCompare> &edgeTris,
-    std::vector<std::pair<LINT,LINT>> &iedges, std::vector<TPoint<T>> &intrs, std::vector<TPoint<T>> &line);
-
   /** Cut by plane into intersection line. */
-  bool cutByPlane(TPlane<T> &plane, std::vector<TPoint<T>> &line, T tolerance);
+  bool cutByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, T tolerance);
 
   /** Get pieces (normally one) of boundary as ordered boundary nodes. maxlinelength
     is max line length to prevent crashes (not clear). */
@@ -357,12 +356,12 @@ public:
   bool getEdgeMinMax(T &min, T &max);
 
   /** Connect edges into a closed curve. */
-  bool edgesIntoCurve(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
+  bool edgesIntoCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
     std::vector<std::pair<TPoint<T>,TPoint<T>>> &alledges,
-    std::vector<TPoint<T>> &line, T tolerance);
+    std::vector<std::vector<TPoint<T>>> &line, T tolerance);
 
-  /** Get closed boundary from free edges. */
-  bool getClosedBoundary(std::vector<TPoint<T>> &boundary, T tolerance);
+  /** Get boundary from free edges, maybe not a single close line. */
+  bool getBoundary(std::vector<std::vector<TPoint<T>>> &boundary, T tolerance);
 
   /** Delete face, no checks. */
   void deleteFace(LINT faceNo);
@@ -378,6 +377,12 @@ public:
 
   /** Face edges. */
   inline void getFaceEdges(LINT faceNo, std::pair<LINT,LINT> edges[3]);
+
+  /** Face edges as coordinates. */
+  void getFaceEdges(LINT faceNo, std::pair<TPoint<T>,TPoint<T>> pedges[3]);
+
+  /** Cut face. */
+  int cutFaceByPlane(TPlane<T> &plane, LINT faceNo, std::vector<TPoint<T>> &intrs, T tolerance);
 
 private:
 
@@ -716,7 +721,7 @@ template<class T> bool TTriangles<T>::loadSTL(const std::string filename, std::s
   binary = false;
 
   char header[200];
-  int bytesread = fread(header,1,sizeof(header),fp);
+  size_t bytesread = fread(header,1,sizeof(header),fp);
   OK = (bytesread > 0);
   if (!OK) 
   {
@@ -1917,132 +1922,29 @@ template <class T> T TTriangles<T>::signedDist(LINT faceNo, const TPoint<T> &poi
   return dist;
 }
 
-template <class T> bool TTriangles<T>::orderIntersections(std::map<std::pair<LINT,LINT>,std::vector<LINT>,EdgeCompare> &edgeTris,
-  std::vector<std::pair<LINT,LINT>> &iedges, std::vector<TPoint<T>> &intrs, std::vector<TPoint<T>> &line)
+template <class T> bool TTriangles<T>::cutByPlane(TPlane<T> &plane, 
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance)
 {
   // return value
   bool ok = false;
 
-  // line is cleared!
-  line.clear();
+  // no lines
+  lines.clear();
 
-  // to mark already engaged
-  std::vector<bool> ibusy(iedges.size(),false);
+  // intersection pieces each of two points
+  std::vector<std::vector<TPoint<T>>> pieces;
 
-  // to reconstruct intersection line from iedges/intrs
-  std::vector<std::pair<LINT,LINT>> iedgesnew;
-  // this contain intersection points
-  std::vector<TPoint<T>> intrsnew;
-
-  // first, try to find a hanging edge to start from (normal situation)
-  int startedge = -1;
-  for (int i = 0; i < iedges.size(); i++)
+  for (LINT i = 0; i < numFaces(); i++)
   {
-    if (edgeTris[iedges[i]].size() == 1)
+    std::vector<TPoint<T>> intrs;
+    if (cutFaceByPlane(plane,i,intrs,tolerance) == 2)
     {
-      startedge = i;
-      break;
+      pieces.push_back(intrs);
     }
   }
 
-  // hanging intersected edge not found (surface must be closed, not normal)
-  if (startedge < 0)
-    startedge = 0;
-
-  // add starting point
-  iedgesnew.push_back(iedges[startedge]);
-  intrsnew.push_back(intrs[startedge]);
-  ibusy[startedge] = true;
-
-  // we start from this triangle
-  LINT tricurrent = edgeTris[iedges[startedge]][0];
-
-  do {
-    // look for another intersected edge in this triangle (there must be two per tri)
-    LINT othertri = -1;
-    int index = findIntersectionByTri(tricurrent,iedges,ibusy,edgeTris,othertri);
-    if (index >= 0 && othertri >= 0)
-    {
-      iedgesnew.push_back(iedges[index]);
-      intrsnew.push_back(intrs[index]);
-      tricurrent = othertri;
-      ibusy[index] = true;
-    } else
-    {
-      if (allBusy(ibusy))
-      {
-        // clean exit, all is right
-        ok = true;
-        break;
-      } else
-      {
-        // it must be a gap, index must be not -1, once not allBusy(), restart all
-        startedge = findClosestNotBusy<T>(intrs,intrsnew.back(),ibusy);
-        iedgesnew.push_back(iedges[startedge]);
-        intrsnew.push_back(intrs[startedge]);
-        ibusy[startedge] = true;
-        // start again
-        tricurrent = edgeTris[iedges[startedge]][0];
-      }
-    }
-
-    if (allBusy(ibusy))
-    {
-      // clean exit, all is right
-      ok = true;
-      break;
-    }
-  } while (true);
-
-  line = intrsnew;
-
-  return ok;
-}
-
-template <class T> bool TTriangles<T>::cutByPlane(TPlane<T> &plane, std::vector<TPoint<T>> &line, T tolerance)
-{
-  // return value
-  bool ok = false;
-
-  // line is cleared!
-  line.clear();
-
-  // make unique node numbering
-  if (!duplicatesExcluded())
-  {
-    buildConnectivityArray(tolerance);
-  }
-
-  // triangles around edges
-  std::map<std::pair<LINT,LINT>,std::vector<LINT>,EdgeCompare> edgeTris;
-  getEdgeTris(edgeTris);
-
-  // intersect all edges defined by two node numbers
-  std::vector<std::pair<LINT,LINT>> iedges;
-  // this contain intersection points
-  std::vector<TPoint<T>> intrs;
-
-  for (auto &e : edgeTris)
-  {
-    TPoint<T> p0 = coords[e.first.first];
-    TPoint<T> p1 = coords[e.first.second];
-
-    TPoint<T> I;
-    T U = 0.5;
-    // zero tol must be here, this is repaired in orderIntersections by 
-    // looking for a closest point
-    if (plane.segmentIntersect(p0,p1,&I,&U,0.0)) 
-    {
-      iedges.push_back(e.first);
-      intrs.push_back(I);
-    }
-  }
-
-  if (iedges.empty())
-    return false;
-
-  // make intersection line
-  ok = orderIntersections(edgeTris,iedges,intrs,line);
+  // order a curve from two-point pieces
+  ok = curvesFromPieces(pieces,lines,tolerance,false);
 
   return ok;
 }
@@ -2283,19 +2185,14 @@ template <class T> bool TTriangles<T>::checkSliver(bool fix)
 }
 
 /** Connect two-point pieces into a closed line. */
-template <class T> bool TTriangles<T>::edgesIntoCurve(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
+template <class T> bool TTriangles<T>::edgesIntoCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
   std::vector<std::pair<TPoint<T>,TPoint<T>>> &alledges,
-  std::vector<TPoint<T>> &line, T tolerance)
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance)
 {
   if (edges.empty())
     return false;
 
-  T minedge = 0.0;
-  T maxedge = 0.0;
-
-  getEdgeMinMax(minedge,maxedge);
-
-  bool ok = makeUpCurve(edges,alledges,maxedge,line,tolerance,true);
+  bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true);
 
   return ok;
 }
@@ -2353,7 +2250,7 @@ template <class T> bool TTriangles<T>::getEdgeMinMax(T &min, T &max)
   return true;
 }
 
-template <class T> bool TTriangles<T>::getClosedBoundary(std::vector<TPoint<T>> &boundary, T tolerance)
+template <class T> bool TTriangles<T>::getBoundary(std::vector<std::vector<TPoint<T>>> &boundary, T tolerance)
 {
   // return value
   bool ok = false;
@@ -2380,15 +2277,13 @@ template <class T> bool TTriangles<T>::getClosedBoundary(std::vector<TPoint<T>> 
     TPoint<T> v0 = coords[e.first.first];
     TPoint<T> v1 = coords[e.first.second];
 
-    alledges.push_back(std::pair<TPoint<T>,TPoint<T>>(v0,v1));
-
     if (e.second.size() == 1)
     {
       edges.push_back(std::pair<TPoint<T>,TPoint<T>>(v0,v1));
     }
   }
 
-  ok = edgesIntoCurve(edges,alledges,boundary,tolerance);
+  ok = edgesIntoCurves(edges,alledges,boundary,tolerance);
 
   return ok;
 }
@@ -2410,6 +2305,44 @@ template <class T> inline void TTriangles<T>::getFaceEdges(LINT faceNo, std::pai
   edges[1].second = i2;
   edges[2].first = i2;
   edges[2].second = i0;
+}
+
+template <class T> void TTriangles<T>::getFaceEdges(LINT faceNo, std::pair<TPoint<T>,TPoint<T>> pedges[3])
+{
+  std::pair<LINT,LINT> edges[3];
+  getFaceEdges(faceNo,edges);
+
+  for (int i = 0; i < 3; i++)
+  {
+    pedges[i].first = coords[edges[i].first];
+    pedges[i].second = coords[edges[i].second];
+  }
+}
+
+template <class T> int TTriangles<T>::cutFaceByPlane(TPlane<T> &plane, LINT faceNo, 
+  std::vector<TPoint<T>> &intrs, T tolerance)
+{
+  intrs.clear();
+
+  std::pair<TPoint<T>,TPoint<T>> pedges[3];
+  getFaceEdges(faceNo,pedges);
+
+  for (int i = 0; i < 3; i++)
+  {
+    TPoint<T> p0 = pedges[i].first;
+    TPoint<T> p1 = pedges[i].second;
+
+    TPoint<T> I;
+    T U = 0.5;
+    if (plane.segmentIntersect(p0,p1,&I,&U,tolerance)) 
+    {
+      intrs.push_back(I);
+    }
+  }
+
+  removeDuplicates(intrs,true,tolerance); // true is correct here
+
+  return int(intrs.size());
 }
 
 }

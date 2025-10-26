@@ -38,12 +38,12 @@
 // you can only use high-level operations
 #include "toperations.h"
 
-//!!!!!!!
 #include "ttriangles.h"
 
 // this stuff is for export and debugging
 #include "strings.h"
 #include "export.h"
+#include "import.h"
 
 using namespace tcad;
 
@@ -151,6 +151,86 @@ void makeRandomSwap(int numswaps, std::vector<TPoint<T>> &points, std::vector<TP
   }
 }
 
+/** STL file test.
+  (1) load name.stl
+  (2) is it manifold and solid?
+  (3) output boundary (is there a boundary?)
+  (4) cut by plane and output line
+*/
+bool checkTopoCutAndBoundary(const std::string &name, TPlane<T> &plane,
+  bool mustbemanifold, bool mustbesolid, T sharpangledeg)
+{
+  std::string partname;
+  bool binary;
+
+  // load file
+  TTriangles<T> tris;
+  if (!loadTrianglesStl(tris,name + ".stl",partname,binary,0.0))
+    return false;
+
+  // get model size to set tolerance
+  std::pair<TPoint<T>,TPoint<T>> minmax = tris.minmax();
+  T size = !(minmax.second - minmax.first);
+  T tolerance = size * PARM_TOLERANCE;
+
+  // is manifold?
+  std::vector<std::pair<LINT,LINT>> badedges;
+  bool manifold = tris.manifold(tolerance,badedges);
+  assert(manifold == mustbemanifold);
+
+  // is solid?
+  bool solid = tris.solid(tolerance,badedges);
+  assert(solid == mustbesolid);
+
+  // get boundary
+  std::vector<std::vector<TPoint<T>>> boundary;
+  bool bok = tris.getBoundary(boundary,tolerance);
+
+  // output boundary, the should be none if solid
+  if (solid)
+  {
+    assert (!bok);
+  } else
+  {
+    assert(bok);
+
+    // redivide point curves by sharp corners to make it look as in the 
+    // original STL
+    std::vector<std::vector<TPoint<T>>> bpoints;
+    redividePoints(boundary,bpoints,tolerance,sharpangledeg);
+
+    saveLinesIges(bpoints,DEBUG_DIR + name + " boundary.iges");
+  }
+
+  // cut it by plane
+  std::vector<std::vector<TPoint<T>>> cutpoints;
+  tris.cutByPlane(plane,cutpoints,tolerance); 
+
+  // redivide point curves by sharp corners to make it look good
+  std::vector<std::vector<TPoint<T>>> cpoints;
+  redividePoints(cutpoints,cpoints,tolerance);
+
+  saveLinesIges(cpoints,DEBUG_DIR + name + " cut curve.iges");
+
+  return true;
+}
+
+/** Rewrite an STL file as binary. */
+bool rewriteSTLAsBinary(const std::string &filename)
+{
+  TTriangles<T> tris;
+
+  std::string partname;
+  bool binary;
+
+  if (loadTrianglesStl(tris,filename,partname,binary,0.0))
+  {
+    return saveTrianglesStl(tris,filename,"TCAD",true);
+  } else
+  {
+    return false;
+  }
+}
 
 //===== TCAD examples ==========================================================
 
@@ -533,7 +613,7 @@ int main(int argc, char* argv[])
   *****************************************************************************/
 
   TTriangles<T> NACAtris;
-  NACAtris.makeNACA0012(50,10,4.0);
+  NACAtris.makeNACA0012(50,10,2.0);
 
   saveTrianglesStl(NACAtris,DEBUG_DIR + "NACA.stl");
 
@@ -554,13 +634,84 @@ int main(int argc, char* argv[])
     2.3 Surfaces : triangles : cut by plane
   *****************************************************************************/
 
-  TPlane<T> cutplane(TPoint<T>(0.0,0.0,0.5),TPoint<T>(1.0,0.0,0.5),TPoint<T>(1.0,1.0,0.5),ok);
-  std::vector<TPoint<T>> NACAcutpoints;
-  NACAtris.cutByPlane(cutplane,NACAcutpoints,tolerance);
+  // cut triangles by a plane (made by three points)
+  TPlane<T> cutplane(TPoint<T>(-0.5,0.0,0.9),TPoint<T>(0.5,0.0,-0.7),TPoint<T>(0.5,1.0,-0.7),ok); 
+  std::vector<std::vector<TPoint<T>>> NACAcuts;
+  NACAtris.cutByPlane(cutplane,NACAcuts,tolerance); 
 
-  TBezierCurve<T> NACAcutcurve(NACAcutpoints,50,END_CLAMPED,END_CLAMPED);
+  /*****************************************************************************
+    2.4 Surfaces : triangles : how to find a sharpest point in intersection curve
+  *****************************************************************************/
 
-  saveCurveIges(NACAcutcurve,DEBUG_DIR + "NACA cut curve.iges");
+  if (NACAcuts.size() == 1)
+  {
+    std::vector<TPoint<T>> NACAcutpoints = NACAcuts[0];
+  
+    // the curve (NACAcutpoints) starts from an arbitrary point after intersection, 
+    // let's make it start from a point with highest curvature like TE in airfoils
+    TPointCurve<T> temp(NACAcutpoints);
+    int sharpindex = temp.findPointOfMaxCurvature();
+    temp.shiftClosed(sharpindex,tolerance);
+    NACAcutpoints = temp.controlPoints();
+
+    // make, for example, a spline curve on these points
+    TSplineCurve<T> NACAcutcurve(NACAcutpoints,200,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED);
+
+    saveCurveIges(NACAcutcurve,DEBUG_DIR + "NACA cut curve.iges");
+  } else
+  {
+    assert(false);
+  }
+
+  /*****************************************************************************
+    2.5 Surfaces : triangles : how to get triangulation boundary
+  *****************************************************************************/
+
+  // NACA case is solid, no boundary points are expected
+  std::vector<std::vector<TPoint<T>>> NACAtrisboundary;
+  bool bok = NACAtris.getBoundary(NACAtrisboundary,tolerance);
+
+  assert(!bok);
+
+  // now take more complicated boundary
+  std::string partname;
+  bool binary;
+
+  TTriangles<T> fuselage;
+  loadTrianglesStl(fuselage,"fuselage.stl",partname,binary,0.0);
+
+  std::pair<TPoint<T>,TPoint<T>> fminmax = fuselage.minmax();
+  T fsize = !(fminmax.second - fminmax.first);
+  T ftolerance = fsize * PARM_TOLERANCE;
+
+  std::vector<std::vector<TPoint<T>>> fboundary;
+  bool fok = fuselage.getBoundary(fboundary,ftolerance);
+
+  // redivide point curves by sharp corners to make it look good
+  std::vector<std::vector<TPoint<T>>> fnewpoints;
+  redividePoints(fboundary,fnewpoints,ftolerance,10.0);
+
+  saveLinesIges(fnewpoints,DEBUG_DIR + "fuselage boundary.iges");
+
+  /*****************************************************************************
+    2.6 Surfaces : triangles : more complicated cases, load STL, check if 
+    manifold and solid, generate boundary and cut by plane
+  *****************************************************************************/
+
+  // cut it by plane, define by normal and one point on plane
+  TPlane<T> scutplane(TPoint<T>(1.0,0.0,0.0),TPoint<T>(5.8,0.0,0.0)); 
+
+  bool sok1 = checkTopoCutAndBoundary("shuttle",scutplane,true,true,10.0);
+  assert(sok1);
+
+
+  rewriteSTLAsBinary("wing.stl");
+
+  // cut it by plane, define by normal and one point on plane
+  TPlane<T> wcutplane(TPoint<T>(0.0,0.0,1.0),TPoint<T>(0.0,0.0,0.0)); 
+
+  bool wok1 = checkTopoCutAndBoundary("wing",wcutplane,true,true,45.0);
+  assert(wok1);
 
   return 0;
 }

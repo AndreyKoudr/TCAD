@@ -26,41 +26,27 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "tmisc.h"
+/**
+  Export into CAD files.
+*/
 
-namespace tcad {
+#pragma once
 
-bool allBusy(std::vector<bool> &ibusy)
+#include "tpoint.h"
+#include "ttriangles.h"
+
+#include <vector>
+#include <string>
+
+
+//===== STL ====================================================================
+
+/** Load an STL into triangles. */
+template <class T> bool loadTrianglesStl(tcad::TTriangles<T> &triangles, const std::string &filename, 
+  std::string &partname, bool &binary, T tolerance)
 {
-  for (auto b : ibusy)
-  {
-    if (!b)
-      return false;
-  }
-  return true;
+  triangles.clear();
+
+  return triangles.loadSTL(filename,partname,binary,tolerance);
 }
 
-int findFirstNotBusy(std::vector<bool> &ibusy)
-{
-  for (int i = 0; i < int(ibusy.size()); i++)
-  {
-    if (!ibusy[i])
-      return i;
-  }
-  return -1;
-}
-
-void divideByIndices(std::vector<int> &indices, int size, std::vector<std::pair<int,int>> &division)
-{
-  division.clear();
-
-  for (int i = 0; i <= int(indices.size()); i++)
-  {
-    int i0 = (i == 0) ? 0 : indices[i - 1];
-    int i1 = (i == int(indices.size())) ? (size - 1) : indices[i];
-
-    division.push_back(std::pair<int,int>(i0,i1));
-  }
-}
-
-}

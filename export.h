@@ -111,7 +111,7 @@ template <class T> void addIgesCurveLines(std::vector<std::string> &lines, tcad:
 
 /** Make the whole collection of lines and then save them. */
 template <class T> bool makeLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
-  std::vector<std::string> &lines)
+  std::vector<std::string> &lines, int splinedegree = 2, int minpoints = 6)
 {
   lines.clear();
 
@@ -173,11 +173,19 @@ template <class T> bool makeLinesIges(std::vector<std::vector<tcad::TPoint<T>>> 
   {
     std::vector<tcad::TPoint<T>> curve = curves[i];
 
+    // redivide to make spline available
+    if (curve.size() < minpoints) 
+    {
+      tcad::TPointCurve<T> pointcurve(curve);
+      pointcurve.redivide(minpoints);
+      curve = pointcurve.controlPoints();
+    }
+
     // modify directory
     lines[dir126line] = makeIgesDirectoryLine0(dirline1260l,pcount,-1,&dcount);
     dir126line++;
 
-    tcad::TSplineCurve<T> scurve(curve,int(curve.size()) - 1,2); // degree 2, approximate
+    tcad::TSplineCurve<T> scurve(curve,int(curve.size()) - 1,splinedegree); 
 
     // add lines
     int before = int(lines.size());
