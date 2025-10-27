@@ -81,7 +81,7 @@ public:
   /** Same as 0-th derivative*/
   virtual TPoint<T> position(T U, T V)
   {
-    return this->derivative(U,PARAMETER_ANY,0);
+    return this->derivative(U,V,PARAMETER_ANY,0);
   }
 
   /** Get control points. */
@@ -160,8 +160,8 @@ public:
     for (int i = 0; i < k2; i++)
     {
       std::vector<TPoint<T>> row0,row1;
-      getRow(points,k1,k2,i,row0);
-      getRow(points,k1,k2,i + 1,row1);
+      tcad::getRow(points,k1,k2,i,row0);
+      tcad::getRow(points,k1,k2,i + 1,row1);
 
       for (int j = 0; j < int(row0.size() - 1); j++)
       {
@@ -190,7 +190,7 @@ public:
     T tolerance = !d * PARM_TOLERANCE;
 
     // remove duplicate nodes and renumber corners
-    bool ok = buildConnectivityArray(tolerance);
+    bool ok = tris.buildConnectivityArray(tolerance);
 
     return ok;
   }
@@ -310,7 +310,7 @@ public:
     for (int i = 0; i < k2 + 1; i++)
     {
       std::vector<TPoint<T>> row;
-      getRow(points,k1,k2,i,row);
+      tcad::getRow(points,k1,k2,i,row);
       if (projectPointOnPoints(row,p,proj,&seg,&u))
       {
         T dist = !(p - proj);
@@ -330,7 +330,7 @@ public:
     for (int i = 0; i < k1 + 1; i++)
     {
       std::vector<TPoint<T>> col;
-      getColumn(points,k1,k2,i,col);
+      tcad::getColumn(points,k1,k2,i,col);
       if (projectPointOnPoints(col,p,proj,&seg,&u))
       {
         T dist = !(p - proj);

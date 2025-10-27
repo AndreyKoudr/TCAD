@@ -55,6 +55,7 @@ public:
   // Constructors
   Matrix() = default;
   Matrix<T,N,M>(const std::array<T,M> &data);
+  Matrix<T,N,M>(const std::array<std::array<T,M>,N> &data);
 
   // Equal with tolerance
   bool operator == (const Matrix<T,N,M> &other) const;
@@ -170,6 +171,17 @@ template <typename T, size_t N, size_t M>  Matrix<T,N,M>::Matrix(const std::arra
   (*this)[0] = data;
 }
 
+template <typename T, size_t N, size_t M>  Matrix<T,N,M>::Matrix(const std::array<std::array<T,M>,N> &data)
+{
+  for (int i = 0; i < N; i++)
+  {
+    for (int j = 0; j < M; j++)
+    {
+      (*this)[i][j] = data[i][j];
+    }
+  }
+}
+
 template <typename T, size_t N, size_t M> bool Matrix<T,N,M>::operator == (const Matrix<T,N,M> &other) const
 {
   for (int i = 0; i < N; i++)
@@ -223,7 +235,27 @@ template <typename T, size_t I, size_t K, size_t J> Matrix<T,I,J> operator *
   {
     for (int j = 0; j < J; j++)
     {
-      result[i][j] = static_cast<T>(0.0);
+      result[i][j] = T(0.0);
+      for (int k = 0; k < K; k++)
+      { 
+        result[i][j] += m0[i][k] * m1[k][j];
+      }
+    }
+  }
+
+  return result;
+}
+
+template <typename T, typename TR, size_t I, size_t K, size_t J> Matrix<T,I,J> operator * 
+  (const Matrix<T,I,K> &m0, const Matrix<TR,K,J> &m1)
+{
+  Matrix<T,I,J> result;
+
+  for (int i = 0; i < I; i++)
+  {
+    for (int j = 0; j < J; j++)
+    {
+      result[i][j] = T(0.0);
       for (int k = 0; k < K; k++)
       { 
         result[i][j] += m0[i][k] * m1[k][j];

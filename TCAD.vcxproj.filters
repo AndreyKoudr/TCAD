@@ -118,5 +118,8 @@
     <ClInclude Include="tbasesurface.h">
       <Filter>SURFACES</Filter>
     </ClInclude>
+    <ClInclude Include="tbezierpatch.h">
+      <Filter>SURFACES</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

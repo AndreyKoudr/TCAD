@@ -1,6 +1,6 @@
 # TCAD - templated 3D CAD
 
-- (1) As simple as both STLs, the Standard Template Library or STereoLithography
+- (1) As simple as any STL
 - (2) All in front of you, no objs, libs, millions of dlls
 - (3) Simple, mostly one-line code
 - (4) Easy debugging, heavily commented
@@ -79,9 +79,10 @@ Surfaces
 - 2.5 Surfaces : triangles : how to get triangulation boundary
 - 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane
 - 2.7 Surfaces : triangles : find intersection of one set of triangles with another
+- 2.8 Surfaces : Bezier patch
 
 
-Traingles are ready, doing Coons, Bezier and spline surfaces ...
+Traingles are ready, doing surfaces ...
 ================================================================
 
 

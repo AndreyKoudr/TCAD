@@ -40,6 +40,7 @@
 
 #include "ttriangles.h"
 #include "tbasesurface.h" //!!!!!!!
+#include "tbezierpatch.h" //!!!!!!!
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -743,6 +744,23 @@ int main(int argc, char* argv[])
   redividePoints(fcutpoints,fcpoints,tolerance,1.0);
 
   saveLinesIges(fcpoints,DEBUG_DIR + "fuselage-fuselage intersection curve.iges");
+
+  /*****************************************************************************
+    2.8 Surfaces : Bezier patch
+  *****************************************************************************/
+
+  TBezierSegment<T> SU0(TPoint<T>(0,0,0),TPoint<T>(1,0.0,0.5),TPoint<T>(2,0,0),TPoint<T>(3,0,0));
+  TBezierSegment<T> S1V(TPoint<T>(3,0,0),TPoint<T>(3,1,0),TPoint<T>(3,2,0),TPoint<T>(3,3,0));
+  TBezierSegment<T> SU1(TPoint<T>(0,3,0),TPoint<T>(1,3,0),TPoint<T>(2,3,0),TPoint<T>(3,3,0));
+  TBezierSegment<T> S0V(TPoint<T>(0,0,0),TPoint<T>(0,1,0),TPoint<T>(0,2,0),TPoint<T>(0,3,0));
+
+  TBezierPatch<T> bpatch(&SU0,&S1V,&SU1,&S0V);
+
+  TTriangles<T> btris;
+  bpatch.createTriangles(btris,100,100); //!!!!!!!
+
+  // save tranformed
+  saveTrianglesStl(btris,DEBUG_DIR + "bezier patch.stl");
 
   return 0;
 }
