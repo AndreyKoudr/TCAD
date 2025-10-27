@@ -138,8 +138,20 @@ public:
   /** Update after any change in control points. */
   virtual void update()
   {
-    prepareParameters(this->cpoints,parms,true,parmsbynumbers); 
+    ok_ = prepareParameters(this->cpoints,parms,true,parmsbynumbers); 
     len = calculateLength(this->cpoints);
+  }
+
+  /** At least two non-identical points. */
+  bool ok()
+  {
+    return ok_;
+  }
+
+  /** Access to parameters. */
+  std::vector<T> &parameters()
+  {
+    return parms;
   }
 
   /** Redivide points. Set endrefinementcoef to < 1.0 (e.g. 0.5) to refine mesh near ends. */
@@ -371,15 +383,16 @@ public:
 
   /** Order unordered points by finding closest edges to current line ends. 
     These edges are degenerated. It is supposed there is only ONE curve
-    represented by pieces, not many. */
-  void order(T tolerance)
+    represented by pieces, not many. 
+    maxedge ratio is a guessed max edge size to the model size. */
+  void order(T tolerance, T maxedgeratio = 0.1)
   {
     // order points
     std::vector<std::vector<TPoint<T>>> pieces;
     pieces.push_back(this->cpoints);
     this->cpoints.clear();
 
-    tcad::curveFromPieces(pieces,this->cpoints,tolerance,true);
+    tcad::curveFromPieces(pieces,this->cpoints,tolerance,true,maxedgeratio);
 
     this->update();
   }
@@ -478,11 +491,12 @@ public:
   bool parmsbynumbers = false;
 
 private:
+  // at least two non-identical points
+  bool ok_ = false;
+
   // length
   T len = 0.0;
 
-//!!!!!!!
-public:
   // point parameters [0..1] parameterised by length
   std::vector<T> parms;
 };

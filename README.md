@@ -78,6 +78,7 @@ Surfaces
 - 2.4 Surfaces : triangles : how to find a sharpest point in intersection curve
 - 2.5 Surfaces : triangles : how to get triangulation boundary
 - 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane
+- 2.7 Surfaces : triangles : find intersection of one set of triangles with another
 
 
 Traingles are ready, doing Coons, Bezier and spline surfaces ...

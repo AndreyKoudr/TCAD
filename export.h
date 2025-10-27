@@ -177,6 +177,10 @@ template <class T> bool makeLinesIges(std::vector<std::vector<tcad::TPoint<T>>> 
     if (curve.size() < minpoints) 
     {
       tcad::TPointCurve<T> pointcurve(curve);
+      // there must be at least two non-identical points
+      if (!pointcurve.ok())
+        continue;
+
       pointcurve.redivide(minpoints);
       curve = pointcurve.controlPoints();
     }

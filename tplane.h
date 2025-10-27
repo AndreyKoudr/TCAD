@@ -52,25 +52,6 @@ enum {
   SPINTR_NORMAL2			    ///< segment has finite length, both vectors lie on plane
 };
 
-/** Build a plane defined by normal N (normalised) and scalar D. Vectors 01 and 02  should 
-  not be collinear. */
-template <class T> bool makePlaneOf3Vectors(const TPoint<T> &V0, const TPoint<T> &V1, const TPoint<T> &V2, 
-  TPoint<T> &N, T &D)
-{
-  N = (V1 - V0) ^ (V2 - V0);
-  T len = !N;
-  if (len > TOLERANCE(T))
-  {
-    // normal normalised
-    N = N * (static_cast<T>(1.0) / len); D = -(N * V0); 
-    return true;
-  }
-  else
-  {
-    return false;
-  }
-}
-
 /** Intersection bw segment and plane. Simple, one intersection. */
 template <class T> bool segPlaneIntersect(TPoint<T> V1, TPoint<T> V2, TPoint<T> N, T D,
   TPoint<T> *I, T *U, T tolerance = 0.0)

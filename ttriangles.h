@@ -149,6 +149,48 @@ int findIntersectionByTri(LINT tri, std::vector<std::pair<LINT,LINT>> &iedges, s
 bool findFreeEdge(std::map<std::pair<LINT,LINT>,std::vector<LINT>,EdgeCompare> &edgeTris,
   std::set<std::pair<LINT,LINT>,EdgeCompare> &busy, std::pair<LINT,LINT> &startedge);
 
+/** Cut triangle by triangle. tri and other being corner coordinates. */
+template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
+  std::array<TPoint<T>,3> &other, std::vector<TPoint<T>> &intrs, T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  std::pair<TPoint<T>,TPoint<T>> edges[3];
+  std::pair<TPoint<T>,TPoint<T>> oedges[3];
+  edges[0] = std::pair<TPoint<T>,TPoint<T>>(tri[0],tri[1]);
+  edges[1] = std::pair<TPoint<T>,TPoint<T>>(tri[1],tri[2]);
+  edges[2] = std::pair<TPoint<T>,TPoint<T>>(tri[2],tri[0]);
+  oedges[0] = std::pair<TPoint<T>,TPoint<T>>(other[0],other[1]);
+  oedges[1] = std::pair<TPoint<T>,TPoint<T>>(other[1],other[2]);
+  oedges[2] = std::pair<TPoint<T>,TPoint<T>>(other[2],other[0]);
+
+  intrs.clear();
+
+  // tri edges with other triangle
+  for (int k = 0; k < 3; k++)
+  {
+    T U = 0.0;
+    TPoint<T> intersection;
+    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,tolerance,parmtolerance))
+    {
+      intrs.push_back(intersection);
+    }
+  }
+
+  // other edges with tri
+  for (int k = 0; k < 3; k++)
+  {
+    T U = 0.0;
+    TPoint<T> intersection;
+    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,tolerance,parmtolerance))
+    {
+      intrs.push_back(intersection);
+    }
+  }
+
+  removeDuplicates(intrs,true,tolerance); // true is correct here
+
+  return int(intrs.size());
+}
+
 template <class T> class TTriangles {
 public:
                               
@@ -229,7 +271,7 @@ public:
 
   /** Face pierced by segment. */
   bool segIntersect(const TPoint<T> &point0, const TPoint<T> &point1, const int tri,
-    T &U, TPoint<T> &intersection, const T tolerance);
+    T &U, TPoint<T> &intersection, const T tolerance, const T parmtolerance = PARM_TOLERANCE);
 
   /** Get tri normal. */
   TPoint<T> faceNormal(LINT faceNo) const;
@@ -340,6 +382,10 @@ public:
 
   /** Cut by plane into intersection line. */
   bool cutByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, T tolerance);
+
+  /** Intersect with other tris. */
+  bool intersect(TTriangles<T> &other, std::vector<std::vector<TPoint<T>>> &lines, T tolerance, 
+    T parmtolerance = TOLERANCE(T));
 
   /** Get pieces (normally one) of boundary as ordered boundary nodes. maxlinelength
     is max line length to prevent crashes (not clear). */
@@ -991,7 +1037,7 @@ template<class T> bool TTriangles<T>::loadSTL(const std::string filename, std::s
     {
       std::pair<TPoint<T>,TPoint<T>> mm = minmax();
       TPoint<T> d = mm.second - mm.first;
-      tolerance = !d * 0.000001;
+      tolerance = !d * PARM_TOLERANCE;
     }
 
     // this thing spoils connectivity
@@ -1256,14 +1302,14 @@ template <class T> std::array<TPoint<T>,3> TTriangles<T>::threeCorners(LINT face
 }
 
 template <class T> bool TTriangles<T>::segIntersect(const TPoint<T> &point0, const TPoint<T> &point1, 
-  const int tri, T &U, TPoint<T> &intersection, const T tolerance)
+  const int tri, T &U, TPoint<T> &intersection, const T tolerance, const T parmtolerance)
 {
   std::array<TPoint<T>,3> c;
   c[0] = coords[corners[tri * 3 + 0]];
   c[1] = coords[corners[tri * 3 + 1]];
   c[2] = coords[corners[tri * 3 + 2]];
 
-  return segTriIntersect(point0,point1,c,U,intersection,tolerance);
+  return segTriIntersect(point0,point1,c,U,intersection,tolerance,parmtolerance);
 }
 
 template <class T> void TTriangles<T>::getTriNeighbours(const int numLayersAround, 
@@ -1769,7 +1815,7 @@ template <class T> void TTriangles<T>::makeQuad(TPoint<T> corners[4], LINT numU,
 
 template <class T> void TTriangles<T>::makeTransform(TTransform<T> &transform)
 {
-  for (LINT i = 0; i < coords.size(); i++)
+  for (LINT i = 0; i < int(coords.size()); i++)
   {
     coords[i] = transform.applyTransform(coords[i]);
   }
@@ -1945,6 +1991,42 @@ template <class T> bool TTriangles<T>::cutByPlane(TPlane<T> &plane,
 
   // order a curve from two-point pieces
   ok = curvesFromPieces(pieces,lines,tolerance,false);
+
+  return ok;
+}
+
+template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, 
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T parmtolerance)
+{
+  // no lines
+  lines.clear();
+
+  // intersection pairs of points
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
+
+  // take every face, intersect with 3 other edges
+  for (LINT i = 0; i < numFaces(); i++)
+  {
+    std::array<TPoint<T>,3> corners = threeCorners(i);
+
+    for (LINT j = 0; j < other.numFaces(); j++)
+    {
+      std::array<TPoint<T>,3> ocorners = other.threeCorners(j);
+
+      std::vector<TPoint<T>> intrs;
+      if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
+      {
+        if (intrs.size() == 2)
+        {
+          edges.push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+        }
+      }
+    }
+  }
+
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
+
+  bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true); 
 
   return ok;
 }

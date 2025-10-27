@@ -115,5 +115,8 @@
     <ClInclude Include="import.h">
       <Filter>AUXILIARY</Filter>
     </ClInclude>
+    <ClInclude Include="tbasesurface.h">
+      <Filter>SURFACES</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

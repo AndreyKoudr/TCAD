@@ -135,6 +135,7 @@
     <ClInclude Include="import.h" />
     <ClInclude Include="strings.h" />
     <ClInclude Include="tbasecurve.h" />
+    <ClInclude Include="tbasesurface.h" />
     <ClInclude Include="tbasics.h" />
     <ClInclude Include="tbeziersegment.h" />
     <ClInclude Include="tbeziercurve.h" />

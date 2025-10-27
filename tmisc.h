@@ -85,6 +85,25 @@ template <class T> T derivativeXn(T x, int power)
   return (power > 0) ? T(power) * pow(x,power - 1) : 0.0;
 }
 
+/** Build a plane defined by normal N (normalised) and scalar D. Vectors 01 and 02  should 
+  not be collinear. */
+template <class T> bool makePlaneOf3Vectors(const TPoint<T> &V0, const TPoint<T> &V1, const TPoint<T> &V2, 
+  TPoint<T> &N, T &D)
+{
+  N = (V1 - V0) ^ (V2 - V0);
+  T len = !N;
+  if (len > TOLERANCE(T))
+  {
+    // normal normalised
+    N = N * (static_cast<T>(1.0) / len); D = -(N * V0); 
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 /** Intersection of segments in XY. */
 template <typename T> bool intersectSegmentsXY(T X1, T Y1, T X2, T Y2, T X3, T Y3, T X4, T Y4,
   T *t1, T *t2, T *Xi, T *Yi)
@@ -260,7 +279,6 @@ template <class T> int findInterval(const std::vector<T> &table, const T value)
   return lower;
 }
 
-
 /** Spline basis. */
 template <class T> void splineBasis(int order, T U, std::vector<T> &knots, std::vector<T> &basis)
 {
@@ -372,50 +390,6 @@ template <class T> void straightenThreePoints(TPoint<T> &p1, TPoint<T> &p2, TPoi
   }
 }
 
-/* Test piercing triangle by vector point0->point1; if pierced, returns U - 
-  parameter to mark point between point0 and point1 */
-template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
-  const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, const T tolerance)
-{
-                                      // get vector point0->point1 
-  TPoint<T> v01 = point1 - point0;
-                                      // get facet plane 
-  TPoint<T> N; T D;
-  if (!makePlaneOf3Vectors(coords[0],coords[1],coords[2],N,D,tolerance))
-    return false;
-                                      // N * (p1 - p0) 
-  T r = N * v01;
-  U = std::abs(r);
-                                      // view direction parallel to facet plane 
-  if (U < tolerance)  
-    return false;
-                                      // get intersection between point0  &point1 
-  U = (-D - point0 * N) / r;
-                                      // test if intersection inside facet contour 
-  TPoint<T> c = v01 * U; 
-  intersection = point0 + c;
-                                      // scan each facet side 
-  TPoint<T> olddir;
-  for (int i = 0; i < 3; i++)
-  {
-    int i1 = (i < 2) ? (i + 1) : 0;
-
-    TPoint<T> v = intersection - coords[i];
-    TPoint<T> dv = coords[i1] - coords[i];
-    TPoint<T> dir = dv ^ v;
-
-    if (i > 0) 
-    {
-      if ((dir * olddir) < T(0.0)) 
-        return false;
-    }
-
-    olddir = dir;
-  }
-
-  return true;
-}
-
 /** Linear rectangle, U,V [-1..+1] */
 template <class T> void rectShapeFunc(T U, T V, T func[4])
 {
@@ -434,6 +408,149 @@ template <class T> TPoint<T> rectCoord(TPoint<T> corners[4], T U, T V)
   TPoint<T> sum = corners[0] * func[0] + corners[1] * func[1] + corners[2] * func[2] + corners[3] * func[3];
   
   return sum;
+}
+
+/** Get unifom list of parameters for a number of points. */
+template <class T> void getUniParms(int numpoints, std::vector<T> &parms)
+{
+  parms.clear();
+
+  for (int i = 0; i < numpoints; i++)
+  {
+    T U = T(i) / T(numpoints - 1);
+    parms.push_back(U);
+  }
+}
+
+/** Get row of control points. Each point contains U parameter in W. */
+template <class T> void getRow(std::vector<TPoint<T>> &cpoints, int K1, int K2, int index, std::vector<TPoint<T>> &row)
+{
+  assert(index >= 0 && index <= K2);
+
+  row.clear();
+
+  int n = index  * (K1 + 1);
+  for (int i = 0; i < K1 + 1; i++)
+  {
+    row.push_back(cpoints[n + i]);
+
+    T U = T(i) / T(K1);
+    row.back().W = U;
+  }
+}
+
+/** Set row of control points. */
+template <class T> void setRow(std::vector<TPoint<T>> &cpoints, int K1, int K2, int index, const std::vector<TPoint<T>> &row)
+{
+  assert(row.size() == K1 + 1);
+
+  int n = index  * (K1 + 1);
+  for (int i = 0; i < K1 + 1; i++)
+  {
+    cpoints[n + i] = row[i];
+  }
+}
+
+/** Get column of control points. Each point contains V parameter in W. */
+template <class T> void getColumn(std::vector<TPoint<T>> &cpoints, int K1, int K2, int index, std::vector<TPoint<T>> &column)
+{
+  assert(index >= 0 && index <= K1);
+
+  column.clear();
+
+  for (int i = 0; i < K2 + 1; i++)
+  {
+    column.push_back(cpoints[index + (i * (K1 + 1))]);
+
+    T V = T(i) / T(K2);
+    column.back().W = V;
+  }
+}
+
+/** Set column of control points. */
+template <class T> void setColumn(std::vector<TPoint<T>> &cpoints, int K1, int K2, int index, const std::vector<TPoint<T>> &column)
+{
+  assert(column.size() == K2 + 1);
+
+  for (int i = 0; i < K2 + 1; i++)
+  {
+    cpoints[index + (i * (K1 + 1))] = column[i];
+  }
+}
+
+/* Test piercing triangle by vector point0->point1; if pierced, returns U - 
+  parameter to mark point between point0 and point1. U check for [0..1] is here. */
+template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
+  const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, 
+  const T tolerance, const T parmtolerance = PARM_TOLERANCE)
+{
+                                      // get vector point0->point1 
+  TPoint<T> v01 = point1 - point0;
+                                      // get facet plane 
+  TPoint<T> N; T D;
+  if (!makePlaneOf3Vectors(coords[0],coords[1],coords[2],N,D))
+    return false;
+                                      // N * (p1 - p0) 
+  T r = N * v01;
+  U = std::abs(r);
+                                      // view direction parallel to facet plane 
+  if (U < tolerance)  
+    return false;
+                                      // get intersection between point0  &point1 
+  U = (-D - point0 * N) / r;
+  if (U < -parmtolerance || U > 1.0 + parmtolerance)
+    return false;
+                                      // test if intersection inside facet contour 
+  TPoint<T> c = v01 * U; 
+  intersection = point0 + c;
+                                      // scan each facet side 
+  TPoint<T> olddir;
+  bool inside = true;
+  for (int i = 0; i < 3; i++)
+  {
+    int i1 = (i < 2) ? (i + 1) : 0;
+
+    TPoint<T> v = intersection - coords[i];
+    TPoint<T> dv = coords[i1] - coords[i];
+    TPoint<T> dir = dv ^ v;
+
+    if (i > 0) 
+    {
+      if ((dir * olddir) < T(0.0)) 
+      {
+        inside = false;
+        break;
+      }
+    }
+
+    olddir = dir;
+  }
+                                      // additional check by projecting intersection on every edge
+  bool onedge = false;
+  if (!inside)
+  {
+    for (int i = 0; i < 3; i++)
+    {
+      int i1 = (i < 2) ? (i + 1) : 0;
+      TPoint<T> p0 = coords[i];
+      TPoint<T> p1 = coords[i1];
+
+      // project intersection on every edge with tolerance
+      TPoint<T> intr;
+      T t = 0.0;
+      if (projectPointOnSegment(intersection,p0,p1,&intr,&t,parmtolerance))
+      {
+        T dist = !(intersection - intr);
+        if (dist < tolerance)
+        {
+          onedge = true;
+          break;
+        }
+      }
+    }
+  }
+
+  return inside || onedge;
 }
 
 }

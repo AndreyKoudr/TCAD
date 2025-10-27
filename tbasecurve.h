@@ -81,13 +81,19 @@ public:
 
   //===== Abstract =============================================================
 
-  /** Get k-th derivative on on U [0..1]. 0-derivative is poisition. */
+  /** Get k-th derivative on on U [0..1]. 0-derivative is position. */
   virtual TPoint<T> derivative(T U, int k) = 0;
 
   /** Update after any change in control points. */
   virtual void update() = 0;
 
   //===== Operations ===========================================================
+
+  /** Same as 0-th derivative*/
+  virtual TPoint<T> position(T U)
+  {
+    return this->derivative(U,0);
+  }
 
   /** Get control points. */
   virtual std::vector<TPoint<T>> &controlPoints()

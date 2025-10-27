@@ -39,6 +39,7 @@
 #include "toperations.h"
 
 #include "ttriangles.h"
+#include "tbasesurface.h" //!!!!!!!
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -712,6 +713,36 @@ int main(int argc, char* argv[])
 
   bool wok1 = checkTopoCutAndBoundary("wing",wcutplane,true,true,45.0);
   assert(wok1);
+
+  /*****************************************************************************
+    2.7 Surfaces : triangles : find intersection of one set of triangles with 
+    another
+  *****************************************************************************/
+
+  // load another fuselage
+  TTriangles<T> fuselage1;
+  loadTrianglesStl(fuselage1,"fuselage.stl",partname,binary,0.0);
+
+  // rotate the second one around X
+  TTransform<T> t;
+  t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+  fuselage1.makeTransform(t);
+
+  // save tranformed
+  saveTrianglesStl(fuselage1,DEBUG_DIR + "fuselage rotated.stl");
+
+  std::vector<std::vector<TPoint<T>>> fcutpoints;
+  bool iok = fuselage.intersect(fuselage1,fcutpoints,ftolerance); 
+
+  assert(iok);
+
+  // redivide point curves by sharp corners to make it look good
+  std::vector<std::vector<TPoint<T>>> fcpoints;
+  // only 1 degree for sharp edges is here to divide the curve into
+  // straight-line segments
+  redividePoints(fcutpoints,fcpoints,tolerance,1.0);
+
+  saveLinesIges(fcpoints,DEBUG_DIR + "fuselage-fuselage intersection curve.iges");
 
   return 0;
 }
