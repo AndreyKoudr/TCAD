@@ -55,11 +55,7 @@ public:
   /** Constructor. */
   TBezierSegment(TPoint<T> p0, TPoint<T> p1, TPoint<T> p2, TPoint<T> p3) : TBaseCurve<T>()
   {
-    this->cpoints.clear();
-    this->cpoints.push_back(p0);
-    this->cpoints.push_back(p1);
-    this->cpoints.push_back(p2);
-    this->cpoints.push_back(p3);
+    init(p0,p1,p2,p3);
   }
 
   /** Constructor. */
@@ -325,6 +321,16 @@ public:
       this->cpoints[i].X += centre.X;
       this->cpoints[i].Y += centre.Y;
     }
+  }
+
+  /** Initialise. */
+  void init(TPoint<T> p0, TPoint<T> p1, TPoint<T> p2, TPoint<T> p3)
+  {
+    this->cpoints.clear();
+    this->cpoints.push_back(p0);
+    this->cpoints.push_back(p1);
+    this->cpoints.push_back(p2);
+    this->cpoints.push_back(p3);
   }
 
   /** Copy constructor. */

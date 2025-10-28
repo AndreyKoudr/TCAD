@@ -187,7 +187,8 @@ template <typename T> bool projectPointOnSegment(TPoint<T> p, TPoint<T> p0, TPoi
   }
 }
 
-/** Find interval in a MONOTONICALLY INCREASING table [0..1], returns -1 as failure. */
+/** Find interval in a MONOTONICALLY INCREASING table [0..1], returns -1 as failure. 
+  Returned index is never end point, always one less. */
 template <class T> int findParametricInterval(const std::vector<T> &table, const T value, T *u = nullptr)
 {
   if (table.size() < 2)

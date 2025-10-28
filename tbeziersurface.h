@@ -30,9 +30,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   Templated CAD
 
-  tbezierpatch.h
+  tbeziersurface.h
 
-  Bezier patch
+  Bezier surface (regular composite of Bezier patches)
 
   dimensions : 2 (U,V parameters)
 
@@ -40,37 +40,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include "tmatrix.h"
-#include "tbeziersegment.h"
 #include "tbasesurface.h"
+#include "tbezierpatch.h"
 
 namespace tcad {
 
-/** This is Ferguson matrix. */
-template <class T> constexpr std::array<std::array<T,4>,4> Mferg = {
-{
-  {{ T(1.0), T(0.0), T(0.0), T(0.0) }},
-  {{ T(0.0), T(0.0), T(1.0), T(0.0) }},
-  {{T(-3.0), T(3.0),T(-2.0),T(-1.0) }},
-  {{ T(2.0),T(-2.0), T(1.0), T(1.0) }}
-}
-};
-
-template <class T> class TBezierPatch : public TBaseSurface<T> {
+template <class T> class TBezierSurface : public TBaseSurface<T> {
 public:
 
   //===== Construction =========================================================
 
   /** Constructor. */
-  TBezierPatch() : TBaseSurface<T>()
+  TBezierSurface() : TBaseSurface<T>()
   {
-    this->K1 = 3;
-    this->K2 = 3;
   }
 
   /** Constructor. */
-  TBezierPatch(TBezierSegment<T> *SU0, TBezierSegment<T> *S1V, TBezierSegment<T> *SU1, 
-    TBezierSegment<T> *S0V) : TBaseSurface<T>()
+  TBezierSurface() : TBaseSurface<T>()
   {
     this->K1 = 3;
     this->K2 = 3;
@@ -86,7 +72,7 @@ public:
   }
 
   /** Destructor. */
-  virtual ~TBezierPatch() {}
+  virtual ~TBezierSurface() {}
 
   //===== Abstract =============================================================
 
@@ -94,40 +80,14 @@ public:
     No UV derivatives. */
   virtual TPoint<T> derivative(T U, T V, Parameter onparameter, int k)
   {
-    Matrix<T,1,4> Uvector;
-    Matrix<T,4,1> Vvector;
-
     if (k == 0)
     {
-      Uvector[0][0] = 1.0; 
-      Uvector[0][1] = U; 
-      Uvector[0][2] = U * U; 
-      Uvector[0][3] = U * U * U; 
-      Vvector[0][0] = 1.0;
-      Vvector[1][0] = V;
-      Vvector[2][0] = V * V;
-      Vvector[3][0] = V * V * V;
     } else if (k == 1)
     {
       if (onparameter == PARAMETER_U)
       {
-        Uvector[0][0] = 0.0; 
-        Uvector[0][1] = 1.0; 
-        Uvector[0][2] = 2.0 * U; 
-        Uvector[0][3] = 3.0 * U * U; 
-        Vvector[0][0] = 1.0;
-        Vvector[1][0] = V;
-        Vvector[2][0] = V * V;
-        Vvector[3][0] = V * V * V;
       } else if (onparameter == PARAMETER_V)
       {
-        Uvector[0][0] = 1.0; 
-        Uvector[0][1] = U; 
-        Uvector[0][2] = U * U; 
-        Uvector[0][3] = U * U * U; 
-        Vvector[0][0] = 0.0;
-        Vvector[1][0] = 1.0;
-        Vvector[2][0] = 2.0 * V;
         Vvector[3][0] = 3.0 * V * V;
       }
     } else if (k == 2)
@@ -164,73 +124,65 @@ public:
   /** Update after any change in control points. */
   virtual void update()
   {
-    // update B matrix
-    updateQ();
   }
 
-//protected:
-//
-//  // (K1 + 1) * (K2 + 1) control points, call update() after every change
-//  std::vector<TPoint<T>> cpoints;
+  /** Access to U parameters. */
+  std::vector<T> &parametersU()
+  {
+    return parmsU;
+  }
 
-/** cpoints make 4 Bezier segment along 4 boundaries :
-                      cpoints 8..11
-                 ------------>-------------
-                |                          |
-                |                          |
-cpoints 12..15  ^                          ^ cpoints 4..7
-                |                          |
-                |                          |
-                 ------------>-------------
-                      cpoints 0..3
-*/
-  
+  /** Access to V parameters. */
+  std::vector<T> &parametersV()
+  {
+    return parmsV;
+  }
+
+  /** Find a patch for these U,V. */
+  bool findBezierPatch(T U, T V, TBezierPatch &patch, T &u, T &v)
+  {
+    LIMIT(U,0.0,1.0);
+    LIMIT(V,0.0,1.0);
+
+    // get two columns with patch between
+    T u = 0.0;
+    int indexU = findParametricInterval(parmsU,U,&u);
+    assert(indexU >= 0);
+
+    std::vector<TPoint<T>> col0,col1;
+    this->getColumn(indexU,col0);
+    this->getColumn(indexU + 1,col1);
+
+    // get two rows with patch between
+    T v = 0.0;
+    int indexV = findParametricInterval(parmsV,V,&v);
+    assert(indexV >= 0);
+
+    std::vector<TPoint<T>> row0,row1;
+    this->getRow(indexV,row0);
+    this->getRow(indexV + 1,row1);
+
+    TBezierSegment SU0,S1V,SU1,S0V;
+
+
+  }
+
 private:
 
-  /** See "Computational geometry for design and manufacture" by Faux and Pratt. */
+  // every row/columns makes a Bezier curve of K1/K2 points;
+  // every curve contains (K1/K2 + 1) / 4 Bezier segments
 
-  /** this matrix is updated in update() */
-  Matrix<TPoint<T>,4,4> Q;
+  //// number of columns minus 1
+  //int K1 = 0;
+  //// number of rows munus 1
+  //int K2 = 0;
 
-  /** Update B matrix, call after a change in update(). */
-  void updateQ()
-  {
-    Matrix<TPoint<T>,4,4> B;
+  //// (K1 + 1) * (K2 + 1) control points, call update() after every change
+  //std::vector<TPoint<T>> cpoints;
 
-    TBezierSegment<T> s0(this->cpoints[0],this->cpoints[1],this->cpoints[2],this->cpoints[3]);
-    TBezierSegment<T> s1(this->cpoints[4],this->cpoints[5],this->cpoints[6],this->cpoints[7]);
-    TBezierSegment<T> s2(this->cpoints[8],this->cpoints[9],this->cpoints[10],this->cpoints[11]);
-    TBezierSegment<T> s3(this->cpoints[12],this->cpoints[13],this->cpoints[14],this->cpoints[15]);
-
-		B[0][0] = s0.derivative(0.0,0);
-		B[1][0] = s0.derivative(1.0,0);
-		B[2][0] = s0.derivative(0.0,1);
-		B[3][0] = s0.derivative(1.0,1);
-
-		B[1][2] = s1.derivative(0.0,1);
-		B[1][3] = s1.derivative(1.0,1);
-
-		B[0][1] = s2.derivative(0.0,0);
-		B[1][1] = s2.derivative(1.0,0);
-		B[2][1] = s2.derivative(0.0,1);
-		B[3][1] = s2.derivative(1.0,1);
-
-		B[0][2] = s3.derivative(0.0,1);
-		B[0][3] = s3.derivative(1.0,1);
-
-    // zero twist, uv ders zero
-	  B[2][2] = TPoint<T>();
-	  B[2][3] = TPoint<T>();
-	  B[3][2] = TPoint<T>();
-	  B[3][3] = TPoint<T>();
-
-    // now make Q = M * B * Mt
-    Matrix<T,4,4> M(Mferg<T>);
-    Matrix<T,4,4> Mt = M.transpose();
-
-    Matrix<TPoint<T>,4,4> BMt = B * Mt;
-    Q = BMt.transpose() * M.transpose();
-  }
+  // parameters [0..1] parameterised by length
+  std::vector<T> parmsU;
+  std::vector<T> parmsV;
 };
 
 }

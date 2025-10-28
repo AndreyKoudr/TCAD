@@ -48,7 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace tcad {
 
-// U or V or W
+// U or V or W for e.g. set derivatives on parameter
 enum Parameter {
   PARAMETER_U,      // for surfaces and volumes
   PARAMETER_V,      // for surfaces and volumes

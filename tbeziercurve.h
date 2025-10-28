@@ -152,13 +152,13 @@ public:
   {
     LIMIT(U,0.0,1.0);
 
+    TPoint<T> p;
+    TBezierSegment<T> segment;
     T u = 0.0;
-    int index = findParametricInterval(parms,U,&u);
-    assert(index >= 0);
-
-    int i4 = index * 4;
-    TBezierSegment<T> segment(this->cpoints[i4],this->cpoints[i4 + 1],this->cpoints[i4 + 2],this->cpoints[i4 + 3]);
-    TPoint<T> p = segment.derivative(u,k);
+    if (findSegment(U,segment,u))
+    {
+      p = segment.derivative(u,k);
+    }
 
     return p;
   }
@@ -192,6 +192,20 @@ public:
   int numSegments()
   {
     return int(this->cpoints.size()) / 4;
+  }
+
+  /** Find Bezier segment. */
+  bool findSegment(T U, TBezierSegment<T> &segment, T &u)
+  {
+    int index = findParametricInterval(parms,U,&u);
+    assert(index >= 0);
+    if (index < 0)
+      return false;
+
+    int i4 = index * 4;
+    segment.init(this->cpoints[i4],this->cpoints[i4 + 1],this->cpoints[i4 + 2],this->cpoints[i4 + 3]);
+
+    return true;
   }
 
   /** i is segment number, get its 4 nodes. */

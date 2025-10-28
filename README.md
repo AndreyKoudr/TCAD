@@ -1,7 +1,7 @@
-# TCAD - templated 3D CAD
+# TCAD - templated CAD, full 3D CAD in source code
 
 - (1) As simple as any STL
-- (2) All in front of you, no objs, libs, millions of dlls
+- (2) All is open, all in front of you, no first or third-party libs, no millions of dlls
 - (3) Simple, mostly one-line code
 - (4) Easy debugging, heavily commented
 - (5) Free to change
@@ -82,8 +82,8 @@ Surfaces
 - 2.8 Surfaces : Bezier patch
 
 
-Traingles are ready, doing surfaces ...
-================================================================
+Triangles are ready, doing surfaces ...
+=======================================
 
 
 

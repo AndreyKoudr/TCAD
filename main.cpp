@@ -750,7 +750,7 @@ int main(int argc, char* argv[])
   *****************************************************************************/
 
   TBezierSegment<T> SU0(TPoint<T>(0,0,0),TPoint<T>(1,0.0,0.5),TPoint<T>(2,0,0),TPoint<T>(3,0,0));
-  TBezierSegment<T> S1V(TPoint<T>(3,0,0),TPoint<T>(3,1,0),TPoint<T>(3,2,0),TPoint<T>(3,3,0));
+  TBezierSegment<T> S1V(TPoint<T>(3,0,0),TPoint<T>(3,1,0),TPoint<T>(3,2,0.0),TPoint<T>(3,3,0));
   TBezierSegment<T> SU1(TPoint<T>(0,3,0),TPoint<T>(1,3,0),TPoint<T>(2,3,0),TPoint<T>(3,3,0));
   TBezierSegment<T> S0V(TPoint<T>(0,0,0),TPoint<T>(0,1,0),TPoint<T>(0,2,0),TPoint<T>(0,3,0));
 
