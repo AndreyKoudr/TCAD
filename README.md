@@ -1,10 +1,11 @@
 # TCAD - templated CAD, full 3D CAD in source code
 
-- (1) As simple as any STL
-- (2) All is open, all in front of you, no first or third-party libs, no millions of dlls
-- (3) Simple, mostly one-line code
-- (4) Easy debugging, heavily commented
-- (5) Free to change
+- (1) C++ templates
+- (2) As simple as any STL
+- (3) All is open, all in front of you, no first, second or third-party libs, no millions of dlls
+- (4) Simple, mostly one-line code
+- (5) Easy debugging, heavily commented
+- (6) Free to change
 
 The plan :
 - point (done)
