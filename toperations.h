@@ -239,4 +239,37 @@ template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points
   points = newpoints;
 }
 
+/** Make NACA airfoil wing surface. */
+template <class T> void makeNACASurface(std::vector<std::vector<TPoint<T>>> &points,
+  int numspans, T resizeX = 0.98, T resizeY = 0.88, T moveZ = 0.02, T dadegZ = -0.5, T dadegY = -0.5)
+{
+  points.clear();
+
+  // rescale to -0.5, +0.5]
+  std::vector<TPoint<T>> airfoil;
+  for (auto p : NACA0012xy<T>)
+  {
+    airfoil.push_back(TPoint<T>(p.first - 0.5,p.second));
+  }
+
+  points.push_back(airfoil);
+
+  for (int i = 0; i < numspans - 1; i++)
+  {
+    TTransform<T> t;
+    t.Resize(TPoint<T>(resizeX,resizeY,1.0));
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),dadegZ * CPI);
+    t.Translate(TPoint<T>(0.0,0.0,moveZ));
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),dadegY * CPI);
+
+    for (int j = 0; j < int(airfoil.size()); j++)
+    {
+      airfoil[j] = t.applyTransform(airfoil[j]);
+    }
+
+    points.push_back(airfoil);
+  }
+}
+
+
 }

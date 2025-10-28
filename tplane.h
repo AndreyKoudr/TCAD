@@ -209,7 +209,7 @@ template <typename T> struct TPlane {
   /** Constructor from 3 points */
   TPlane(const vector3 &V1, const vector3 &V2, const vector3 &V3, bool& OK)
   {
-    OK = makePlaneOf3Vectors<T>(V1,V2,V3,normal,constant);
+    OK = tcad::makePlaneOf3Vectors<T>(V1,V2,V3,normal,constant);
   }
 
   /** Tolerant equality */

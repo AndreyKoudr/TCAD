@@ -187,6 +187,10 @@ public:
   T operator*(TPoint v2) const {
     return X * v2.X + Y * v2.Y + Z * v2.Z;
   }
+                              // matrix multiply 1 x 4 x 1, including W
+  T matrixMult(TPoint v2) const {
+    return X * v2.X + Y * v2.Y + Z * v2.Z + W * v2.W;
+  }
                               // operator > - two vectors co-directed?
   bool operator>(TPoint v2) {
     return ((*this * v2) >= 0);

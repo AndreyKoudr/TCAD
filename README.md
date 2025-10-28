@@ -81,10 +81,12 @@ Surfaces
 - 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane
 - 2.7 Surfaces : triangles : find intersection of one set of triangles with another
 - 2.8 Surfaces : Bezier patch
+- 2.9 Surfaces : Bezier surface, a composite of Bezier patches
 
 
-Triangles are ready, doing surfaces ...
-=======================================
+
+Composite Bezier surfaces done, doing b-spline surfaces ...
+===========================================================
 
 
 

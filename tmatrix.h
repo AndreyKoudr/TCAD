@@ -266,6 +266,26 @@ template <typename T, typename TR, size_t I, size_t K, size_t J> Matrix<T,I,J> o
   return result;
 }
 
+template <typename T, typename TR, size_t I, size_t K, size_t J> Matrix<TR,I,J> multScalar
+  (const Matrix<T,I,K> &m0, const Matrix<TR,K,J> &m1)
+{
+  Matrix<TR,I,J> result;
+
+  for (int i = 0; i < I; i++)
+  {
+    for (int j = 0; j < J; j++)
+    {
+      result[i][j] = T(0.0);
+      for (int k = 0; k < K; k++)
+      { 
+        result[i][j] += m0[i][k] * m1[k][j];
+      }
+    }
+  }
+
+  return result;
+}
+
 template <typename T, size_t N, size_t M> Matrix<T,N,M> Matrix<T,N,M>::operator + 
   (const Matrix<T,N,M> &other) const
 {

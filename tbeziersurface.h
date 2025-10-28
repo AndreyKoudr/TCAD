@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "tbasesurface.h"
+#include "tbeziercurve.h"
 #include "tbezierpatch.h"
 
 namespace tcad {
@@ -55,18 +56,48 @@ public:
   {
   }
 
-  /** Constructor. */
-  TBezierSurface() : TBaseSurface<T>()
+  /** Constructor. Every points[i] is a row of points (U-changing). The number of
+    cols/rows is arbitrary : every row/col is approximated as TBezierCurve<T>. */
+  TBezierSurface(std::vector<std::vector<TPoint<T>>> &points, int numsegmentsU, int numsegmentsV,
+    CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, 
+    CurveEndType startV = END_CLAMPED, CurveEndType endV = END_CLAMPED, 
+    bool keepmeshrefinementU = true, bool keepmeshrefinementV = true) : TBaseSurface<T>()
   {
-    this->K1 = 3;
-    this->K2 = 3;
-
     this->cpoints.clear();
 
-    this->cpoints.insert(this->cpoints.end(),SU0->controlPoints().begin(),SU0->controlPoints().end());
-    this->cpoints.insert(this->cpoints.end(),S1V->controlPoints().begin(),S1V->controlPoints().end());
-    this->cpoints.insert(this->cpoints.end(),SU1->controlPoints().begin(),SU1->controlPoints().end());
-    this->cpoints.insert(this->cpoints.end(),S0V->controlPoints().begin(),S0V->controlPoints().end());
+    this->K1 = numsegmentsU * 4 - 1;
+    this->K2 = numsegmentsV * 4 - 1;
+
+    this->cpoints.resize((this->K1 + 1) * (this->K2 + 1));
+
+    std::vector<TPoint<T>> temp;
+    int tempK1 = 0;
+    int tempK2 = int(points.size()) - 1;
+
+    // loop by rows
+    for (int i = 0; i < int(points.size()); i++)
+    {
+      TBezierCurve<T> crow(points[i],numsegmentsU,startU,endU,keepmeshrefinementU);
+      temp.insert(temp.end(),crow.controlPoints().begin(),crow.controlPoints().end());
+      if (i == 0)
+      {
+        this->parmsU = crow.parameters();
+        tempK1 = int(crow.controlPoints().size()) - 1;
+      }
+    }
+
+    // now we need to redivide temp columns in V direction
+    for (int i = 0; i <= tempK1; i++)
+    {
+      std::vector<TPoint<T>> col;
+      tcad::getColumn(temp,tempK1,tempK2,i,col);
+      TBezierCurve<T> ccol(col,numsegmentsV,startV,endV,keepmeshrefinementV);
+      if (i == 0)
+        this->parmsV = ccol.parameters();
+
+      // set this column
+      this->setColumn(i,ccol.controlPoints());
+    }
 
     update();
   }
@@ -80,45 +111,16 @@ public:
     No UV derivatives. */
   virtual TPoint<T> derivative(T U, T V, Parameter onparameter, int k)
   {
-    if (k == 0)
+    TBezierPatch<T> patch;
+    T u = 0.0;
+    T v = 0.0;
+    if (findBezierPatch(U,V,patch,u,v))
     {
-    } else if (k == 1)
+      return patch.derivative(u,v,onparameter,k);
+    } else
     {
-      if (onparameter == PARAMETER_U)
-      {
-      } else if (onparameter == PARAMETER_V)
-      {
-        Vvector[3][0] = 3.0 * V * V;
-      }
-    } else if (k == 2)
-    {
-      if (onparameter == PARAMETER_U)
-      {
-        Uvector[0][0] = 0.0; 
-        Uvector[0][1] = 0.0; 
-        Uvector[0][2] = 2.0; 
-        Uvector[0][3] = 6.0 * U; 
-        Vvector[0][0] = 1.0;
-        Vvector[1][0] = V;
-        Vvector[2][0] = V * V;
-        Vvector[3][0] = V * V * V;
-      } else if (onparameter == PARAMETER_V)
-      {
-        Uvector[0][0] = 1.0; 
-        Uvector[0][1] = U; 
-        Uvector[0][2] = U * U; 
-        Uvector[0][3] = U * U * U; 
-        Vvector[0][0] = 0.0;
-        Vvector[1][0] = 0.0;
-        Vvector[2][0] = 2.0;
-        Vvector[3][0] = 6.0 * V;
-      }
+      return TPoint<T>();
     }
-
-    Matrix<TPoint<T>,4,1> Bright = this->Q * Vvector;
-    Matrix<TPoint<T>,1,1> result = Bright.transpose() * Uvector.transpose();
-
-    return result[0][0];
   }
 
   /** Update after any change in control points. */
@@ -139,32 +141,44 @@ public:
   }
 
   /** Find a patch for these U,V. */
-  bool findBezierPatch(T U, T V, TBezierPatch &patch, T &u, T &v)
+  bool findBezierPatch(T U, T V, TBezierPatch<T> &patch, T &u, T &v)
   {
     LIMIT(U,0.0,1.0);
     LIMIT(V,0.0,1.0);
 
     // get two columns with patch between
-    T u = 0.0;
+    u = 0.0;
     int indexU = findParametricInterval(parmsU,U,&u);
     assert(indexU >= 0);
+    if (indexU < 0)
+      return false;
+    int indexU4 = indexU * 4;
 
     std::vector<TPoint<T>> col0,col1;
-    this->getColumn(indexU,col0);
-    this->getColumn(indexU + 1,col1);
+    this->getColumn(indexU4,col0);
+    this->getColumn(indexU4 + 3,col1);
 
     // get two rows with patch between
-    T v = 0.0;
+    v = 0.0;
     int indexV = findParametricInterval(parmsV,V,&v);
     assert(indexV >= 0);
+    if (indexV < 0)
+      return false;
+    int indexV4 = indexV * 4;
 
     std::vector<TPoint<T>> row0,row1;
-    this->getRow(indexV,row0);
-    this->getRow(indexV + 1,row1);
+    this->getRow(indexV4,row0);
+    this->getRow(indexV4 + 3,row1);
 
-    TBezierSegment SU0,S1V,SU1,S0V;
+    TBezierSegment<T> SU0,S1V,SU1,S0V;
+    SU0.init(row0[indexU4],row0[indexU4 + 1],row0[indexU4 + 2],row0[indexU4 + 3]);
+    SU1.init(row1[indexU4],row1[indexU4 + 1],row1[indexU4 + 2],row1[indexU4 + 3]);
+    S1V.init(col1[indexV4],col1[indexV4 + 1],col1[indexV4 + 2],col1[indexV4 + 3]);
+    S0V.init(col0[indexV4],col0[indexV4 + 1],col0[indexV4 + 2],col0[indexV4 + 3]);
 
+    patch.init(&SU0,&S1V,&SU1,&S0V);
 
+    return true;
   }
 
 private:

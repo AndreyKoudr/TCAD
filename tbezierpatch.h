@@ -72,6 +72,13 @@ public:
   TBezierPatch(TBezierSegment<T> *SU0, TBezierSegment<T> *S1V, TBezierSegment<T> *SU1, 
     TBezierSegment<T> *S0V) : TBaseSurface<T>()
   {
+    init(SU0,S1V,SU1,S0V);
+  }
+
+  /** Initialise. */
+  void init(TBezierSegment<T> *SU0, TBezierSegment<T> *S1V, TBezierSegment<T> *SU1, 
+    TBezierSegment<T> *S0V)
+  {
     this->K1 = 3;
     this->K2 = 3;
 
@@ -94,15 +101,15 @@ public:
     No UV derivatives. */
   virtual TPoint<T> derivative(T U, T V, Parameter onparameter, int k)
   {
-    Matrix<T,1,4> Uvector;
+    Matrix<T,4,1> Uvector;
     Matrix<T,4,1> Vvector;
 
     if (k == 0)
     {
       Uvector[0][0] = 1.0; 
-      Uvector[0][1] = U; 
-      Uvector[0][2] = U * U; 
-      Uvector[0][3] = U * U * U; 
+      Uvector[1][0] = U; 
+      Uvector[2][0] = U * U; 
+      Uvector[3][0] = U * U * U; 
       Vvector[0][0] = 1.0;
       Vvector[1][0] = V;
       Vvector[2][0] = V * V;
@@ -112,9 +119,9 @@ public:
       if (onparameter == PARAMETER_U)
       {
         Uvector[0][0] = 0.0; 
-        Uvector[0][1] = 1.0; 
-        Uvector[0][2] = 2.0 * U; 
-        Uvector[0][3] = 3.0 * U * U; 
+        Uvector[1][0] = 1.0; 
+        Uvector[2][0] = 2.0 * U; 
+        Uvector[3][0] = 3.0 * U * U; 
         Vvector[0][0] = 1.0;
         Vvector[1][0] = V;
         Vvector[2][0] = V * V;
@@ -122,9 +129,9 @@ public:
       } else if (onparameter == PARAMETER_V)
       {
         Uvector[0][0] = 1.0; 
-        Uvector[0][1] = U; 
-        Uvector[0][2] = U * U; 
-        Uvector[0][3] = U * U * U; 
+        Uvector[1][0] = U; 
+        Uvector[2][0] = U * U; 
+        Uvector[3][0] = U * U * U; 
         Vvector[0][0] = 0.0;
         Vvector[1][0] = 1.0;
         Vvector[2][0] = 2.0 * V;
@@ -135,9 +142,9 @@ public:
       if (onparameter == PARAMETER_U)
       {
         Uvector[0][0] = 0.0; 
-        Uvector[0][1] = 0.0; 
-        Uvector[0][2] = 2.0; 
-        Uvector[0][3] = 6.0 * U; 
+        Uvector[1][0] = 0.0; 
+        Uvector[2][0] = 2.0; 
+        Uvector[3][0] = 6.0 * U; 
         Vvector[0][0] = 1.0;
         Vvector[1][0] = V;
         Vvector[2][0] = V * V;
@@ -145,9 +152,9 @@ public:
       } else if (onparameter == PARAMETER_V)
       {
         Uvector[0][0] = 1.0; 
-        Uvector[0][1] = U; 
-        Uvector[0][2] = U * U; 
-        Uvector[0][3] = U * U * U; 
+        Uvector[1][0] = U; 
+        Uvector[2][0] = U * U; 
+        Uvector[3][0] = U * U * U; 
         Vvector[0][0] = 0.0;
         Vvector[1][0] = 0.0;
         Vvector[2][0] = 2.0;
@@ -156,7 +163,7 @@ public:
     }
 
     Matrix<TPoint<T>,4,1> Bright = this->Q * Vvector;
-    Matrix<TPoint<T>,1,1> result = Bright.transpose() * Uvector.transpose();
+    Matrix<TPoint<T>,1,1> result = Bright.transpose() * Uvector;
 
     return result[0][0];
   }
@@ -229,7 +236,7 @@ private:
     Matrix<T,4,4> Mt = M.transpose();
 
     Matrix<TPoint<T>,4,4> BMt = B * Mt;
-    Q = BMt.transpose() * M.transpose();
+    Q = multScalar<T,TPoint<T>,4,4,4>(M,BMt);
   }
 };
 

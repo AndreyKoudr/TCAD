@@ -55,9 +55,9 @@ public:
   TBezierCurve(std::vector<TPoint<T>> &points, int numsegments, 
     bool exactstart = true, bool exactend = true, 
     bool clampedstart = false, bool clampedend = false,
-    bool orthogonalLSQ = true) : TBaseCurve<T>()
+    bool keepmeshrefinement = true, bool orthogonalLSQ = true) : TBaseCurve<T>()
   {
-    TPointCurve<T> pointcurve(points);
+    TPointCurve<T> pointcurve(points,keepmeshrefinement);
 
     // number of points to build a bezier segment
     int numsegintervals = int(points.size()) / numsegments;
@@ -117,14 +117,13 @@ public:
   /** Constructor. */
   TBezierCurve(std::vector<TPoint<T>> &points, int numsegments, 
     CurveEndType start, CurveEndType end,
-    bool orthogonalLSQ = true) : 
+    bool keepmeshrefinement = true, bool orthogonalLSQ = true) : 
   TBezierCurve(points,numsegments, 
     (start == END_FIXED || start == END_CLAMPED),(end == END_FIXED || end == END_CLAMPED), 
     (start == END_CLAMPED),(end == END_CLAMPED), 
-    orthogonalLSQ)
+    keepmeshrefinement,orthogonalLSQ)
   {
   }
-
   /** Copy constructor. */
   TBezierCurve(const TBezierCurve &other)  
   {
@@ -141,6 +140,13 @@ public:
     this->update();
 
     return *this;
+  }
+
+  /** Initialise. */
+  void init(std::vector<TPoint<T>> &controlpoints, std::vector<T> &parameters)
+  {
+    this->cpoints = controlpoints;
+    this->parms = parameters;
   }
 
   /** Destructor. */
@@ -282,6 +288,12 @@ public:
     }
 
     this->update();
+  }
+
+  /** Access to parameters. */
+  std::vector<T> &parameters()
+  {
+    return parms;
   }
 
 private:

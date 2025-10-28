@@ -41,6 +41,7 @@
 #include "ttriangles.h"
 #include "tbasesurface.h" //!!!!!!!
 #include "tbezierpatch.h" //!!!!!!!
+#include "tbeziersurface.h" //!!!!!!!
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -757,10 +758,28 @@ int main(int argc, char* argv[])
   TBezierPatch<T> bpatch(&SU0,&S1V,&SU1,&S0V);
 
   TTriangles<T> btris;
-  bpatch.createTriangles(btris,100,100); //!!!!!!!
+  bpatch.createTriangles(btris,20,20); 
 
   // save tranformed
   saveTrianglesStl(btris,DEBUG_DIR + "bezier patch.stl");
+
+  /*****************************************************************************
+    2.9 Surfaces : Bezier surface, a composite of Bezier patches
+  *****************************************************************************/
+
+  // we make a twisted airfoil surface here
+  std::vector<std::vector<TPoint<T>>> NACAsurfpoints;
+  makeNACASurface(NACAsurfpoints,51);
+
+  // create a Bezier surface of Bezier patches from these points
+  TBezierSurface<T> bsurface(NACAsurfpoints,100,50);
+
+  // these triangles are to display them in STL
+  TTriangles<T> bstris;
+  bsurface.createTriangles(bstris,101,51); 
+
+  // save
+  saveTrianglesStl(bstris,DEBUG_DIR + "bezier surface.stl");
 
   return 0;
 }

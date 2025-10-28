@@ -93,25 +93,25 @@ public:
   /** Get row of control points. */
   void getRow(int index, std::vector<TPoint<T>> &row)
   {
-    getRow(this->cpoints,K1,K2,row);
+    tcad::getRow(this->cpoints,K1,K2,index,row);
   }
 
   /** Set row of control points. */
   void setRow(int index, const std::vector<TPoint<T>> &row)
   {
-    setRow(this->cpoints,K1,K2,row);
+    tcad::setRow(this->cpoints,K1,K2,index,row);
   }
 
   /** Get column of control points. */
   void getColumn(int index, std::vector<TPoint<T>> &column)
   {
-    getColumn(this->cpoints,K1,K2,column);
+    tcad::getColumn(this->cpoints,K1,K2,index,column);
   }
 
   /** Set column of control points. */
   void setColumn(int index, const std::vector<TPoint<T>> &column)
   {
-    setColumn(this->cpoints,K1,K2,column);
+    tcad::setColumn(this->cpoints,K1,K2,index,column);
   }
 
   /** Generate a uniform set of actual points on the surface to
