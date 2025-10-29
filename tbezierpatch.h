@@ -164,8 +164,9 @@ public:
 
     Matrix<TPoint<T>,4,1> Bright = this->Q * Vvector;
     Matrix<TPoint<T>,1,1> result = Bright.transpose() * Uvector;
+    TPoint<T> r = result[0][0];
 
-    return result[0][0];
+    return r;
   }
 
   /** Update after any change in control points. */

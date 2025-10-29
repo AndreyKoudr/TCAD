@@ -457,12 +457,60 @@ template <class T> void straightenThreePoints(TPoint<T> &p1, TPoint<T> &p2, TPoi
 }
 
 /** Linear rectangle, U,V [-1..+1] */
-template <class T> void rectShapeFunc(T U, T V, T func[4])
+template <class T> void rectShapeFunc(T U, T V, TPoint<T> &func)
 {
-  func[0] = (1.0 - U) * (1.0 - V) * 0.25;
-  func[1] = (1.0 + U) * (1.0 - V) * 0.25;
-  func[2] = (1.0 + U) * (1.0 + V) * 0.25;
-  func[3] = (1.0 - U) * (1.0 + V) * 0.25;
+  func.X = (1.0 - U) * (1.0 - V) * 0.25;
+  func.Y = (1.0 + U) * (1.0 - V) * 0.25;
+  func.Z = (1.0 + U) * (1.0 + V) * 0.25;
+  func.W = (1.0 - U) * (1.0 + V) * 0.25;
+}
+
+/** Linear rectangle, U,V [-1..+1] */
+template <class T> void rectShapeFuncDerU(T U, T V, TPoint<T> &func)
+{
+  func.X = -(1.0 - V) * 0.25;
+  func.Y = +(1.0 - V) * 0.25;
+  func.Z = +(1.0 + V) * 0.25;
+  func.W = -(1.0 + V) * 0.25;
+}
+
+/** Linear rectangle, U,V [-1..+1] */
+template <class T> void rectShapeFuncDerV(T U, T V, TPoint<T> &func)
+{
+  func.X = -(1.0 - U) * 0.25;
+  func.Y = -(1.0 + U) * 0.25;
+  func.Z = +(1.0 + U) * 0.25;
+  func.W = +(1.0 - U) * 0.25;
+}
+
+/** Linear rectangle, U,V [0..1] */
+template <class T> void rectShapeFunc01(T U, T V, TPoint<T> &func)
+{
+  T u = U * 2.0 - 1.0;
+  T v = V * 2.0 - 1.0;
+  rectShapeFunc(u,v,func);
+}
+
+/** Linear rectangle, U,V [0..1] */
+template <class T> void rectShapeFuncDerU01(T U, T V, TPoint<T> &func)
+{
+  T u = U * 2.0 - 1.0;
+  T v = V * 2.0 - 1.0;
+  rectShapeFuncDerU(u,v,func);
+
+  // from -1..+1 to 0..1
+  func *= 2.0;
+}
+
+/** Linear rectangle, U,V [0..1] */
+template <class T> void rectShapeFuncDerV01(T U, T V, TPoint<T> &func)
+{
+  T u = U * 2.0 - 1.0;
+  T v = V * 2.0 - 1.0;
+  rectShapeFuncDerV(u,v,func);
+
+  // from -1..+1 to 0..1
+  func *= 2.0;
 }
 
 /** Linear rectangle, U,V [-1..+1] */
@@ -617,6 +665,25 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
   }
 
   return inside || onedge;
+}
+
+/** Refine parameter U [0..1] value near ends, with powerstart and powerend.
+  power 1.0 means no refinement, use 0.5 -> U^0.5 for rounded edge. */
+template <typename T> T refineParameter(T U, T startpower = 1.0, T endpower = 1.0)
+{
+  T u = U * 2.0 - 1.0;
+  if (u < 0.0)
+  {
+    u = sign(u) * pow(std::abs(u),startpower);
+  } else
+  {
+    u = sign(u) * pow(std::abs(u),endpower);
+  }
+  U = (u + 1.0) * 0.5;
+
+  LIMIT(U,0.0,1.0);
+
+  return U;
 }
 
 }

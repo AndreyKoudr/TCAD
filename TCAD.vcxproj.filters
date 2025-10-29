@@ -124,5 +124,8 @@
     <ClInclude Include="tbeziersurface.h">
       <Filter>SURFACES</Filter>
     </ClInclude>
+    <ClInclude Include="tpointsurface.h">
+      <Filter>SURFACES</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

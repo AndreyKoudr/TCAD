@@ -120,19 +120,28 @@ public:
     (2) compare/involve another type of geometry to compare/interact 
 
     A set of according parameter values is generated as well.
+    Set refine... to 0.5 at a corresponding end to refine,
+    1.0 has no effect.
   */
   virtual void createPoints(std::vector<TPoint<T>> &points, 
     int *k1 = nullptr, int *k2 = nullptr,
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    T refinestartU = 1.0, T refineendU = 1.0, 
+    T refinestartV = 1.0, T refineendV = 1.0)
   {
     points.clear();
 
     for (int i = 0; i < numpointsV; i++)
     {
       T V = T(i) / T(numpointsV - 1);
+
+      V = refineParameter(V,refinestartV,refineendV);
+
       for (int j = 0; j < numpointsU; j++)
       {
         T U = T(j) / T(numpointsU - 1);
+
+        U = refineParameter(U,refinestartU,refineendU);
 
         TPoint<T> p = this->position(U,V);
         points.push_back(p);
@@ -145,9 +154,13 @@ public:
       *k2 = numpointsV - 1;
   }
 
-  /** Create triangles on a regular set points. */
+  /** Create triangles on a regular set points.
+    Set refine... to 0.5 at a corresponding end to refine,
+    1.0 has no effect. */
   virtual bool createTriangles(TTriangles<T> &tris,
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    T refinestartU = 1.0, T refineendU = 1.0, 
+    T refinestartV = 1.0, T refineendV = 1.0)
   {
     tris.clear();
 
@@ -155,7 +168,7 @@ public:
     int k1 = 0;
     int k2 = 0;
 
-    createPoints(points,&k1,&k2,numpointsU,numpointsV);
+    createPoints(points,&k1,&k2,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV);
 
     for (int i = 0; i < k2; i++)
     {

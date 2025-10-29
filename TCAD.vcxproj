@@ -153,6 +153,7 @@
     <ClInclude Include="tpoint.h" />
     <ClInclude Include="tpointcurve.h" />
     <ClInclude Include="tpoints.h" />
+    <ClInclude Include="tpointsurface.h" />
     <ClInclude Include="tsplinecurve.h" />
     <ClInclude Include="tsystems.h" />
     <ClInclude Include="ttransform.h" />

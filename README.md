@@ -2,15 +2,15 @@
 
 - (1) C++ templates
 - (2) As simple as any STL
-- (3) All is open, all in front of you, no first, second or third-party libs, no millions of dlls
-- (4) Simple, mostly one-line code
+- (3) All in front of you, no first-, second- or third-party libs, no millions of dlls
+- (4) Interface is simple, mostly one-line code (see main.cpp with examples)
 - (5) Easy debugging, heavily commented
 - (6) Free to change
 
 The plan :
 - point (done)
 - curves (done)
-- surfaces (<B>doing... a week-two</B>)
+- surfaces (<B>completing...</B>)
 
 <B>to do</B>
 - volumes
@@ -82,11 +82,12 @@ Surfaces
 - 2.7 Surfaces : triangles : find intersection of one set of triangles with another
 - 2.8 Surfaces : Bezier patch
 - 2.9 Surfaces : Bezier surface, a composite of Bezier patches
+- 2.10 Surfaces : point surface, a regilar net of points with linear interpolation between
 
 
 
-Composite Bezier surfaces done, doing b-spline surfaces ...
-===========================================================
+Doing b-spline surfaces ...
+===========================
 
 
 

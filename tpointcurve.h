@@ -115,15 +115,7 @@ public:
       return p;
     } else if (k == 1)
     {
-#if 1
       TPoint<T> der = derivative1(index);
-#else
-      T U0 = parms[index];
-      T U1 = parms[index + 1];
-      T DU = U1 - U0;
-
-      TPoint<T> der = (std::abs(DU) > TOLERANCE(T)) ? ((p1 - p0) / DU) : 0.0;
-#endif
 			return der;
     } else if (k == 2)
     {

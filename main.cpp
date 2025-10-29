@@ -42,6 +42,7 @@
 #include "tbasesurface.h" //!!!!!!!
 #include "tbezierpatch.h" //!!!!!!!
 #include "tbeziersurface.h" //!!!!!!!
+#include "tpointsurface.h" //!!!!!!!
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -772,14 +773,29 @@ int main(int argc, char* argv[])
   makeNACASurface(NACAsurfpoints,51);
 
   // create a Bezier surface of Bezier patches from these points
-  TBezierSurface<T> bsurface(NACAsurfpoints,100,50);
+  TBezierSurface<T> bsurface(NACAsurfpoints,20,10);
 
   // these triangles are to display them in STL
   TTriangles<T> bstris;
-  bsurface.createTriangles(bstris,101,51); 
+  bsurface.createTriangles(bstris,51,26,0.5,1.0); 
 
   // save
   saveTrianglesStl(bstris,DEBUG_DIR + "bezier surface.stl");
+
+  /*****************************************************************************
+    2.10 Surfaces : point surface, a regilar net of points with linear 
+      interpolation between
+  *****************************************************************************/
+
+  // create a point surface
+  TPointSurface<T> psurface(NACAsurfpoints);
+
+  // these triangles are to display them in STL
+  TTriangles<T> pstris;
+  psurface.createTriangles(pstris,51,26,0.5,1.0); 
+
+  // save
+  saveTrianglesStl(pstris,DEBUG_DIR + "point surface.stl");
 
   return 0;
 }

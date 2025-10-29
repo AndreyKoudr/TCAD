@@ -161,9 +161,17 @@ public:
     TPoint<T> p;
     TBezierSegment<T> segment;
     T u = 0.0;
-    if (findSegment(U,segment,u))
+    T DU = 1.0;
+    if (findSegment(U,segment,u,DU))
     {
       p = segment.derivative(u,k);
+      if (k == 1)
+      {
+        p *= DU;
+      } else if (k == 2)
+      {
+        p *= (DU * DU);
+      }
     }
 
     return p;
@@ -201,7 +209,7 @@ public:
   }
 
   /** Find Bezier segment. */
-  bool findSegment(T U, TBezierSegment<T> &segment, T &u)
+  bool findSegment(T U, TBezierSegment<T> &segment, T &u, T &DU)
   {
     int index = findParametricInterval(parms,U,&u);
     assert(index >= 0);
@@ -210,6 +218,8 @@ public:
 
     int i4 = index * 4;
     segment.init(this->cpoints[i4],this->cpoints[i4 + 1],this->cpoints[i4 + 2],this->cpoints[i4 + 3]);
+
+    DU = parms[index + 1] - parms[index];
 
     return true;
   }
