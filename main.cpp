@@ -43,6 +43,7 @@
 #include "tbezierpatch.h" //!!!!!!!
 #include "tbeziersurface.h" //!!!!!!!
 #include "tpointsurface.h" //!!!!!!!
+#include "tsplinesurface.h" //!!!!!!!
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -146,8 +147,8 @@ void makeRandomSwap(int numswaps, std::vector<TPoint<T>> &points, std::vector<TP
   // randomly swap
   for (int i = 0; i < numswaps; i++)
   {
-    int index0 = random(int(spoiltpoints.size()));
-    int index1 = random(int(spoiltpoints.size()));
+    int index0 = random(int(spoiltpoints.size()) - 1);
+    int index1 = random(int(spoiltpoints.size()) - 1);
 
     TPoint<T> temp = spoiltpoints[index0];
     spoiltpoints[index0] = spoiltpoints[index1];
@@ -796,6 +797,61 @@ int main(int argc, char* argv[])
 
   // save
   saveTrianglesStl(pstris,DEBUG_DIR + "point surface.stl");
+
+  /*****************************************************************************
+    2.11 Surfaces : B-spline surface, interpolated and approximated, with and 
+    without clamping
+  *****************************************************************************/
+
+  //TSplineCurve<T> splinecurve0(NACAsurfpoints.back(),int(NACAsurfpoints.back().size()) - 1,
+  //  SPLINE_DEGREE,END_CLAMPED,END_CLAMPED); 
+  //// save to compare two curves
+  //saveCurveIges(splinecurve0,DEBUG_DIR + "curve.iges");
+
+  // interpolated...
+
+  // create a point surface
+  TSplineSurface<T> issurface(NACAsurfpoints,SPLINE_DEGREE,SPLINE_DEGREE,
+    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+  saveSurfaceIges(&issurface,DEBUG_DIR + "spline surface interpolated.iges");
+
+  // these triangles are to display them in STL
+  TTriangles<T> isstris;
+  issurface.createTriangles(isstris,51,26,0.5,1.0); 
+
+  // save
+  saveTrianglesStl(isstris,DEBUG_DIR + "spline surface interpolated.stl");
+
+  // approximated...
+
+  // create a point surface
+  TSplineSurface<T> apsurface(NACAsurfpoints,10,SPLINE_DEGREE,30,SPLINE_DEGREE,
+    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+  saveSurfaceIges(&apsurface,DEBUG_DIR + "spline surface approximated.iges");
+
+  // these triangles are to display them in STL
+  TTriangles<T> apstris;
+  apsurface.createTriangles(apstris,51,26,0.5,1.0); 
+
+  // save
+  saveTrianglesStl(apstris,DEBUG_DIR + "spline surface approximated.stl");
+
+  // test all derivatives
+  T Ustest = 0.5;
+  T Vstest = 0.5;
+  TPoint<T> bderU = +bsurface.derivative(Ustest,Vstest,PARAMETER_U,1);
+  TPoint<T> bderV = +bsurface.derivative(Ustest,Vstest,PARAMETER_V,1);
+
+  TPoint<T> pderU = +psurface.derivative(Ustest,Vstest,PARAMETER_U,1);
+  TPoint<T> pderV = +psurface.derivative(Ustest,Vstest,PARAMETER_V,1);
+
+  TPoint<T> isderU = +issurface.derivative(Ustest,Vstest,PARAMETER_U,1);
+  TPoint<T> isderV = +issurface.derivative(Ustest,Vstest,PARAMETER_V,1);
+
+  TPoint<T> apderU = +apsurface.derivative(Ustest,Vstest,PARAMETER_U,1);
+  TPoint<T> apderV = +apsurface.derivative(Ustest,Vstest,PARAMETER_V,1);
 
   return 0;
 }

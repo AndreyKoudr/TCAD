@@ -155,6 +155,7 @@
     <ClInclude Include="tpoints.h" />
     <ClInclude Include="tpointsurface.h" />
     <ClInclude Include="tsplinecurve.h" />
+    <ClInclude Include="tsplinesurface.h" />
     <ClInclude Include="tsystems.h" />
     <ClInclude Include="ttransform.h" />
     <ClInclude Include="ttriangles.h" />

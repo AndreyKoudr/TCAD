@@ -83,11 +83,12 @@ Surfaces
 - 2.8 Surfaces : Bezier patch
 - 2.9 Surfaces : Bezier surface, a composite of Bezier patches
 - 2.10 Surfaces : point surface, a regilar net of points with linear interpolation between
+- 2.11 Surfaces : B-spline surface, interpolated and approximated, with and without clamping
 
 
 
-Doing b-spline surfaces ...
-===========================
+Doing more tests for surfaces ...
+=================================
 
 
 

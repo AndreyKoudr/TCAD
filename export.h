@@ -35,6 +35,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tpoint.h"
 #include "tpoints.h"
 #include "tsplinecurve.h"
+#include "tsplinesurface.h"
 #include "ttriangles.h"
 #include "strings.h"
 
@@ -60,6 +61,8 @@ extern const char *IgesHeader1[3];
 extern const char *dirline1260;
 extern const char *dirline1260l;
 extern const char *dirline1261;
+extern const char *dirline1280;
+extern const char *dirline1281;
 
 /** Make Iges directory line. */
 std::string makeIgesDirectoryLine0(const char *dirline, int parmdata, int parmcount, int *dirlineno);
@@ -109,8 +112,56 @@ template <class T> void addIgesCurveLines(std::vector<std::string> &lines, tcad:
   finalize(lines,dirline,count,igesstr);
 }
 
-/** Make the whole collection of lines and then save them. */
-template <class T> bool makeLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
+/** Add lines for a spline surface. */
+template <class T> void addIgesSurfaceLines(std::vector<std::string> &lines, tcad::TSplineSurface<T> *surface, int dirline, int *count,
+  int numdigits = 18)
+{
+  std::string igesstr = "";
+
+  // save all info
+  addIgesString(lines,std::to_string(128),dirline,count,igesstr);
+  addIgesString(lines,std::to_string(surface->K1),dirline,count,igesstr);
+  addIgesString(lines,std::to_string(surface->K2),dirline,count,igesstr);
+  addIgesString(lines,std::to_string(surface->M1),dirline,count,igesstr);
+  addIgesString(lines,std::to_string(surface->M2),dirline,count,igesstr);
+  addIgesString(lines,std::to_string((int) 0),dirline,count,igesstr);
+  addIgesString(lines,std::to_string((int) 0),dirline,count,igesstr);
+  addIgesString(lines,std::to_string((int) 1),dirline,count,igesstr); // polynomial
+  addIgesString(lines,std::to_string((int) 0),dirline,count,igesstr);
+  addIgesString(lines,std::to_string((int) 0),dirline,count,igesstr);
+
+  // knots
+  for (int i = 0; i < (surface->K1 + surface->M1 + 2); i++)
+  {
+    addIgesString(lines,to_string(surface->Uknots[i],numdigits),dirline,count,igesstr);
+  }
+  for (int i = 0; i < (surface->K2 + surface->M2 + 2); i++)
+  {
+    addIgesString(lines,to_string(surface->Vknots[i],numdigits),dirline,count,igesstr);
+  }
+
+  // weights
+  for (int i = 0; i < int(surface->controlPoints().size()); i++)
+  {
+    addIgesString(lines,to_string(1.0,numdigits),dirline,count,igesstr);
+  }
+
+  for (int i = 0; i < int(surface->controlPoints().size()); i++)
+  {
+    addIgesString(lines,to_string(surface->controlPoints()[i].X,numdigits),dirline,count,igesstr);
+    addIgesString(lines,to_string(surface->controlPoints()[i].Y,numdigits),dirline,count,igesstr);
+    addIgesString(lines,to_string(surface->controlPoints()[i].Z,numdigits),dirline,count,igesstr);
+  }
+  addIgesString(lines,to_string(0.0,numdigits),dirline,count,igesstr);
+  addIgesString(lines,to_string(1.0,numdigits),dirline,count,igesstr);
+  addIgesString(lines,to_string(0.0,numdigits),dirline,count,igesstr);
+  addIgesString(lines,to_string(1.0,numdigits),dirline,count,igesstr);
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Make the whole collection of lines to save them. */
+template <class T> bool makeCurveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
   std::vector<std::string> &lines, int splinedegree = 2, int minpoints = 6)
 {
   lines.clear();
@@ -171,7 +222,7 @@ template <class T> bool makeLinesIges(std::vector<std::vector<tcad::TPoint<T>>> 
 
   for (int i = 0; i < int(curves.size()); i++)
   {
-    std::vector<tcad::TPoint<T>> curve = curves[i];
+    std::vector<tcad::TPoint<T>> &curve = curves[i];
 
     // redivide to make spline available
     if (curve.size() < minpoints) 
@@ -215,12 +266,107 @@ template <class T> bool makeLinesIges(std::vector<std::vector<tcad::TPoint<T>>> 
   return true;
 }
 
+/** Make the whole collection of lines to save them. */
+template <class T> bool makeSurfaceLinesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+  std::vector<std::string> &lines)
+{
+  lines.clear();
+
+  if (surfaces.empty())
+    return false;
+
+  // calculate size
+  double msize = 0.0;
+  for (auto &surface : surfaces)
+  {
+    double len = surface->maxSize();
+    msize = std::max<double>(msize,len);
+  }
+
+  // make header
+  std::string s;
+  for (int i = 0; i < 18; i++)
+  {
+    s = IgesHeader0[i];
+    if (i == 7)
+    {
+      s = writeHeaderLine(7,TOLERANCE(double));
+    } else if (i == 8)
+    {
+      s = writeHeaderLine(8,msize);
+    }
+    lines.push_back(s);
+  }
+
+  int slines = 1;
+  int glines = 11;
+  int dlines = (3 + int(surfaces.size())) * 2;
+
+  // save REAL directory lines for each surface
+  int dcount = 7;
+  int dir128line = int(lines.size());
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    // for entity 128
+    s = makeIgesDirectoryLine0(dirline1280, -1, -1, &dcount);
+    lines.push_back(s);
+    s = makeIgesDirectoryLine1(dirline1281, -1, -1, &dcount, "");
+    lines.push_back(s);
+  }
+
+  // save 3 lines  
+  // save header
+  for (int i = 0; i < 3; i++)
+  {
+    s = IgesHeader1[i];
+    lines.push_back(s);
+  }
+
+  // save surfaces
+  dcount = 7;
+  int pcount = 4;
+
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    tcad::TSplineSurface<T> *surface = surfaces[i];
+
+    // modify directory
+    lines[dir128line] = makeIgesDirectoryLine0(dirline1280,pcount,-1,&dcount);
+    dir128line++;
+
+    // add lines
+    int before = int(lines.size());
+    addIgesSurfaceLines(lines,surface,dcount - 1,&pcount);
+    int after = int(lines.size());
+
+    // modify directory
+    lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,"");
+    dir128line++;
+  }
+
+  int plines = pcount - 1;
+  int tlines = 1;
+
+  s = std::string("S") + to_string(slines,7) +
+    std::string("G") + to_string(glines,7) +
+    std::string("D") + to_string(dlines,7) +
+    std::string("P") + to_string(plines,7) +
+    "                                        " +
+    std::string("T") + to_string(tlines,7) + CRLF;
+  lines.push_back(s);
+
+  return true;
+}
+
+
+//===== Curves =================================================================
+
 /** Save curves as points. */
 template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, const std::string &filename)
 {
   std::vector<std::string> lines;
 
-  if (makeLinesIges(curves,lines))
+  if (makeCurveLinesIges(curves,lines))
   {
     bool ok = writeLines(lines,filename);
     return ok;
@@ -278,6 +424,32 @@ template <class T> bool saveThreeCurvesIges(tcad::TBaseCurve<T> &curve0, tcad::T
   points.push_back(points2);
 
   return saveLinesIges(points,filename);
+}
+
+//===== Surfaces ===============================================================
+
+/** Save surfaces in IGES. */
+template <class T> bool saveSurfacesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, const std::string &filename)
+{
+  std::vector<std::string> lines;
+
+  if (makeSurfaceLinesIges(surfaces,lines))
+  {
+    bool ok = writeLines(lines,filename);
+    return ok;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Save surface in IGES. */
+template <class T> bool saveSurfaceIges(tcad::TSplineSurface<T> *surface, const std::string &filename)
+{
+  std::vector<tcad::TSplineSurface<T> *> surfaces;
+  surfaces.push_back(surface);
+
+  return saveSurfacesIges(surfaces,filename);
 }
 
 //===== STL ====================================================================

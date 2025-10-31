@@ -235,7 +235,7 @@ public:
   }
 
   /** Approximate size along U. */
-  void Usize()
+  T Usize()
   {
     T len = 0.0;
     for (int i = 0; i <= K2; i++)
@@ -246,10 +246,12 @@ public:
     }
 
     len /= T(K2 + 1);
+
+    return len;
   }
 
   /** Approximate size along V. */
-  void Vsize()
+  T Vsize()
   {
     T len = 0.0;
     for (int i = 0; i <= K1; i++)
@@ -260,6 +262,14 @@ public:
     }
 
     len /= T(K1 + 1);
+
+    return len;
+  }
+
+  /** Approximate size. */
+  T maxSize()
+  {
+    return std::max<T>(Usize(),Vsize());
   }
 
   /** Get curvature. */
@@ -433,12 +443,14 @@ public:
     }
   }
 
-protected:
+public: //!!!!!!!
 
   // number of columns minus 1
   int K1 = 0;
   // number of rows munus 1
   int K2 = 0;
+
+protected:
 
   // (K1 + 1) * (K2 + 1) control points, call update() after every change
   std::vector<TPoint<T>> cpoints;

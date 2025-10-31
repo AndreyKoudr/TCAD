@@ -63,11 +63,10 @@ public:
     CurveEndType startV = END_CLAMPED, CurveEndType endV = END_CLAMPED, 
     bool keepmeshrefinementU = true, bool keepmeshrefinementV = true) : TBaseSurface<T>()
   {
-    this->cpoints.clear();
-
     this->K1 = numsegmentsU * 4 - 1;
     this->K2 = numsegmentsV * 4 - 1;
 
+    this->cpoints.clear();
     this->cpoints.resize((this->K1 + 1) * (this->K2 + 1));
 
     std::vector<TPoint<T>> temp;

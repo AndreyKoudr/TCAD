@@ -180,8 +180,6 @@ public:
   /** Update after any change in control points. */
   virtual void update()
   {
-    makeKnots();
-
     // number of points here must equal K1 + 1
     std::vector<TPoint<T>> kpoints;
     if (points.size() == K1 + 1)
@@ -195,6 +193,8 @@ public:
     }
 
     assert(kpoints.size() == K1 + 1);
+
+    makeKnots();
 
     if (interpolate)
     {
@@ -224,6 +224,62 @@ public:
     Uderivative->makeUDerivative(*UUderivative);
   }
 
+  /** Set clamped direction at the start. */
+  void setStartDerivative(TPoint<T> der)
+  {
+    setClampedStart(der);
+  }
+
+  /** Set clamped direction at the end. */
+  void setEndDerivative(TPoint<T> der)
+  {
+    setClampedEnd(der);
+  }
+  /** Set first derivative at curve starting end from points. It moves control point 1. 
+    https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html */
+  void setClampedStart(TPoint<T> dir)
+  {
+    // k 
+    int k = M1 + 1;
+    T k1 = T(k - 1);
+    T tk1 = Uknots[k] - Uknots[1];
+    TPoint<T> p1p0 = dir * (tk1 / k1);
+    this->cpoints[1] = this->cpoints[0] + p1p0;
+  }
+
+  /** Set first derivative at curve starting end from points. It moves control point 1. 
+    https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html */
+  void setClampedStart(std::vector<TPoint<T>> &points)
+  {
+    // direction at the start
+    TPoint<T> dir = startDirection(points);
+
+    setClampedStart(dir);
+  }
+
+  /** Set first derivative at curve end from points. It moves control point cpoints.size() - 2. */
+  void setClampedEnd(TPoint<T> dir)
+  {
+    int n0 = int(this->cpoints.size()) - 1;
+    int n1 = n0 - 1;
+
+    // k 
+    int k = M1 + 1;
+    T k1 = T(k - 1);
+    T tk1 = Uknots[K1 + k - 1] - Uknots[K1];
+    TPoint<T> pnpn1 = dir * (tk1 / k1); 
+    this->cpoints[n1] = this->cpoints[n0] + pnpn1;
+  }
+
+  /** Set first derivative at curve end from points. It moves control point cpoints.size() - 2. */
+  void setClampedEnd(std::vector<TPoint<T>> &points)
+  {
+    // direction at the end
+    TPoint<T> dir = endDirection(points);
+
+    setClampedEnd(dir);
+  }
+
 protected:
 
   /** Set main parameters. */
@@ -237,31 +293,7 @@ protected:
   /** Make uniform knots. */
   void makeKnots()
   {
-                                // allocate
-    Uknots.resize(K1 + M1 + 2,0.0);
-                                // fill knots, n is number of knots
-    int n = K1 + M1 + 2;
-    Uknots[0] = 0.0;
-    T d = 0.0;
-    for (int i = 1; i < n; i++)
-    {
-      if ((i < (M1 + 1)) || (i > n - (M1 + 1)))
-      {
-        d = 0.0;
-      } else
-      {
-        d = 1.0;
-      }
-
-      Uknots[i] = Uknots[i - 1] + d;
-    }
-
-    T Uend = Uknots[K1 + M1 + 1];
-
-    for (int i = 0; i < n; i++)
-    {
-      Uknots[i] /= Uend;
-    }
+    tcad::makeKnots(K1,M1,Uknots);
   }
 
   /** Calculate control points for points to approximate them. Reliable but the 
@@ -270,6 +302,7 @@ protected:
     of original points at ends. */
   bool approximatePoints(std::vector<TPoint<T>> &points)
   {
+    this->cpoints.clear();
     this->cpoints.resize(K1 + 1,TPoint<T>());
 
     // K1 + M1 + 2 = A + 1 - #knots
@@ -423,84 +456,6 @@ protected:
     }
 
     // DO NOT call update() here, cpoints are ready
-  }
-
-  /** Set first derivative at curve starting end from points. It moves control point 1. */
-  bool setClampedStart(std::vector<TPoint<T>> &points)
-  {
-    // direction at the start
-    TPoint<T> dir = startDirection(points);
-
-    // original points
-    TPointCurve<T> pcurve(points);
-
-    // build an LSQ Bezier segment at start interval
-    int n = findClosest(points,this->cpoints[1]);
-    if (n < 0)
-      return false;
-    LIMIT_MIN(n,4);
-
-    // we need enough points to build LSQ poly over these points
-    if (n > 3)
-    {
-      std::vector<TPoint<T>> bpoints;
-      for (int j = 0; j <= n; j++)
-      {
-        bpoints.push_back(points[j]);
-      }
-
-      TBezierSegment<T> bs(bpoints,true,true);
-      TPoint<T> d = bs.controlPoints()[1] - bs.controlPoints()[0];
-      T len = !d;
-      this->cpoints[1] = this->cpoints[0] + (+dir) * len;
-
-      return true;
-    } else
-    {
-      return false;
-    }
-  }
-
-  /** Set first derivative at curve end from points. It moves control point cpoints.size() - 2. */
-  bool setClampedEnd(std::vector<TPoint<T>> &points)
-  {
-    // direction at the end
-    int n0 = int(this->cpoints.size()) - 1;
-    int n1 = n0 - 1;
-    TPoint<T> dir = endDirection(points);
-
-    // original points
-    TPointCurve<T> pcurve(points);
-
-    // build an LSQ Bezier segment at ending interval
-    int n = findClosest(points,this->cpoints[n1]);
-    if (n < 0)
-      return false;
-    int N = int(points.size()) - n;
-    if (N < 4)
-    {
-      n = int(points.size()) - 4;
-    }
-
-    // we need enough points to build LSQ poly over these points
-    if ((int(points.size()) - n) > 3)
-    {
-      std::vector<TPoint<T>> bpoints;
-      for (int j = n; j <= points.size() - 1; j++)
-      {
-        bpoints.push_back(points[j]);
-      }
-
-      TBezierSegment<T> bs(bpoints,true,true);
-      TPoint<T> d = bs.controlPoints()[2] - bs.controlPoints()[3];
-      T len = !d;
-      this->cpoints[n1] = this->cpoints[n0] + (+dir) * len;
-
-      return true;
-    } else
-    {
-      return false;
-    }
   }
 
 public:

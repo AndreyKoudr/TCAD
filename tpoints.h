@@ -93,16 +93,28 @@ template <class T> std::vector<TPoint<T>> operator * (const std::vector<TPoint<T
   return points;
 }
 
-/** Get start direction (first derivative) for point list. */
-template <class T> TPoint<T> startDirection(std::vector<TPoint<T>> &points)
+/** Normalisation. */
+template <class T> std::vector<TPoint<T>> operator + (std::vector<TPoint<T>> &points0)
 {
-  return points[1] - points[0];
+  std::vector<TPoint<T>> points;
+  for (int i = 0; i < int(points0.size()); i++)
+  {
+    points.push_back((+points0[i]));
+  }
+
+  return points;
 }
 
-/** Get end direction (first derivative) for point list, directod from end "inside". */
+/** Get start direction (first derivative on U) for point list. */
+template <class T> TPoint<T> startDirection(std::vector<TPoint<T>> &points)
+{
+  return +(points[1] - points[0]);
+}
+
+/** Get end direction (first derivative on U) for point list, directed from end "inside". */
 template <class T> TPoint<T> endDirection(std::vector<TPoint<T>> &points)
 {
-  return points[points.size() - 2] - points[points.size() - 1];
+  return +(points[points.size() - 2] - points[points.size() - 1]);
 }
 
 /** Calculate min/max among a list of points; imin, imax contain corresponding indices as reals. */

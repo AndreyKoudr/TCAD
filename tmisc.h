@@ -582,7 +582,8 @@ template <class T> void getColumn(std::vector<TPoint<T>> &cpoints, int K1, int K
 }
 
 /** Set column of control points. */
-template <class T> void setColumn(std::vector<TPoint<T>> &cpoints, int K1, int K2, int index, const std::vector<TPoint<T>> &column)
+template <class T> void setColumn(std::vector<TPoint<T>> &cpoints, int K1, int K2, int index, 
+  const std::vector<TPoint<T>> &column)
 {
   assert(column.size() == K2 + 1);
 
@@ -590,6 +591,107 @@ template <class T> void setColumn(std::vector<TPoint<T>> &cpoints, int K1, int K
   {
     cpoints[index + (i * (K1 + 1))] = column[i];
   }
+}
+
+/** Get row of points of 2D array. */
+template <class T> void getRow(std::vector<std::vector<TPoint<T>>> &points, int index, 
+  std::vector<TPoint<T>> &row)
+{
+  assert(index >= 0 && index < int(points.size()));
+
+  row = points[index];
+}
+
+/** Set row of points of 2D array. */
+template <class T> void setRow(std::vector<std::vector<TPoint<T>>> &points, int index, 
+  std::vector<TPoint<T>> &row)
+{
+  assert(index >= 0 && index < int(points.size()));
+  assert(row.size() == points[index].size());
+
+  points[index] = row;
+}
+
+/** Get column of points of 2D array. */
+template <class T> void getColumn(std::vector<std::vector<TPoint<T>>> &points, int index, 
+  std::vector<TPoint<T>> &col)
+{
+  assert(index >= 0 && index < int(points[0].size()));
+
+  col.clear();
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    col.push_back(points[i][index]);
+  }
+}
+
+/** Set column of points of 2D array. */
+template <class T> void setColumn(std::vector<std::vector<TPoint<T>>> &points, int index, 
+  std::vector<TPoint<T>> &col)
+{
+  assert(index >= 0 && index < int(points[index].size()));
+  assert(col.size() == points.size());
+
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    points[i][index] = col[i];
+  }
+}
+
+/** Get derivatives (normalised) of points of 2D array at U = 0 boundary. */
+template <class T> void getDerivativesU0(std::vector<std::vector<TPoint<T>>> &points,  
+  std::vector<TPoint<T>> &der)
+{
+  der.clear();
+
+  std::vector<TPoint<T>> p0,p1;
+  getColumn(points,0,p0);
+  getColumn(points,1,p1);
+  
+  std::vector<TPoint<T>> d = p1 - p0;
+  der = +d;
+}
+
+/** Get derivatives (normalised) of points of 2D array at U = 1 boundary. */
+template <class T> void getDerivativesU1(std::vector<std::vector<TPoint<T>>> &points,  
+  std::vector<TPoint<T>> &der)
+{
+  der.clear();
+
+  std::vector<TPoint<T>> p0,p1;
+  getColumn(points,int(points[0].size() - 2),p0);
+  getColumn(points,int(points[0].size() - 1),p1);
+  
+  std::vector<TPoint<T>> d = p1 - p0;
+  der = +d;
+}
+
+/** Get derivatives (normalised) of points of 2D array at V = 0 boundary. */
+template <class T> void getDerivativesV0(std::vector<std::vector<TPoint<T>>> &points,  
+  std::vector<TPoint<T>> &der)
+{
+  der.clear();
+
+  std::vector<TPoint<T>> p0,p1;
+  getRow(points,0,p0);
+  getRow(points,1,p1);
+  
+  std::vector<TPoint<T>> d = p1 - p0;
+  der = +d;
+}
+
+/** Get derivatives (normalised) of points of 2D array at V = 1 boundary. */
+template <class T> void getDerivativesV1(std::vector<std::vector<TPoint<T>>> &points,  
+  std::vector<TPoint<T>> &der)
+{
+  der.clear();
+
+  std::vector<TPoint<T>> p0,p1;
+  getRow(points,int(points.size()) - 2,p0);
+  getRow(points,int(points.size()) - 1,p1);
+  
+  std::vector<TPoint<T>> d = p1 - p0;
+  der = +d;
 }
 
 /* Test piercing triangle by vector point0->point1; if pierced, returns U - 
@@ -684,6 +786,37 @@ template <typename T> T refineParameter(T U, T startpower = 1.0, T endpower = 1.
   LIMIT(U,0.0,1.0);
 
   return U;
+}
+
+/** Make B-spline knots. */
+template <class T> void makeKnots(int K, int M, std::vector<T> &knots)
+{
+                              // fill knots, n is number of knots
+  int n = K + M + 2;
+                              // allocate
+  knots.resize(n,0.0);
+
+  knots[0] = 0.0;
+  T d = 0.0;
+  for (int i = 1; i < n; i++)
+  {
+    if ((i < (M + 1)) || (i > n - (M + 1)))
+    {
+      d = 0.0;
+    } else
+    {
+      d = 1.0;
+    }
+
+    knots[i] = knots[i - 1] + d;
+  }
+
+  T Uend = knots[K + M + 1];
+
+  for (int i = 0; i < n; i++)
+  {
+    knots[i] /= Uend;
+  }
 }
 
 }
