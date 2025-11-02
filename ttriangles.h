@@ -70,7 +70,7 @@ three coordinates for an i-th triangle can be extracted as
   There is a massive infrastructure to handle face topology like getCornerTris() (find all triangles around
 corner), getEdgeTris() (find all triangles around an edge) etc. There are two functions to define
 if a triangulation is manifold() or solid(). buildConnectivityArray() excludes node duplicates and renumbers
-corners accordingly. Tolerance there is very important. cutByPlane() cuts triangles and reconstructs
+corners accordingly. Tolerance there is very important. intersectByPlane() cuts triangles and reconstructs
 the intersection line. getBoundary() makes a boundary as an ordered closed set of points.
   
   Triangles can be loaded and saved from/into STL files. No checks about node numeration :
@@ -169,7 +169,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   {
     T U = 0.0;
     TPoint<T> intersection;
-    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,tolerance,parmtolerance))
+    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,parmtolerance))
     {
       intrs.push_back(intersection);
     }
@@ -180,7 +180,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   {
     T U = 0.0;
     TPoint<T> intersection;
-    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,tolerance,parmtolerance))
+    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,parmtolerance))
     {
       intrs.push_back(intersection);
     }
@@ -202,6 +202,10 @@ public:
                               
   // replacement after exclusion of node duplicates
   std::vector<LINT> replacement;
+
+  // auxiliary data on UV surface coordinates of every triangle
+  // node if created from a surface 
+  std::vector<std::array<TPoint<T>,3>> UVcorners;
       
   /** Constructor. */
   TTriangles() = default;
@@ -228,7 +232,7 @@ public:
   ~TTriangles() = default;
 
   /** Number of triangles (faces) */
-  LINT numFaces() const;
+  inline LINT numFaces() const;
 
   /** Clear all, save memory. */
   void clear();
@@ -255,6 +259,9 @@ public:
   /** Get min/max of node coordinates. */
   std::pair<TPoint<T>,TPoint<T>> minmax();
 
+  /** Get size. */
+  T maxSize();
+
   /** Get triangles around every corner. */
   void getCornerTris(std::vector<std::vector<LINT>> &cornerTris);
 
@@ -277,7 +284,7 @@ public:
   TPoint<T> faceNormal(LINT faceNo) const;
 
   /** Get tri centre. */
-  TPoint<T> faceCentre(LINT faceNo) const;
+  TPoint<T> faceCentre(LINT faceNo, T *R = nullptr) const;
 
   /** Get tri area. */
   T faceArea(LINT faceNo) const;
@@ -380,12 +387,18 @@ public:
   /** Get signed distance to face plane. */
   T signedDist(LINT faceNo, const TPoint<T> &point) const;
 
-  /** Cut by plane into intersection line. */
-  bool cutByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, T tolerance);
+  /** Cut by plane into intersection line. boundary is UV boundary curve ofr surface. */
+  bool intersectByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, T tolerance,
+    T parmtolerance = PARM_TOLERANCE,
+    std::vector<std::vector<TPoint<T>>> *boundary = nullptr);
 
-  /** Intersect with other tris. */
+  /** Intersect with other tris. boundary0,1 contain in U,V parameters in X,Y for 
+    first and second surfaces for trimming. Set BOTH boundaries to null or not null 
+    at the same time. */
   bool intersect(TTriangles<T> &other, std::vector<std::vector<TPoint<T>>> &lines, T tolerance, 
-    T parmtolerance = TOLERANCE(T));
+    T parmtolerance = TOLERANCE(T),
+    std::vector<std::vector<TPoint<T>>> *boundary0 = nullptr,
+    std::vector<std::vector<TPoint<T>>> *boundary1 = nullptr);
 
   /** Get pieces (normally one) of boundary as ordered boundary nodes. maxlinelength
     is max line length to prevent crashes (not clear). */
@@ -430,6 +443,9 @@ public:
   /** Cut face. */
   int cutFaceByPlane(TPlane<T> &plane, LINT faceNo, std::vector<TPoint<T>> &intrs, T tolerance);
 
+  /** Get all face centres with radius at W. R coef is R expansion coefficient. */
+  void getCentresAndRadii(std::vector<TPoint<T>> &centres, T Rcoef = 2.1);
+
 private:
 
   // Subdive a sliver tri, 0 is the sharpest node. Conformity of mesh is destroyed!
@@ -455,9 +471,13 @@ template<class T> void TTriangles<T>::clear()
 {
   std::vector<TPoint<T>> ocoords;
   std::vector<LINT> ocorners;
+  std::vector<std::array<TPoint<T>,3>> ouvcorners;
 
   coords.swap(ocoords);
   corners.swap(ocorners);
+  UVcorners.swap(ouvcorners);
+
+  replacement.clear();
 }
 
 template<class T> void TTriangles<T>::addSliver(TPoint<T> v0, TPoint<T> v1, TPoint<T> v2, LINT numdivs, bool revert)
@@ -1140,6 +1160,13 @@ template <class T> std::pair<TPoint<T>,TPoint<T>> TTriangles<T>::minmax()
   return std::pair<TPoint<T>,TPoint<T>>(min,max);
 }
 
+template <class T> T TTriangles<T>::maxSize()
+{
+  std::pair<TPoint<T>,TPoint<T>> mm = minmax();
+  TPoint<T> d = mm.second - mm.first;
+  return !d;
+}
+
 template <class T> void TTriangles<T>::getCornerTris(std::vector<std::vector<LINT>> &cornerTris)
 {
   assert(coords.size() > 0);
@@ -1264,12 +1291,14 @@ template <class T> TPoint<T> TTriangles<T>::faceNormal(LINT faceNo) const
   return n;
 }
 
-template <class T> TPoint<T> TTriangles<T>::faceCentre(LINT faceNo) const
+template <class T> TPoint<T> TTriangles<T>::faceCentre(LINT faceNo, T *R) const
 {
   LINT i0 = corners[faceNo * 3];
   LINT i1 = corners[faceNo * 3 + 1];
   LINT i2 = corners[faceNo * 3 + 2];
   TPoint<T> c = (coords[i0] + coords[i1] + coords[i2]) * 0.333333333;
+  if (R)
+    *R = !(coords[i0] - c);
   return c;
 }
 
@@ -1904,8 +1933,9 @@ template <class T> T TTriangles<T>::signedDist(LINT faceNo, const TPoint<T> &poi
   return dist;
 }
 
-template <class T> bool TTriangles<T>::cutByPlane(TPlane<T> &plane, 
-  std::vector<std::vector<TPoint<T>>> &lines, T tolerance)
+template <class T> bool TTriangles<T>::intersectByPlane(TPlane<T> &plane, 
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T parmtolerance,
+  std::vector<std::vector<TPoint<T>>> *boundary)
 {
   // return value
   bool ok = false;
@@ -1916,23 +1946,77 @@ template <class T> bool TTriangles<T>::cutByPlane(TPlane<T> &plane,
   // intersection pieces each of two points
   std::vector<std::vector<TPoint<T>>> pieces;
 
-  for (LINT i = 0; i < numFaces(); i++)
+  // parametric values for intersection points, X,Y - U,V 
+  std::vector<TPoint<T>> UVintrs;
+
+  bool makeboundaries = (boundary && !UVcorners.empty());
+
+  if (makeboundaries)
   {
-    std::vector<TPoint<T>> intrs;
-    if (cutFaceByPlane(plane,i,intrs,tolerance) == 2)
+    for (LINT i = 0; i < numFaces(); i++)
     {
-      pieces.push_back(intrs);
+      std::array<TPoint<T>,3> corners = threeCorners(i);
+
+      // UVcorners must be filled in TBaseSurface::createTriangles()
+      std::array<TPoint<T>,3> uvcorners = UVcorners[i];
+
+      std::vector<TPoint<T>> intrs;
+      if (cutFaceByPlane(plane,i,intrs,tolerance) == 2)
+      {
+        TPoint<T> coord0 = barycentricCoord(corners,intrs[0]);
+        TPoint<T> coord1 = barycentricCoord(corners,intrs[1]);
+
+        // these will contain U,V in X,Y for every intersection point
+        TPoint<T> uv0,uv1;
+        for (int k = 0; k < 3; k++)
+        {
+          uv0 += uvcorners[k] * coord0.XYZW[k];
+          uv1 += uvcorners[k] * coord1.XYZW[k];
+        }
+
+        // keep U,V for every intersection
+        UVintrs.push_back(TPoint<T>(uv0.X,uv0.Y));
+        intrs[0].W = T(UVintrs.size() - 1);
+        UVintrs.push_back(TPoint<T>(uv1.X,uv1.Y));
+        intrs[1].W = T(UVintrs.size() - 1);
+
+        pieces.push_back(intrs);
+      }
+    }
+  } else
+  {
+    for (LINT i = 0; i < numFaces(); i++)
+    {
+      std::vector<TPoint<T>> intrs;
+      if (cutFaceByPlane(plane,i,intrs,tolerance) == 2)
+      {
+        pieces.push_back(intrs);
+      }
     }
   }
 
   // order a curve from two-point pieces
   ok = curvesFromPieces(pieces,lines,tolerance,false);
 
+  if (makeboundaries)
+  {
+    for (int i = 0; i < int(lines.size()); i++)
+    {
+      boundary->push_back(std::vector<TPoint<T>>());
+      for (int j = 0; j < int(lines[i].size()); j++)
+      {
+        boundary->back().push_back(TPoint<T>(UVintrs[ROUND(lines[i][j].W)].X,UVintrs[ROUND(lines[i][j].W)].Y));
+      }
+    }
+  }
+
   return ok;
 }
 
 template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, 
-  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T parmtolerance)
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T parmtolerance,
+  std::vector<std::vector<TPoint<T>>> *boundary0,
+  std::vector<std::vector<TPoint<T>>> *boundary1)
 {
   // no lines
   lines.clear();
@@ -1940,29 +2024,125 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   // intersection pairs of points
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
 
-  // take every face, intersect with 3 other edges
-  for (LINT i = 0; i < numFaces(); i++)
+  // parametric values for intersection points, X,Y - U,V for first surface,
+  // Z,W - U,V for second surface
+  std::vector<TPoint<T>> UVintrs;
+
+  // make parametric boundaries
+  bool makeboundaries = boundary0 && boundary1 && !UVcorners.empty() && !other.UVcorners.empty();
+
+  std::vector<TPoint<T>> centres,ocentres;
+  getCentresAndRadii(centres);
+  other.getCentresAndRadii(ocentres);
+
+  if (makeboundaries)
   {
-    std::array<TPoint<T>,3> corners = threeCorners(i);
-
-    for (LINT j = 0; j < other.numFaces(); j++)
+    // take every face, intersect with 3 other edges
+    for (LINT i = 0; i < numFaces(); i++)
     {
-      std::array<TPoint<T>,3> ocorners = other.threeCorners(j);
+      TPoint<T> c = centres[i];
 
-      std::vector<TPoint<T>> intrs;
-      if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
+      std::array<TPoint<T>,3> corners = threeCorners(i);
+
+      // UVcorners must be filled in TBaseSurface::createTriangles()
+      std::array<TPoint<T>,3> uvcorners = UVcorners[i];
+
+      for (LINT j = 0; j < other.numFaces(); j++)
       {
-        if (intrs.size() == 2)
+        TPoint<T> oc = ocentres[j];
+        T d = !(oc - c);
+        if (d > oc.W + c.W)
+          continue;
+
+        std::array<TPoint<T>,3> ocorners = other.threeCorners(j);
+        // UVcorners must be filled in TBaseSurface::createTriangles()
+        std::array<TPoint<T>,3> ouvcorners = other.UVcorners[j];
+
+        std::vector<TPoint<T>> intrs;
+        if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
         {
-          edges.push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+          if (intrs.size() == 2)
+          {
+            TPoint<T> coord0 = barycentricCoord(corners,intrs[0]);
+            TPoint<T> coord1 = barycentricCoord(corners,intrs[1]);
+            TPoint<T> ocoord0 = barycentricCoord(ocorners,intrs[0]);
+            TPoint<T> ocoord1 = barycentricCoord(ocorners,intrs[1]);
+
+            // these will contain U,V in X,Y for every intersection point
+            TPoint<T> uv0,uv1,ouv0,ouv1;
+            for (int k = 0; k < 3; k++)
+            {
+              uv0 += uvcorners[k] * coord0.XYZW[k];
+              uv1 += uvcorners[k] * coord1.XYZW[k];
+              ouv0 += ouvcorners[k] * ocoord0.XYZW[k];
+              ouv1 += ouvcorners[k] * ocoord1.XYZW[k];
+            }
+
+            // keep U,V for every intersection on both surfaces
+            UVintrs.push_back(TPoint<T>(uv0.X,uv0.Y,ouv0.X,ouv0.Y));
+            intrs[0].W = T(UVintrs.size() - 1);
+            UVintrs.push_back(TPoint<T>(uv1.X,uv1.Y,ouv1.X,ouv1.Y));
+            intrs[1].W = T(UVintrs.size() - 1);
+
+            edges.push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+          }
         }
       }
     }
+  } else
+  {
+    // take every face, intersect with 3 other edges
+    for (LINT i = 0; i < numFaces(); i++)
+    {
+      TPoint<T> c = centres[i];
+
+      std::array<TPoint<T>,3> corners = threeCorners(i);
+
+      for (LINT j = 0; j < other.numFaces(); j++)
+      {
+        TPoint<T> oc = ocentres[j];
+        T d = !(oc - c);
+        if (d > oc.W + c.W)
+          continue;
+
+        std::array<TPoint<T>,3> ocorners = other.threeCorners(j);
+
+        std::vector<TPoint<T>> intrs;
+        if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
+        {
+          if (intrs.size() == 2)
+          {
+            edges.push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+          }
+        }
+      }
+    }  
   }
 
   std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
 
   bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true); 
+
+  if (makeboundaries)
+  {
+    for (int i = 0; i < int(lines.size()); i++)
+    {
+      boundary0->push_back(std::vector<TPoint<T>>());
+      for (int j = 0; j < int(lines[i].size()); j++)
+      {
+        boundary0->back().push_back(TPoint<T>(UVintrs[ROUND(lines[i][j].W)].X,UVintrs[ROUND(lines[i][j].W)].Y));
+      }
+    }
+
+    for (int i = 0; i < int(lines.size()); i++)
+    {
+      boundary1->push_back(std::vector<TPoint<T>>());
+      for (int j = 0; j < int(lines[i].size()); j++)
+      {
+        boundary1->back().push_back(TPoint<T>(UVintrs[ROUND(lines[i][j].W)].Z,UVintrs[ROUND(lines[i][j].W)].W));
+      }
+    }
+  }
 
   return ok;
 }
@@ -2361,6 +2541,18 @@ template <class T> int TTriangles<T>::cutFaceByPlane(TPlane<T> &plane, LINT face
   removeDuplicates(intrs,true,tolerance); // true is correct here
 
   return int(intrs.size());
+}
+
+template <class T> void TTriangles<T>::getCentresAndRadii(std::vector<TPoint<T>> &centres, T Rcoef)
+{
+  for (LINT i = 0; i < numFaces(); i++)
+  {
+    T R = 0.0;
+    TPoint<T> centre = faceCentre(i,&R);
+    centre.W = R * Rcoef;
+
+    centres.push_back(centre);
+  }
 }
 
 }

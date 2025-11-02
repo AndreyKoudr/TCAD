@@ -125,19 +125,19 @@ public:
       {
         if (onparameter == PARAMETER_U)
         {
-          r *= DU;
+          r /= DU;
         } else if (onparameter == PARAMETER_V)
         {
-          r *= DV;
+          r /= DV;
         }
       } else if (k == 2)
       {
         if (onparameter == PARAMETER_U)
         {
-          r *= (DU * DU);
+          r /= (DU * DU);
         } else if (onparameter == PARAMETER_V)
         {
-          r *= (DV * DV);
+          r /= (DV * DV);
         }
       }
 

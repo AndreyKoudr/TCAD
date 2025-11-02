@@ -104,13 +104,13 @@ public:
           TPoint<T> func;
           rectShapeFuncDerU01(u,v,func);
           r = corners[0] * func.X + corners[1] * func.Y + corners[2] * func.Z + corners[3] * func.W;
-          r *= DU;
+          r /= DU;
         } else if (onparameter == PARAMETER_V)
         {
           TPoint<T> func;
           rectShapeFuncDerV01(u,v,func);
           r = corners[0] * func.X + corners[1] * func.Y + corners[2] * func.Z + corners[3] * func.W;
-          r *= DV;
+          r /= DV;
         }
       }
 

@@ -31,7 +31,7 @@ Curves
 ======
 
 Curves of various kinds, parametric, dependent of one parameter U. Most operations are linearised. 
-Some operations are some n-squared (yet).
+Some operations are n-squared (yet).
 
 <B>Files</B><br />
 
@@ -84,8 +84,9 @@ Surfaces
 - 2.9 Surfaces : Bezier surface, a composite of Bezier patches
 - 2.10 Surfaces : point surface, a regilar net of points with linear interpolation between
 - 2.11 Surfaces : B-spline surface, interpolated and approximated, with and without clamping
-
-
+- 2.12 Surfaces : intersection of two, get intersection curve and two parametric curves for trimming
+- 2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming
+- 2.14 Surfaces : create B-spline surface from any other surface
 
 Doing more tests for surfaces ...
 =================================

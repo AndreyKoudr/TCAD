@@ -698,7 +698,7 @@ template <class T> void getDerivativesV1(std::vector<std::vector<TPoint<T>>> &po
   parameter to mark point between point0 and point1. U check for [0..1] is here. */
 template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
   const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, 
-  const T tolerance, const T parmtolerance = PARM_TOLERANCE)
+  const T parmtolerance = PARM_TOLERANCE)
 {
                                       // get vector point0->point1 
   TPoint<T> v01 = point1 - point0;
@@ -710,7 +710,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
   T r = N * v01;
   U = std::abs(r);
                                       // view direction parallel to facet plane 
-  if (U < tolerance)  
+  if (U < TOLERANCE(T))
     return false;
                                       // get intersection between point0  &point1 
   U = (-D - point0 * N) / r;
@@ -757,7 +757,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
       if (projectPointOnSegment(intersection,p0,p1,&intr,&t,parmtolerance))
       {
         T dist = !(intersection - intr);
-        if (dist < tolerance)
+        if (dist < TOLERANCE(T))
         {
           onedge = true;
           break;
@@ -817,6 +817,96 @@ template <class T> void makeKnots(int K, int M, std::vector<T> &knots)
   {
     knots[i] /= Uend;
   }
+}
+
+/** Triangle area. Always non-negative. */
+template <class T> T triangleArea(TPoint<T> p1, TPoint<T> p2, TPoint<T> p3)
+{
+  T A,B,C,P;
+  TPoint<T> p12,p23,p31;
+
+  p12 = p2 - p1; p23 = p3 - p2; p31 = p3 - p1;
+  A = !p12; B = !p23; C = !p31;
+
+  // semiperimeter
+  P = (A + B + C) * 0.5;
+
+  // Geron's formula
+  T area = P * (P - A) * (P - B) * (P - C); 
+  if (area < 0.0) 
+    area = 0.0;
+
+  return sqrt(area);
+}
+
+/** Get three barythencric coordinate of a point inside triangle. The point MUST BE inside or close
+  to the edge. */
+template <class T> TPoint<T> barycentricCoord(std::array<TPoint<T>,3> &coords, TPoint<T> &intersection)
+{
+  // whole triangle area
+  T area = triangleArea(coords[0],coords[1],coords[2]);
+
+  if (area > TOLERANCE(T))
+  {
+    // first node 0 coordinate, zero at side 1-2
+    T area0 = triangleArea(intersection,coords[1],coords[2]);
+
+    // node 1 coordinate, zero at side 2-0
+    T area1 = triangleArea(intersection,coords[2],coords[0]);
+
+    T e0 = area0 / area;
+    T e1 = area1 / area;
+
+    LIMIT(e0,0.0,1.0);
+    LIMIT(e1,0.0,1.0);
+    T e2 = 1.0 - e0 - e1;
+    LIMIT(e2,0.0,1.0);
+
+    TPoint<T> ecoord(e0,e1,e2);
+
+    return ecoord;
+  } else
+  {
+    // what is not correct it designates failure
+    return TPoint<T>();
+  }
+}
+
+/** Convert 1D points size (K1 + 1) x (K2 + 1) into 2D points[K2 + 1][K1 + 1]. */
+template <class T> void points1Dto2D(std::vector<TPoint<T>> &points1D, int K1, int K2,
+  std::vector<std::vector<TPoint<T>>> &points2D)
+{
+  assert(int(points1D.size()) == (K1 + 1) * (K2 + 1));
+
+  points2D.clear();
+  int count = 0;
+  for (int i = 0; i <= K2; i++)
+  {
+    points2D.push_back(std::vector<TPoint<T>>());
+    for (int j = 0; j <= K1; j++)
+    {
+      points2D.back().push_back(points1D[count++]);
+    }
+  }
+}
+
+/** Convert 2D points[K2 + 1][K1 + 1] into 1D points size (K1 + 1) x (K2 + 1). */
+template <class T> void points2Dto1D(std::vector<std::vector<TPoint<T>>> &points2D,
+  std::vector<TPoint<T>> &points1D, int *K1 = nullptr, int *K2 = nullptr)
+{
+  points1D.clear();
+  for (int i = 0; i < int(points2D.size()); i++)
+  {
+    for (int j = 0; j < int(points2D[i].size()); j++)
+    {
+      points1D.push_back(points2D[i][j]);
+    }
+  }
+
+  if (K1)
+    *K1 = int(points2D[0].size()) - 1;
+  if (K2)
+    *K2 = int(points2D.size()) - 1;
 }
 
 }

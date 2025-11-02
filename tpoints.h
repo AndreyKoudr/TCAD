@@ -108,13 +108,23 @@ template <class T> std::vector<TPoint<T>> operator + (std::vector<TPoint<T>> &po
 /** Get start direction (first derivative on U) for point list. */
 template <class T> TPoint<T> startDirection(std::vector<TPoint<T>> &points)
 {
-  return +(points[1] - points[0]);
+  TPoint<T> d = points[1] - points[0];
+  T len = !d;
+  T curvelen = calculateLength(points);
+  T DU = len / curvelen;
+  TPoint<T> dir = d / DU;
+  return dir;
 }
 
 /** Get end direction (first derivative on U) for point list, directed from end "inside". */
 template <class T> TPoint<T> endDirection(std::vector<TPoint<T>> &points)
 {
-  return +(points[points.size() - 2] - points[points.size() - 1]);
+  TPoint<T> d = points[points.size() - 2] - points[points.size() - 1];
+  T len = !d;
+  T curvelen = calculateLength(points);
+  T DU = len / curvelen;
+  TPoint<T> dir = d / DU;
+  return dir;
 }
 
 /** Calculate min/max among a list of points; imin, imax contain corresponding indices as reals. */
@@ -231,31 +241,42 @@ template <class T> bool prepareParameters(std::vector<TPoint<T>> &points,
     return false;
   }
 
-  if (bynumbers)
+  T len = calculateLength(points);
+  if (len < tolerance)
   {
     for (int i = 0; i < points.size(); i++)
     {
       T U = T(i) / T(points.size() - 1);
       parms.push_back(U);
     }
-
-    // these parms are already scaled
   } else
   {
-    T len = 0.0;
-    parms.push_back(len);
-    for (int i = 1; i < points.size(); i++)
+    if (bynumbers)
     {
-      len += !(points[i] - points[i - 1]);
-      parms.push_back(len);
-    }
-                          
-    // scale parms from 0 to 1
-    if (normalise)
-    {    
-      for (auto &p : parms)
+      for (int i = 0; i < points.size(); i++)
       {
-        p /= parms.back();
+        T U = T(i) / T(points.size() - 1);
+        parms.push_back(U);
+      }
+
+      // these parms are already scaled
+    } else
+    {
+      T len = 0.0;
+      parms.push_back(len);
+      for (int i = 1; i < points.size(); i++)
+      {
+        len += !(points[i] - points[i - 1]);
+        parms.push_back(len);
+      }
+                          
+      // scale parms from 0 to 1
+      if (normalise)
+      {    
+        for (auto &p : parms)
+        {
+          p /= parms.back();
+        }
       }
     }
   }

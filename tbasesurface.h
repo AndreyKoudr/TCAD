@@ -122,8 +122,11 @@ public:
     A set of according parameter values is generated as well.
     Set refine... to 0.5 at a corresponding end to refine,
     1.0 has no effect.
+
+    UVpoints, if not null, contain U,V parameter values in X,Y
   */
   virtual void createPoints(std::vector<TPoint<T>> &points, 
+    std::vector<TPoint<T>> *UVpoints,
     int *k1 = nullptr, int *k2 = nullptr,
     int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
     T refinestartU = 1.0, T refineendU = 1.0, 
@@ -145,6 +148,9 @@ public:
 
         TPoint<T> p = this->position(U,V);
         points.push_back(p);
+
+        if (UVpoints)
+          UVpoints->push_back(TPoint<T>(U,V));
       }
     }
 
@@ -165,16 +171,21 @@ public:
     tris.clear();
 
     std::vector<TPoint<T>> points;
+    std::vector<TPoint<T>> UVpoints;
     int k1 = 0;
     int k2 = 0;
 
-    createPoints(points,&k1,&k2,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV);
+    createPoints(points,&UVpoints,&k1,&k2,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV);
 
     for (int i = 0; i < k2; i++)
     {
       std::vector<TPoint<T>> row0,row1;
       tcad::getRow(points,k1,k2,i,row0);
       tcad::getRow(points,k1,k2,i + 1,row1);
+
+      std::vector<TPoint<T>> UVrow0,UVrow1;
+      tcad::getRow(UVpoints,k1,k2,i,UVrow0);
+      tcad::getRow(UVpoints,k1,k2,i + 1,UVrow1);
 
       for (int j = 0; j < int(row0.size() - 1); j++)
       {
@@ -183,6 +194,11 @@ public:
         TPoint<T> p2 = row1[j + 1];
         TPoint<T> p3 = row1[j];
 
+        TPoint<T> UVp0 = UVrow0[j];
+        TPoint<T> UVp1 = UVrow0[j + 1];
+        TPoint<T> UVp2 = UVrow1[j + 1];
+        TPoint<T> UVp3 = UVrow1[j];
+
         T d0 = !(p2 - p0);
         T d1 = !(p3 - p1);
 
@@ -190,10 +206,16 @@ public:
         {
           tris.addTri(p2,p0,p1,0.0);
           tris.addTri(p0,p2,p3,0.0);
+
+          tris.UVcorners.push_back(std::array<TPoint<T>,3> {UVp2,UVp0,UVp1});
+          tris.UVcorners.push_back(std::array<TPoint<T>,3> {UVp0,UVp2,UVp3});
         } else
         {
           tris.addTri(p1,p3,p0,0.0);
           tris.addTri(p3,p1,p2,0.0);
+
+          tris.UVcorners.push_back(std::array<TPoint<T>,3> {UVp1,UVp3,UVp0});
+          tris.UVcorners.push_back(std::array<TPoint<T>,3> {UVp3,UVp1,UVp2});
         }
       }
     }
@@ -306,8 +328,8 @@ public:
     int numpointsV = MANY_POINTS)
   {
     std::vector<TPoint<T>> points,otherpoints;
-    createPoints(points,nullptr,nullptr,numpointsU,numpointsV);
-    other.createPoints(otherpoints,nullptr,nullptr,numpointsU,numpointsV);
+    createPoints(points,nullptr,nullptr,nullptr,numpointsU,numpointsV);
+    other.createPoints(otherpoints,nullptr,nullptr,nullptr,numpointsU,numpointsV);
 
     T diff = difference(points,otherpoints);
     return (diff >= 0.0 && diff < tolerance);
@@ -320,7 +342,7 @@ public:
     std::vector<TPoint<T>> points;
     int k1 = 0;
     int k2 = 0;
-    createPoints(points,&k1,&k2,numpointsU,numpointsV);
+    createPoints(points,nullptr,&k1,&k2,numpointsU,numpointsV);
 
     // temp
     TPoint<T> proj;
@@ -375,19 +397,23 @@ public:
     TPoint<T> *imax = nullptr, int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
   {
     std::vector<TPoint<T>> points;
-    createPoints(points,nullptr,nullptr,numpointsU,numpointsV);
+    createPoints(points,nullptr,nullptr,nullptr,numpointsU,numpointsV);
 
     return tcad::calculateMinMax(points,min,max,imin,imax);
   }
 
   /** Cut by plane. */
-  bool cutByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, 
-    T tolerance, int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+  bool intersectByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, 
+    std::vector<std::vector<TPoint<T>>> &boundary,
+    T tolerance, T parmtolerance = TOLERANCE(T), 
+    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    T refinestartU = 1.0, T refineendU = 1.0, 
+    T refinestartV = 1.0, T refineendV = 1.0)
   {
-    TTriangles tris;
-    if (createTriangles(tris,numpointsU,numpointsV))
+    TTriangles<T> tris;
+    if (createTriangles(tris,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV))
     {
-      return tris.cutByPlane(plane,lines,tolerance);
+      return tris.intersectByPlane(plane,lines,tolerance,parmtolerance,&boundary);
     } else
     {
       return false;
@@ -420,17 +446,26 @@ public:
     }
   }
 
-  /** Find intersection curve(s) with another surface. Returns number od intersection curves. */
+  /** Find intersection curve(s) with another surface. Returns number of intersection curves. 
+    boundary0/1 contain U,V in X,Y for every intersection curve for both surfaces. */
   template <class T> int intersect(TBaseSurface<T> &other, std::vector<std::vector<TPoint<T>>> &intersections, 
+    std::vector<std::vector<TPoint<T>>> &boundary0, std::vector<std::vector<TPoint<T>>> &boundary1,
     T tolerance, T parmtolerance = TOLERANCE(T), 
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+    int numpointsU0 = MANY_POINTS, int numpointsV0 = MANY_POINTS,
+    T refinestartU0 = 1.0, T refineendU0 = 1.0, 
+    T refinestartV0 = 1.0, T refineendV0 = 1.0,
+    int numpointsU1 = MANY_POINTS, int numpointsV1 = MANY_POINTS,
+    T refinestartU1 = 1.0, T refineendU1 = 1.0, 
+    T refinestartV1 = 1.0, T refineendV1 = 1.0)
   {
     TTriangles<T> tris,othertris;
 
-    if (createTriangles(tris,numpointsU,numpointsV) &&
-      other.createTriangles(othertris,numpointsU,numpointsV))
+    if (createTriangles(tris,numpointsU0,numpointsV0,
+      refinestartU0,refineendU0,refinestartV0,refineendV0) &&
+      other.createTriangles(othertris,numpointsU1,numpointsV1,
+      refinestartU1,refineendU1,refinestartV1,refineendV1))
     {
-      if (tris.intersect(othertris,intersections,tolerance,parmtolerance))
+      if (tris.intersect(othertris,intersections,tolerance,parmtolerance,&boundary0,&boundary1))
       {
         return int(intersections.size());
       } else
@@ -440,6 +475,49 @@ public:
     } else
     {
       return 0;
+    }
+  }
+
+  /** Find intersection curve(s) by a plane. Returns number of intersection curves. 
+    boundary0/1 contain U,V in X,Y for every intersection curve for both surfaces. */
+  template <class T> int intersectByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &intersections, 
+    std::vector<std::vector<TPoint<T>>> &boundary,
+    T tolerance, T parmtolerance = TOLERANCE(T), 
+    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    T refinestartU = 1.0, T refineendU = 1.0, 
+    T refinestartV = 1.0, T refineendV = 1.0)
+  {
+    TTriangles<T> tris,othertris;
+
+    if (createTriangles(tris,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV))
+    {
+      if (tris.intersectByPlane(plane,intersections,tolerance,parmtolerance,&boundary))
+      {
+        return int(intersections.size());
+      } else
+      {
+        return 0;
+      }
+    } else
+    {
+      return 0;
+    }
+  }
+
+  /** Convert U/V boundary into XYZ points. */
+  template <class T> void boundaryIntoPoints(std::vector<std::vector<TPoint<T>>> &UVboundary,
+    std::vector<std::vector<TPoint<T>>> &points)
+  {
+    points.clear();
+
+    for (int i = 0; i < int(UVboundary.size()); i++)
+    {
+      points.push_back(std::vector<TPoint<T>>());
+      for (int j = 0; j < int(UVboundary[i].size()); j++)
+      {
+        TPoint<T> p = this->position(UVboundary[i][j].X,UVboundary[i][j].Y);
+        points.back().push_back(p);
+      }
     }
   }
 

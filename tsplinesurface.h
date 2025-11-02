@@ -77,7 +77,7 @@ public:
     update();
   }
 
-  /** Constructor. Every points[i] is a row of points (U-changing). */
+  /** Constructor. Every points[i] is a row of points (U-changing fastest). */
   TSplineSurface(std::vector<std::vector<TPoint<T>>> &ppoints, 
     int m1, int m2, 
     CurveEndType startU, CurveEndType endU,
@@ -98,6 +98,38 @@ public:
     clampedendV = (endV == END_CLAMPED);
 
     interpolate = true;
+
+    update();
+  }
+
+  /** Constructor from any other surface. Set refine... for start/end of parametric
+    directions to 0.5 to handle rounded edges. */
+  TSplineSurface(TBaseSurface<T> &surface, 
+    int k1, int m1, int k2, int m2, 
+    CurveEndType startU, CurveEndType endU,
+    CurveEndType startV, CurveEndType endV,
+    T refinestartU = 1.0, T refineendU = 1.0, 
+    T refinestartV = 1.0, T refineendV = 1.0) : TBaseSurface<T>()
+  {
+    std::vector<TPoint<T>> temp;
+    int tempK1 = 0;
+    int tempK2 = 0;
+    surface.createPoints(temp,nullptr,&tempK1,&tempK2, 
+       k1 + 1,k2 + 1,refinestartU,refineendU,refinestartV,refineendV);
+
+    // make 2D points
+    points1Dto2D(temp,tempK1,tempK2,this->points);
+
+    this->cpoints.clear();
+
+    allocate(k1,m1,k2,m2,false);
+
+    clampedstartU = (startU == END_CLAMPED);
+    clampedendU = (endU == END_CLAMPED);
+    clampedstartV = (startV == END_CLAMPED);
+    clampedendV = (endV == END_CLAMPED);
+
+    interpolate = false;
 
     update();
   }
@@ -258,8 +290,23 @@ public:
     Vderivative->makeDerivatives(*VUderivative,*VVderivative);
   }
 
+  /** Make transform. */
+  virtual void makeTransform(TTransform<T> *transform)
+  {
+    for (auto &line : points)
+    {
+      for (auto &p : line)
+      {
+        p = transform->applyTransform(p);
+      }
+    }
+
+    // call virtual update()
+    this->update();
+  }
+
   /** Set U clamping at start / end. points are the original points from where
-    the dirivatives are taken. */
+    the derivatives are taken. */
   void setUClamping(std::vector<std::vector<TPoint<T>>> &points, bool start, bool end)
   {
     // get end derivatives from the original points
@@ -293,7 +340,7 @@ public:
   }
 
   /** Set V clamping at start / end. points are the original points from where
-    the dirivatives are taken. */
+    the derivatives are taken. */
   void setVClamping(std::vector<std::vector<TPoint<T>>> &points, bool start, bool end)
   {
     std::vector<TPoint<T>> temp;
@@ -422,10 +469,8 @@ public:
   {
     // create surfaces 1 order less
     Uderivative.allocate(this->K1 - 1,this->M1 - 1,this->K2 - 1,this->M2 - 1,interpolate);
-    Uderivative.makeKnots();
 
     Vderivative.allocate(this->K1 - 1,this->M1 - 1,this->K2 - 1,this->M2 - 1,interpolate);
-    Vderivative.makeKnots();
 
     Uderivative.cpoints.resize(this->K1 * this->K2);
     Vderivative.cpoints.resize(this->K1 * this->K2);
@@ -462,16 +507,21 @@ public:
       }
     }
 
-    // correct knots
-    for (int i = 0; i <= Uderivative.K1; i++)
-    {
-      Uderivative.Uknots[i] = Uknots[i + 1];
-    }
+    // drop two end points in derivatives
+    Uderivative.Uknots = Uknots;
+    Uderivative.Vknots = Vknots;
+    Vderivative.Uknots = Uknots;
+    Vderivative.Vknots = Vknots;
 
-    for (int i = 0; i <= Vderivative.K2; i++)
-    {
-      Vderivative.Vknots[i] = Vknots[i + 1];
-    }
+    Uderivative.Uknots.erase(Uderivative.Uknots.begin());
+    Uderivative.Vknots.erase(Uderivative.Vknots.begin());
+    Vderivative.Uknots.erase(Vderivative.Uknots.begin());
+    Vderivative.Vknots.erase(Vderivative.Vknots.begin());
+
+    Uderivative.Uknots.erase(Uderivative.Uknots.end() - 1);
+    Uderivative.Vknots.erase(Uderivative.Vknots.end() - 1);
+    Vderivative.Uknots.erase(Vderivative.Uknots.end() - 1);
+    Vderivative.Vknots.erase(Vderivative.Vknots.end() - 1);
 
     // DO NOT call update() here, cpoints are ready
   }

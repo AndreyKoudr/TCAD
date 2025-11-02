@@ -271,5 +271,24 @@ template <class T> void makeNACASurface(std::vector<std::vector<TPoint<T>>> &poi
   }
 }
 
+/** Make cylinder points with elliptical cross-sections in XY plane with axis along Z. */
+template <class T> void makeCylinder(int numsections, T Zmin, T Zmax, int numpoints, T a, T b, 
+  std::vector<std::vector<TPoint<T>>> &points, T adegfrom = 0.0, T adegto = 180.0)
+{
+  T dZ = (Zmax - Zmin) / T(numsections - 1);
+  for (int i = 0; i < numsections; i++)
+  {
+    T Z = Zmin + dZ * T(i);
+
+    std::vector<TPoint<T>> section;
+    makeEllipseXY(numpoints,TPoint<T>(),a,b,section,adegfrom,adegto);
+
+    TTransform<T> t;
+    t.Translate(TPoint<T>(0.0,0.0,Z));
+    makeTransform(section,&t);
+
+    points.push_back(section);
+  }
+}
 
 }
