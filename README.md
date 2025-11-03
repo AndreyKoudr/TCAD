@@ -96,8 +96,8 @@ Surfaces
 - 2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming
 - 2.14 Surfaces : create B-spline surface from any other surface
 
-Doing more tests for surfaces ...
-=================================
+Doing trimmed surfaces ...
+==========================
 
 
 
