@@ -51,6 +51,34 @@ public:
   {
   }
 
+  /** Copy constructor. */
+  TPointCurve(const TPointCurve &other)  
+  {
+    this->cpoints = other.cpoints;
+
+    parmsbynumbers = other.parmsbynumbers;
+    ok_ = other.ok_;
+    len = other.len;
+    parms = other.parms;
+
+    this->update();
+  }
+
+  /** Assignment operator. */
+  TPointCurve &operator = (const TPointCurve &other)  
+  {
+    this->cpoints = other.cpoints;
+
+    parmsbynumbers = other.parmsbynumbers;
+    ok_ = other.ok_;
+    len = other.len;
+    parms = other.parms;
+
+    this->update();
+
+    return *this;
+  }
+
   /** Constructor. */
   TPointCurve(std::vector<TPoint<T>> &points, bool parametersbynumbers = false) : TBaseCurve<T>()
   {

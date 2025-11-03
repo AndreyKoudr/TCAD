@@ -124,6 +124,7 @@ public:
     keepmeshrefinement,orthogonalLSQ)
   {
   }
+
   /** Copy constructor. */
   TBezierCurve(const TBezierCurve &other)  
   {

@@ -56,6 +56,32 @@ public:
   {
   }
 
+  /** Constructor. */
+  TBezierSurface(const TBezierSurface &other) : TBaseSurface<T>()
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+    this->parmsU = other.parmsU;
+    this->parmsV = other.parmsV;
+
+    update();
+  }
+
+  /** Assignment operator. */
+  TBezierSurface &operator = (const TBezierSurface &other)  
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+    this->parmsU = other.parmsU;
+    this->parmsV = other.parmsV;
+
+    update();
+
+    return *this;
+  }
+
   /** Constructor. Every points[i] is a row of points (U-changing). The number of
     cols/rows is arbitrary : every row/col is approximated as TBezierCurve<T>. */
   TBezierSurface(std::vector<std::vector<TPoint<T>>> &points, int numsegmentsU, int numsegmentsV,

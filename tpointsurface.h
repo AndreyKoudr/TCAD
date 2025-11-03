@@ -54,6 +54,36 @@ public:
   {
   }
 
+  /** Constructor. */
+  TPointSurface(const TPointSurface &other) : TBaseSurface<T>()
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+    this->parmsU = other.parmsU;
+    this->parmsV = other.parmsV;
+    this->parmsbynumbersU = other.parmsbynumbersU;
+    this->parmsbynumbersV = other.parmsbynumbersV;
+
+    update();
+  }
+
+  /** Assignment operator. */
+  TPointSurface &operator = (const TPointSurface &other)  
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+    this->parmsU = other.parmsU;
+    this->parmsV = other.parmsV;
+    this->parmsbynumbersU = other.parmsbynumbersU;
+    this->parmsbynumbersV = other.parmsbynumbersV;
+
+    update();
+
+    return *this;
+  }
+
   /** Constructor. Every points[i] is a row of points (U-changing). */
   TPointSurface(std::vector<std::vector<TPoint<T>>> &points,
     bool parametersbynumbersU = false, bool parametersbynumbersV = false) : TBaseSurface<T>()

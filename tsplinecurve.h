@@ -55,6 +55,30 @@ public:
   {
   }
 
+  /** Copy constructor. */
+  TSplineCurve(const TSplineCurve &other)  
+  {
+    points = other.points;
+    clampedstart = other.clampedstart;
+    clampedend = other.clampedend;
+    allocate(other.K1,other.M1,other.interpolate);
+
+    this->update();
+  }
+
+  /** Assignment operator. */
+  TSplineCurve &operator = (const TSplineCurve &other)  
+  {
+    points = other.points;
+    clampedstart = other.clampedstart;
+    clampedend = other.clampedend;
+    allocate(other.K1,other.M1,other.interpolate);
+
+    this->update();
+
+    return *this;
+  }
+
   /** Constructor for point approximation. */
   TSplineCurve(std::vector<TPoint<T>> &ppoints, int k1, int m1, 
     bool pclampedstart = true, bool pclampedend = true) : TBaseCurve<T>()
@@ -97,30 +121,6 @@ public:
     CurveEndType start, CurveEndType end) : 
   TSplineCurve(ppoints,m1,(start == END_CLAMPED),(end == END_CLAMPED))
   {
-  }
-
-  /** Copy constructor. */
-  TSplineCurve(const TSplineCurve &other)  
-  {
-    points = other.points;
-    clampedstart = other.clampedstart;
-    clampedend = other.clampedend;
-    allocate(other.K1,other.M1,other.interpolate);
-
-    this->update();
-  }
-
-  /** Assignment operator. */
-  TSplineCurve &operator = (const TSplineCurve &other)  
-  {
-    points = other.points;
-    clampedstart = other.clampedstart;
-    clampedend = other.clampedend;
-    allocate(other.K1,other.M1,other.interpolate);
-
-    this->update();
-
-    return *this;
   }
 
   /** Destructor. */

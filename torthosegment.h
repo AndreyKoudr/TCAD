@@ -51,30 +51,6 @@ public:
   {
   }
 
-  /** Constructor. */
-  TOrthoSegment(std::vector<TPoint<T>> &points, T palpha, T pbeta, int ppower, 
-    int pintegration = OTHER_INTEGRATION, bool parameterisationbynumbers = false) : TBaseCurve<T>()
-  {
-    alpha = palpha;
-    beta = pbeta;
-    integration = pintegration;
-
-    power = ppower;
-    parmsbynumbers = parameterisationbynumbers;
-
-    this->cpoints = points;
-
-    this->update();
-  }
-
-  /** Constructor. */
-  TOrthoSegment(std::vector<TPoint<T>> &points, CurveEndType start, CurveEndType end, int ppower, 
-    int pintegration = OTHER_INTEGRATION, bool parameterisationbynumbers = false) : 
-  TOrthoSegment(points,(end == END_ROUNDED) ? 0.5 : 0.0,(start == END_ROUNDED) ? 0.5 : 0.0,ppower, 
-    pintegration,parameterisationbynumbers)
-  {
-  }
-
   /** Copy constructor. */
   TOrthoSegment(const TOrthoSegment &other)  
   {
@@ -105,6 +81,30 @@ public:
     this->update();
 
     return *this;
+  }
+
+  /** Constructor. */
+  TOrthoSegment(std::vector<TPoint<T>> &points, T palpha, T pbeta, int ppower, 
+    int pintegration = OTHER_INTEGRATION, bool parameterisationbynumbers = false) : TBaseCurve<T>()
+  {
+    alpha = palpha;
+    beta = pbeta;
+    integration = pintegration;
+
+    power = ppower;
+    parmsbynumbers = parameterisationbynumbers;
+
+    this->cpoints = points;
+
+    this->update();
+  }
+
+  /** Constructor. */
+  TOrthoSegment(std::vector<TPoint<T>> &points, CurveEndType start, CurveEndType end, int ppower, 
+    int pintegration = OTHER_INTEGRATION, bool parameterisationbynumbers = false) : 
+  TOrthoSegment(points,(end == END_ROUNDED) ? 0.5 : 0.0,(start == END_ROUNDED) ? 0.5 : 0.0,ppower, 
+    pintegration,parameterisationbynumbers)
+  {
   }
 
   /** Destructor. */

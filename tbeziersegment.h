@@ -52,6 +52,24 @@ public:
   {
   }
 
+  /** Copy constructor. */
+  TBezierSegment(const TBezierSegment &other)  
+  {
+    this->cpoints = other.cpoints;
+
+    this->update();
+  }
+
+  /** Assignment operator. */
+  TBezierSegment &operator = (const TBezierSegment &other)  
+  {
+    this->cpoints = other.cpoints;
+
+    this->update();
+
+    return *this;
+  }
+
   /** Constructor. */
   TBezierSegment(TPoint<T> p0, TPoint<T> p1, TPoint<T> p2, TPoint<T> p3) : TBaseCurve<T>()
   {
@@ -331,24 +349,6 @@ public:
     this->cpoints.push_back(p1);
     this->cpoints.push_back(p2);
     this->cpoints.push_back(p3);
-  }
-
-  /** Copy constructor. */
-  TBezierSegment(const TBezierSegment &other)  
-  {
-    this->cpoints = other.cpoints;
-
-    this->update();
-  }
-
-  /** Assignment operator. */
-  TBezierSegment &operator = (const TBezierSegment &other)  
-  {
-    this->cpoints = other.cpoints;
-
-    this->update();
-
-    return *this;
   }
 
   /** Destructor. */

@@ -69,6 +69,28 @@ public:
   }
 
   /** Constructor. */
+  TBezierPatch(const TBezierPatch &other) : TBaseSurface<T>()
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+
+    update();
+  }
+
+  /** Assignment operator. */
+  TBezierPatch &operator = (const TBezierPatch &other)  
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+
+    update();
+
+    return *this;
+  }
+
+  /** Constructor. */
   TBezierPatch(TBezierSegment<T> *SU0, TBezierSegment<T> *S1V, TBezierSegment<T> *SU1, 
     TBezierSegment<T> *S0V) : TBaseSurface<T>()
   {

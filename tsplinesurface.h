@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   tsplinesurface.h
 
-  Spline surface
+  B-spline surface
 
   dimensions : 2 (U,V parameters)
 
@@ -53,6 +53,44 @@ public:
   /** Constructor. */
   TSplineSurface() : TBaseSurface<T>()
   {
+  }
+
+  /** Constructor. */
+  TSplineSurface(const TSplineSurface &other) : TBaseSurface<T>()
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+
+    interpolate = other.interpolate;
+    clampedstartU = other.clampedstartU;
+    clampedendU = other.clampedendU;
+    clampedstartV = other.clampedstartV;
+    clampedendV = other.clampedendV;
+
+    points = other.points;
+
+    update();
+  }
+
+  /** Assignment operator. */
+  TSplineSurface &operator = (const TSplineSurface &other)  
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->cpoints = other.cpoints;
+
+    interpolate = other.interpolate;
+    clampedstartU = other.clampedstartU;
+    clampedendU = other.clampedendU;
+    clampedstartV = other.clampedstartV;
+    clampedendV = other.clampedendV;
+
+    points = other.points;
+
+    update();
+
+    return *this;
   }
 
   /** Constructor. Every points[i] is a row of points (U-changing). */
