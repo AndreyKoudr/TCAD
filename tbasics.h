@@ -143,7 +143,7 @@ namespace tcad {
 #define SPLINE_DEGREE 3
 
 // default number of points used for output, linearisation etc.
-#define MANY_POINTS 501
+#define MANY_POINTS 251
 
 }
 

@@ -960,5 +960,81 @@ int main(int argc, char* argv[])
   saveTrianglesStl(bcstris,DEBUG_DIR + "bezier cylinder.stl");
   saveSurfaceIges(&bcspline,DEBUG_DIR + "cylindrical spline from Bezier.iges");
 
+  /*****************************************************************************
+    2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. 
+    Take the cut curve, close boundary and save this trimmed surface
+  *****************************************************************************/
+
+  // apsurface (B-spline approximated) is cut again by plane. We need to close 
+  // this boundary and save this trimmed surface.
+
+  saveSurfaceIges(&apsurface,DEBUG_DIR + "spline surface for cut by plane and trimming.iges");
+
+  // make plane by normal and point
+  TPlane<T> tr1plane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,0.8));
+
+  std::vector<std::vector<TPoint<T>>> tr1intersections; 
+  std::vector<std::vector<TPoint<T>>> tr1boundary;
+
+  // intersect is here
+  bool tr1ok = apsurface.intersectByPlane(tr1plane,tr1intersections,tr1boundary,
+    NACAtolerance,PARM_TOLERANCE,
+    100,100,0.5,1.0,1.0,1.0); // round leading edge at U = 0
+
+  std::vector<std::vector<TPoint<T>>> tr1closedboundary;
+  bool tr1ok1 = apsurface.closeBoundary(tr1boundary,tr1closedboundary);
+
+  assert(tr1ok1);
+
+  saveTrimmedSurfaceIges(&apsurface,tr1closedboundary,DEBUG_DIR + "spline surface cut by plane 1 and trimmed.iges");
+
+  // now we flip the plane normal and try again 
+
+  // make plane by normal and point
+  TPlane<T> tr2plane(TPoint<T>(-0.7071,0.0,-0.7071),TPoint<T>(0.0,0.0,0.8));
+
+  std::vector<std::vector<TPoint<T>>> tr2intersections; 
+  std::vector<std::vector<TPoint<T>>> tr2boundary;
+
+  // intersect is here
+  bool tr2ok = apsurface.intersectByPlane(tr2plane,tr2intersections,tr2boundary,
+    NACAtolerance,PARM_TOLERANCE,
+    100,100,0.5,1.0,1.0,1.0); // round leading edge at U = 0
+
+  std::vector<std::vector<TPoint<T>>> tr2closedboundary;
+  bool tr2ok1 = apsurface.closeBoundary(tr2boundary,tr2closedboundary);
+
+  assert(tr2ok1);
+
+  saveTrimmedSurfaceIges(&apsurface,tr2closedboundary,DEBUG_DIR + "spline surface cut by plane 2 and trimmed.iges");
+
+  /*****************************************************************************
+    2.16 Surfaces : make a trimmed B-spline surface from surface-surface 
+    intersection. Take the cut curve, close boundary and save this trimmed 
+    surface
+  *****************************************************************************/
+
+  saveSurfaceIges(&apsurface,DEBUG_DIR + "this spline surface is cut by another cylindrical surface.iges");
+  saveSurfaceIges(&cylsurface,DEBUG_DIR + "cylindrical surface used in cutting.iges");
+
+  std::vector<std::vector<TPoint<T>>> tr3intersections; 
+  std::vector<std::vector<TPoint<T>>> tr3boundary0,tr3boundary1;
+
+  // intersect is here
+  bool tr3ok = apsurface.intersect(cylsurface,tr3intersections,tr3boundary0,tr3boundary1,NACAtolerance,
+    PARM_TOLERANCE,
+    100,100,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    100,100,1.0,1.0,1.0,1.0);
+
+  assert(tr3ok);
+
+  // close boundary on first surface
+  std::vector<std::vector<TPoint<T>>> tr3closedboundary0;
+  bool tr3ok1 = apsurface.closeBoundary(tr3boundary0,tr3closedboundary0);
+
+  assert(tr3ok1);
+
+  saveTrimmedSurfaceIges(&apsurface,tr3closedboundary0,DEBUG_DIR + "spline surface cut by another surface and trimmed.iges");
+
   return 0;
 }

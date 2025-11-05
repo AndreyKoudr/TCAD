@@ -909,4 +909,122 @@ template <class T> void points2Dto1D(std::vector<std::vector<TPoint<T>>> &points
     *K2 = int(points2D.size()) - 1;
 }
 
+/** Boundary parameters for surface are measured from node 0 (U = V = 0.0)
+  counter-clockwise, max value being 4.0; index being boundary piece number 0..3 
+  correspondingly. 
+
+        parm = 3.0      index = 2       parm = 2.0
+            3------------------------------2
+            |                              |
+            |                              |
+            |                              |
+index = 3   |                              | index = 1
+            ^ V                            |
+            |    U                         |
+parm = 4.0  0---->-------------------------1
+        parm = 0.0      index = 0      parm = 1.0
+
+*/
+template <class T> bool UVToBoundaryParm(T U, T V, T &parm, T parmtolerance = PARM_TOLERANCE)
+{
+  if (std::abs(V - 0.0) < parmtolerance)
+  {
+    parm = U;
+    return true;
+  } else if (std::abs(U - 1.0) < parmtolerance)
+  {
+    parm = 1.0 + V;
+    return true;
+  } else if (std::abs(V - 1.0) < parmtolerance)
+  {
+    parm = 2.0 + (1.0 - U);
+    return true;
+  } else if (std::abs(U - 0.0) < parmtolerance)
+  {
+    parm = 3.0 + (1.0 - V);
+    return true;
+  } else
+  {
+    // unreal
+    parm = -1.0;
+    return false;
+  }
+}
+
+/** Convert boundary parameter [0..4] to U,V [0..1]. */
+template <class T> TPoint<T> boundaryParmToUV(T parm)
+{
+  // integer part is side number
+  int side = int(parm);
+
+  // fractional part is parameter inside the side
+  T r = parm - T(side);
+  LIMIT(r,0.0,1.0);
+
+  // side can only be 0..3
+  side = side % 4;
+  if (side == 0)
+  {
+    return TPoint<T>(r,0.0);
+  } else if (side == 1)
+  {
+    return TPoint<T>(1.0,r);
+  } else if (side == 2)
+  {
+    return TPoint<T>(1.0 - r,1.0);
+  } else if (side == 3)
+  {
+    return TPoint<T>(0.0,1.0 - r);
+  } else
+  {
+    return TPoint<T>();
+  }
+}
+
+/** Get parameter on the opposite side. parm being [0..4] */
+template <class T> T oppositeParm(T parm)
+{
+  int i = (int) parm;
+  T r = parm - T(i);
+  T oparm = T(i) + 2.0;
+  oparm += (1.0 - r);
+  if (oparm >= 4.0) oparm -= 4.0;
+  return oparm;
+}
+
+/** Get next parameter value when closing the intersection curve. */
+template <class T> bool nextBoundaryParm(T parm, T endparm, T &nextparm,
+  T parmtolerance = PARM_TOLERANCE)
+{
+  // ended?
+  T dist = std::abs(endparm - parm);
+  if (dist < parmtolerance)
+    return false;
+
+  int side = int(parm);
+  T r = parm - T(side);
+
+  if (std::abs(r - 0.0) < parmtolerance || std::abs(r - 1.0) < parmtolerance)
+  {
+    nextparm = parm + 1.0;
+  } else
+  {
+    nextparm = parm + (1.0 - r);
+  }
+
+  if (endparm >= parm && endparm <= nextparm)
+  {
+    nextparm = endparm;
+    return true;
+  }
+
+  if (nextparm >= 4.0)
+    nextparm -= 4.0;
+
+  if (endparm >= parm && endparm <= nextparm)
+    nextparm = endparm;
+
+  return true;
+}
+
 }

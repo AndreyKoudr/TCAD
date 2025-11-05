@@ -23,17 +23,8 @@ The plan :
 - finite elements
 - GUI?
 
-Point
+Files
 =====
-  tpoint.h                  - 3-dimensional vector (0 parametric dimensions) point with ariphmetic operations
-
-Curves
-======
-
-Curves of various kinds, parametric, dependent of one parameter U. Most operations are linearised. 
-Some operations are n-squared (yet).
-
-<B>Files</B><br />
 
 - toperations.h - highest level, simplest in use
 
@@ -52,6 +43,16 @@ Some operations are n-squared (yet).
     - tpointsurface.h       - point surface (a regular net of straight-line segments)
     - tbeziersurface.h      - Bezier surface (regular composite of Bezier patches)
     - tsplinesurface.h      - B-spline surface, polynomial
+
+Point
+=====
+  tpoint.h                  - 3-dimensional vector (0 parametric dimensions) point with ariphmetic operations
+
+Curves
+======
+
+Curves of various kinds, parametric, dependent of one parameter U. Most operations are linearised. 
+Some operations are n-squared (yet).
 
 <B>Example code how to use</B><br />
 
@@ -90,11 +91,13 @@ Surfaces
 - 2.7 Surfaces : triangles : find intersection of one set of triangles with another
 - 2.8 Surfaces : Bezier patch
 - 2.9 Surfaces : Bezier surface, a composite of Bezier patches
-- 2.10 Surfaces : point surface, a regilar net of points with linear interpolation between
+- 2.10 Surfaces : point surface, a regular net of points with linear interpolation between
 - 2.11 Surfaces : B-spline surface, interpolated and approximated, with and without clamping
 - 2.12 Surfaces : intersection of two, get intersection curve and two parametric curves for trimming
 - 2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming
 - 2.14 Surfaces : create B-spline surface from any other surface
+- 2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface
+- 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
 
 Doing trimmed surfaces ...
 ==========================

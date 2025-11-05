@@ -521,6 +521,73 @@ public:
     }
   }
 
+  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
+  template <class T> bool closeBoundary(std::vector<std::vector<TPoint<T>>> &cutUV,
+    std::vector<std::vector<TPoint<T>>> &closedboundary, int numdivisions = 100,
+    T parmtolerance = PARM_TOLERANCE)
+  {
+    if (cutUV.empty())
+      return false;
+
+    // step 1 : combine cut pieces into a single line
+    std::vector<TPoint<T>> cut;
+    if (cutUV.size() == 1)
+    {
+      // all done
+      cut = cutUV[0];
+    } else
+    {
+      return false; //!!!!!!! extend
+    }
+
+    closedboundary.push_back(cut);
+
+    // step 2 : check if both cut ends lay on one of four surface boundaries
+    T parm0 = 0.0;
+    T parm1 = 0.0;
+    if (!UVToBoundaryParm(cut.front().X,cut.front().Y,parm0,parmtolerance))
+      return false;
+    if (!UVToBoundaryParm(cut.back().X,cut.back().Y,parm1,parmtolerance))
+      return false;
+
+    // cut curve already must be correctly oriented to leave the 
+    // remaining surface to the left
+
+    // step 3 : starting from the curve end go along boundary to close it
+    T startparm = parm1;
+    T endparm = parm0;
+    T parm = startparm;
+    T nextparm = parm;
+
+    while (nextBoundaryParm(parm,endparm,nextparm,parmtolerance))
+    {
+      assert(std::abs(nextparm - parm) > parmtolerance);
+
+      TPoint<T> UV = boundaryParmToUV(parm);
+      TPoint<T> nextUV = boundaryParmToUV(nextparm);
+
+      // make parametric straight line between UV and nextUV
+      T d = !(nextUV - UV);
+
+      if (d > parmtolerance)
+      {
+        int numdivs = int(T(numdivisions) * d);
+        LIMIT_MIN(numdivs,8);
+        TPointCurve<T> line(UV,nextUV,numdivs);
+
+        closedboundary.push_back(line.controlPoints());
+      }
+
+      parm = nextparm;
+    }
+
+    T dist = !(closedboundary.front().front() - closedboundary.back().back());
+    bool ok = (dist < parmtolerance);
+    assert(ok);
+
+    return ok;
+  }
+
 public: //!!!!!!!
 
   // number of columns minus 1

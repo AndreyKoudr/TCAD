@@ -429,9 +429,20 @@ protected:
     // max value of residual
     std::pair<T,T> minmax = calculateMinMax(residuals);
 
-    T ltolerance = calculateLength(points) * parmtolerance;
+    T len = calculateLength(points);
+    T ltolerance = len * parmtolerance;
 
+    // check number 1
     if (minmax.second > ltolerance)
+    {
+      approximatePoints(points);
+      ok = false;
+    }
+
+    // check number 2
+    T dtolerance = len;
+    T diff = difference(points,this->cpoints);
+    if (diff > dtolerance)
     {
       approximatePoints(points);
       ok = false;

@@ -188,6 +188,21 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
 
   removeDuplicates(intrs,true,tolerance); // true is correct here
 
+  // important : set correct orientation of intersection curve : part to the right is
+  // thrown off
+  if (intrs.size() == 2)
+  {
+    TPoint<T> normal = (tri[1] - tri[0]) ^ (tri[2] - tri[1]);
+    TPoint<T> onormal = (other[1] - other[0]) ^ (other[2] - other[1]);
+    TPoint<T> d = intrs[1] - intrs[0];
+    TPoint<T> cross = d ^ normal;
+
+    if (!(cross > onormal))
+    {
+      std::reverse(intrs.begin(),intrs.end());
+    }
+  }
+
   return int(intrs.size());
 }
 
@@ -2539,6 +2554,20 @@ template <class T> int TTriangles<T>::cutFaceByPlane(TPlane<T> &plane, LINT face
   }
 
   removeDuplicates(intrs,true,tolerance); // true is correct here
+
+  // important : set correct orientation of intersection curve : part to the right is
+  // thrown off
+  if (intrs.size() == 2)
+  {
+    TPoint<T> normal = faceNormal(faceNo);
+    TPoint<T> d = intrs[1] - intrs[0];
+    TPoint<T> cross = d ^ normal;
+
+    if (!(cross > plane.normal))
+    {
+      std::reverse(intrs.begin(),intrs.end());
+    }
+  }
 
   return int(intrs.size());
 }

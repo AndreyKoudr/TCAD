@@ -189,6 +189,9 @@ public:
     No UV derivatives. */
   virtual TPoint<T> derivative(T U, T V, Parameter onparameter, int k)
   {
+    LIMIT(U,0.0,1.0);
+    LIMIT(V,0.0,1.0);
+
     if (k == 0)
     {
       TPoint<T> result;
