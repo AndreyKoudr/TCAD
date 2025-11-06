@@ -101,7 +101,7 @@ Surfaces
 - 2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface
 
 
-Doing 3D splines ...
+Doing 3D volumes ...
 ====================
 
 
