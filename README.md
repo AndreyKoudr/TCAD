@@ -100,8 +100,8 @@ Surfaces
 - 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
 - 2.17 Surfaces : make a hole with trimmed B-spline surface (two loops)
 
-Doing trimmed surfaces ...
-==========================
+Trying to speed up intersections ...
+====================================
 
 
 
