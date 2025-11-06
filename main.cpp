@@ -39,16 +39,18 @@
 #include "toperations.h"
 
 #include "ttriangles.h"
-#include "tbasesurface.h" //!!!!!!!
-#include "tbezierpatch.h" //!!!!!!!
-#include "tbeziersurface.h" //!!!!!!!
-#include "tpointsurface.h" //!!!!!!!
-#include "tsplinesurface.h" //!!!!!!!
+#include "tbasesurface.h"
+#include "tbezierpatch.h" 
+#include "tbeziersurface.h"
+#include "tpointsurface.h" 
+#include "tsplinesurface.h" 
 
 // this stuff is for export and debugging
 #include "strings.h"
 #include "export.h"
 #include "import.h"
+
+#include <iostream>
 
 using namespace tcad;
 
@@ -248,6 +250,8 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
+  cout << "    Part 1 : CURVES. What can we do with them?" << endl;
+
   // Let us take points of NACA0012 airfoil, they are in XY but of course
   // all your curves are 3-dimensional
 
@@ -337,6 +341,8 @@ int main(int argc, char* argv[])
     1.1 Curves : how to exclude neighbour duplicate nodes
   *****************************************************************************/
 
+  cout << "1.1 Curves : how to exclude neighbour duplicate nodes" << endl;
+
   // make a copy
   std::vector<Point> points1 = points;
 
@@ -360,6 +366,8 @@ int main(int argc, char* argv[])
       a good correspondence - the lsq is a simple poly of power 3
   *****************************************************************************/
 
+  cout << "1.2 Curves : compare original points and low-power LSQ segment, do not expect a good correspondence - the lsq is a simple poly of power 3" << endl;
+
   TLSQSegment<T> lsqsegment(points,3);
   // save to compare two curves
   saveTwoCurvesIges(curve,lsqsegment,DEBUG_DIR + "Compare_points_and_lsq_segment.iges");
@@ -369,30 +377,38 @@ int main(int argc, char* argv[])
       a good correspondence - Bezier segment is qubic
   *****************************************************************************/
 
+  cout << "1.3 Curves : compare points and Bezier segment, do not expect a good correspondence - Bezier segment is qubic" << endl;
+
   TBezierSegment<T> beziersegment(points,END_FIXED,END_FIXED);
   // save to compare two curves
   saveTwoCurvesIges(curve,beziersegment,DEBUG_DIR + "Compare_points_and_bezier_segment.iges");
 
   /*****************************************************************************
     1.4 Curves : compare points and segment of orthogonal polynomials of
-      degree 4. Starting END_ROUNDED end is set to handle the round LE.
+      degree 4. Starting END_ROUNDED end is set to handle the round LE
   *****************************************************************************/
+
+  cout << "1.4 Curves : compare points and segment of orthogonal polynomials of degree 4. Starting END_ROUNDED end is set to handle the round LE" << endl;
 
   TOrthoSegment<T> orthosegment(points,END_ROUNDED,END_FREE,8,GAUSSINT_20);
   // save to compare two curves
   saveTwoCurvesIges(curve,orthosegment,DEBUG_DIR + "Compare_points_and_orthopoly_segment.iges");
 
   /*****************************************************************************
-    1.5 Curves : compare points and Bezier curve (collection of Bezier segments).
+    1.5 Curves : compare points and Bezier curve (collection of Bezier segments)
   *****************************************************************************/
+
+  cout << "1.5 Curves : compare points and Bezier curve (collection of Bezier segments)" << endl;
 
   TBezierCurve<T> beziercurve(points,10,END_FIXED,END_FIXED);
   // save to compare two curves
   saveTwoCurvesIges(curve,beziercurve,DEBUG_DIR + "Compare_points_and_bezier_curve.iges");
 
   /*****************************************************************************
-    1.6 Curves : compare points and approximated b-spline.
+    1.6 Curves : compare points and approximated b-spline
   *****************************************************************************/
+
+  cout << "1.6 Curves : compare points and approximated b-spline" << endl;
 
   TSplineCurve<T> splinecurve(points,int(points.size() - 1),SPLINE_DEGREE,END_CLAMPED,END_CLAMPED); 
   // save to compare two curves
@@ -400,16 +416,20 @@ int main(int argc, char* argv[])
 
   /*****************************************************************************
     1.7 Curves : compare points and approximated b-spline with less number 
-    of control points (10 here).
+    of control points (10 here)
   *****************************************************************************/
+
+  cout << "1.7 Curves : compare points and approximated b-spline with less number of control points (10 here)" << endl;
 
   TSplineCurve<T> splinecurve10(points,10,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED); 
   // save to compare two curves
   saveTwoCurvesIges(curve,splinecurve10,DEBUG_DIR + "Compare_points_and_spline_curve_K10.iges");
 
   /*****************************************************************************
-    1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants.
+    1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants
   *****************************************************************************/
+
+  cout << "1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants" << endl;
 
   // make random noise, points2 is a spoilt set
   std::vector<TPoint<T>> points2;
@@ -469,6 +489,8 @@ int main(int argc, char* argv[])
     needed when handling surface control points)
   *****************************************************************************/
 
+  cout << "1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)" << endl;
+
   // do not spoil points near start/end : apply "hat" function to diminish
   // the changes near ends with maximum at the middle = 0.5
   // and set poly power as 0.5
@@ -486,8 +508,10 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve2,curve6mod,DEBUG_DIR + "Compare_points_splinecurvesmooth_mitigated.iges");
 
   /*****************************************************************************
-    1.10 Curves : how to find parameter U for a point on curve.
+    1.10 Curves : how to find parameter U for a point on curve
   *****************************************************************************/
+
+  cout << "1.10 Curves : how to find parameter U for a point on curve" << endl;
 
   // take a random point
   int index = random(int(points.size()));
@@ -519,8 +543,10 @@ int main(int argc, char* argv[])
  //!!!!!!! assert(diff < 0.005);
 
   /*****************************************************************************
-    1.11 Curves : how to intersect by plane.
+    1.11 Curves : how to intersect by plane
   *****************************************************************************/
+
+  cout << "1.11 Curves : how to intersect by plane" << endl;
 
   // horizontal plane at Y = 0.03
   TPlane<T> plane(TPoint<T>(0.0,0.03,0.0),TPoint<T>(1.0,0.03,0.0),TPoint<T>(1.0,0.03,1.0),ok);
@@ -546,8 +572,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    1.12 Curves : how to intersect two curves.
+    1.12 Curves : how to intersect two curves
   *****************************************************************************/
+
+  cout << "1.12 Curves : how to intersect two curves" << endl;
 
   // make another curve : ellipse to intersect NACA points
   std::vector<TPoint<T>> epoints;
@@ -580,6 +608,8 @@ int main(int argc, char* argv[])
     1.13 Curves : cut a piece of curve from the previous example
   *****************************************************************************/
 
+  cout << "1.13 Curves : cut a piece of curve from the previous example" << endl;
+
   // curve was cut from UV[0].X to UV[1].X
   std::vector<TPoint<T>> cutpoints;
   curve.cutPiece(51,UV[0].X,UV[1].X,cutpoints);
@@ -591,8 +621,10 @@ int main(int argc, char* argv[])
   saveCurveIges(cutcurve,DEBUG_DIR + "Piece of curve.iges");
 
   /*****************************************************************************
-    1.14 Curves : order unordered points.
+    1.14 Curves : order unordered points
   *****************************************************************************/
+
+  cout << "1.14 Curves : order unordered points" << endl;
 
   std::vector<TPoint<T>> unorderedpoints;
   makeRandomSwap(int(points.size()) / 2,points,unorderedpoints);
@@ -613,9 +645,13 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
+  cout << "    Part 2 : SURFACES" << endl;
+
   /*****************************************************************************
     2.1 Surfaces : triangles : save in STL
   *****************************************************************************/
+
+  cout << "2.1 Surfaces : triangles : save in STL" << endl;
 
   TTriangles<T> NACAtris;
   NACAtris.makeNACA0012(50,10,2.0);
@@ -631,6 +667,8 @@ int main(int argc, char* argv[])
     2.2 Surfaces : triangles : manifold? solid?
   *****************************************************************************/
 
+  cout << "2.2 Surfaces : triangles : manifold? solid?" << endl;
+
   // is manifold?
   std::vector<std::pair<LINT,LINT>> badedges;
   bool manifold = NACAtris.manifold(NACAtolerance,badedges);
@@ -644,6 +682,8 @@ int main(int argc, char* argv[])
     2.3 Surfaces : triangles : cut by plane
   *****************************************************************************/
 
+  cout << "2.3 Surfaces : triangles : cut by plane" << endl;
+
   // cut triangles by a plane (made by three points)
   TPlane<T> cutplane(TPoint<T>(-0.5,0.0,0.9),TPoint<T>(0.5,0.0,-0.7),TPoint<T>(0.5,1.0,-0.7),ok); 
   std::vector<std::vector<TPoint<T>>> NACAcuts;
@@ -652,6 +692,8 @@ int main(int argc, char* argv[])
   /*****************************************************************************
     2.4 Surfaces : triangles : how to find a sharpest point in intersection curve
   *****************************************************************************/
+
+  cout << "2.4 Surfaces : triangles : how to find a sharpest point in intersection curve" << endl;
 
   if (NACAcuts.size() == 1)
   {
@@ -676,6 +718,8 @@ int main(int argc, char* argv[])
   /*****************************************************************************
     2.5 Surfaces : triangles : how to get triangulation boundary
   *****************************************************************************/
+
+  cout << "2.5 Surfaces : triangles : how to get triangulation boundary" << endl;
 
   // NACA case is solid, no boundary points are expected
   std::vector<std::vector<TPoint<T>>> NACAtrisboundary;
@@ -708,6 +752,8 @@ int main(int argc, char* argv[])
     manifold and solid, generate boundary and cut by plane
   *****************************************************************************/
 
+  cout << "2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane" << endl;
+
   // cut it by plane, define by normal and one point on plane
   TPlane<T> scutplane(TPoint<T>(1.0,0.0,0.0),TPoint<T>(5.8,0.0,0.0)); 
 
@@ -726,6 +772,8 @@ int main(int argc, char* argv[])
     2.7 Surfaces : triangles : find intersection of one set of triangles with 
     another
   *****************************************************************************/
+
+  cout << "2.7 Surfaces : triangles : find intersection of one set of triangles with another" << endl;
 
   // load another fuselage
   TTriangles<T> fuselage1;
@@ -756,6 +804,8 @@ int main(int argc, char* argv[])
     2.8 Surfaces : Bezier patch
   *****************************************************************************/
 
+  cout << "2.8 Surfaces : Bezier patch" << endl;
+
   TBezierSegment<T> SU0(TPoint<T>(0,0,0),TPoint<T>(1,0.0,0.5),TPoint<T>(2,0,0),TPoint<T>(3,0,0));
   TBezierSegment<T> S1V(TPoint<T>(3,0,0),TPoint<T>(3,1,0),TPoint<T>(3,2,0.0),TPoint<T>(3,3,0));
   TBezierSegment<T> SU1(TPoint<T>(0,3,0),TPoint<T>(1,3,0),TPoint<T>(2,3,0),TPoint<T>(3,3,0));
@@ -772,6 +822,8 @@ int main(int argc, char* argv[])
   /*****************************************************************************
     2.9 Surfaces : Bezier surface, a composite of Bezier patches
   *****************************************************************************/
+
+  cout << "2.9 Surfaces : Bezier surface, a composite of Bezier patches" << endl;
 
   // we make a twisted airfoil surface here
   std::vector<std::vector<TPoint<T>>> NACAsurfpoints;
@@ -792,6 +844,8 @@ int main(int argc, char* argv[])
       interpolation between
   *****************************************************************************/
 
+  cout << "2.10 Surfaces : point surface, a regilar net of points with linear interpolation between" << endl;
+
   // create a point surface
   TPointSurface<T> psurface(NACAsurfpoints);
 
@@ -806,6 +860,8 @@ int main(int argc, char* argv[])
     2.11 Surfaces : B-spline surface, interpolated and approximated, with and 
     without clamping
   *****************************************************************************/
+
+  cout << "2.11 Surfaces : B-spline surface, interpolated and approximated, with and without clamping" << endl;
 
   //TSplineCurve<T> splinecurve0(NACAsurfpoints.back(),int(NACAsurfpoints.back().size()) - 1,
   //  SPLINE_DEGREE,END_CLAMPED,END_CLAMPED); 
@@ -870,6 +926,8 @@ int main(int argc, char* argv[])
     parametric curves for trimming
   *****************************************************************************/
 
+  cout << "2.12 Surfaces : intersection of two, get intersection curve and two parametric curves for trimming" << endl;
+
   // make a cylinder
   std::vector<std::vector<TPoint<T>>> cylpoints;
   makeCylinder(11,-2.0,+2.0,21,0.2,0.2,cylpoints,0.0,180.0);
@@ -892,14 +950,14 @@ int main(int argc, char* argv[])
   // intersect is here
   bool wcok = apsurface.intersect(cylsurface,wcintersections,boundary0,boundary1,NACAtolerance,
     PARM_TOLERANCE,
-    100,100,0.5,1.0,1.0,1.0, // round leading edge at U = 0
-    100,100,1.0,1.0,1.0,1.0);
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
   assert(wcok);
 
   // intersected tris triangles to display them in STL
   TTriangles<T> apsurfacetris;
-  apsurface.createTriangles(apsurfacetris,100,100,0.5); // round leading edge at U = 0
+  apsurface.createTriangles(apsurfacetris,MANY_POINTS2D,MANY_POINTS2D,0.5); // round leading edge at U = 0
   saveTrianglesStl(apsurfacetris,DEBUG_DIR + "wing surface tris intersected.stl");
 
   // intersected tris triangles to display them in STL
@@ -922,6 +980,8 @@ int main(int argc, char* argv[])
     parametric curve for trimming
   *****************************************************************************/
 
+  cout << "2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming" << endl;
+
   // make plane by normal and point
   TPlane<T> plplane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,0.8));
 
@@ -931,7 +991,7 @@ int main(int argc, char* argv[])
   // intersect is here
   bool plok = apsurface.intersectByPlane(plplane,plintersections,plboundary,
     NACAtolerance,PARM_TOLERANCE,
-    100,100,0.5,1.0,1.0,1.0); // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
 
   assert(plok);
 
@@ -944,6 +1004,8 @@ int main(int argc, char* argv[])
   /*****************************************************************************
     2.14 Surfaces : create B-spline surface from any other surface
   *****************************************************************************/
+
+  cout << "2.14 Surfaces : create B-spline surface from any other surface" << endl;
 
   // create cylindrical Bezier surface
   TBezierSurface<T> bcsurface(cylpoints,20,20);
@@ -965,6 +1027,8 @@ int main(int argc, char* argv[])
     Take the cut curve, close boundary and save this trimmed surface
   *****************************************************************************/
 
+  cout << "2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface" << endl;
+
   // apsurface (B-spline approximated) is cut again by plane. We need to close 
   // this boundary and save this trimmed surface.
 
@@ -979,10 +1043,12 @@ int main(int argc, char* argv[])
   // intersect is here
   bool tr1ok = apsurface.intersectByPlane(tr1plane,tr1intersections,tr1boundary,
     NACAtolerance,PARM_TOLERANCE,
-    100,100,0.5,1.0,1.0,1.0); // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
 
-  std::vector<std::vector<TPoint<T>>> tr1closedboundary;
-  bool tr1ok1 = apsurface.closeBoundary(tr1boundary,tr1closedboundary);
+  std::vector<std::vector<std::vector<TPoint<T>>>> tr1closedboundary;
+  std::vector<std::vector<TPoint<T>>> tr1loop;
+  bool tr1ok1 = apsurface.closeBoundaryLoop(tr1boundary,tr1loop,NACAtolerance);
+  tr1closedboundary.push_back(tr1loop);
 
   assert(tr1ok1);
 
@@ -999,10 +1065,12 @@ int main(int argc, char* argv[])
   // intersect is here
   bool tr2ok = apsurface.intersectByPlane(tr2plane,tr2intersections,tr2boundary,
     NACAtolerance,PARM_TOLERANCE,
-    100,100,0.5,1.0,1.0,1.0); // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
 
-  std::vector<std::vector<TPoint<T>>> tr2closedboundary;
-  bool tr2ok1 = apsurface.closeBoundary(tr2boundary,tr2closedboundary);
+  std::vector<std::vector<std::vector<TPoint<T>>>> tr2closedboundary;
+  std::vector<std::vector<TPoint<T>>> tr2loop;
+  bool tr2ok1 = apsurface.closeBoundaryLoop(tr2boundary,tr2loop,NACAtolerance);
+  tr2closedboundary.push_back(tr2loop);
 
   assert(tr2ok1);
 
@@ -1014,8 +1082,10 @@ int main(int argc, char* argv[])
     surface
   *****************************************************************************/
 
-  saveSurfaceIges(&apsurface,DEBUG_DIR + "this spline surface is cut by another cylindrical surface.iges");
-  saveSurfaceIges(&cylsurface,DEBUG_DIR + "cylindrical surface used in cutting.iges");
+  cout << "2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface" << endl;
+
+  saveSurfaceIges(&apsurface,DEBUG_DIR + "this spline surface to be cut by another cylindrical surface.iges");
+  saveSurfaceIges(&cylsurface,DEBUG_DIR + "cylindrical surface to be used in cutting.iges");
 
   std::vector<std::vector<TPoint<T>>> tr3intersections; 
   std::vector<std::vector<TPoint<T>>> tr3boundary0,tr3boundary1;
@@ -1023,18 +1093,123 @@ int main(int argc, char* argv[])
   // intersect is here
   bool tr3ok = apsurface.intersect(cylsurface,tr3intersections,tr3boundary0,tr3boundary1,NACAtolerance,
     PARM_TOLERANCE,
-    100,100,0.5,1.0,1.0,1.0, // round leading edge at U = 0
-    100,100,1.0,1.0,1.0,1.0);
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
   assert(tr3ok);
 
   // close boundary on first surface
-  std::vector<std::vector<TPoint<T>>> tr3closedboundary0;
-  bool tr3ok1 = apsurface.closeBoundary(tr3boundary0,tr3closedboundary0);
+  std::vector<std::vector<std::vector<TPoint<T>>>> tr3closedboundary0;
+  std::vector<std::vector<TPoint<T>>> tr3loop;
+  bool tr3ok1 = apsurface.closeBoundaryLoop(tr3boundary0,tr3loop,NACAtolerance);
+  tr3closedboundary0.push_back(tr3loop);
 
   assert(tr3ok1);
 
   saveTrimmedSurfaceIges(&apsurface,tr3closedboundary0,DEBUG_DIR + "spline surface cut by another surface and trimmed.iges");
+
+  /*****************************************************************************
+    2.17 Surfaces : make a hole with trimmed B-spline surface (two loops)
+  *****************************************************************************/
+
+  cout << "2.17 Surfaces : make a hole with trimmed B-spline surface (two loops)" << endl;
+
+  // make a lower surface
+  std::vector<std::vector<TPoint<T>>> NACAsurfpointslower;
+  makeNACASurface(NACAsurfpointslower,51,TPoint<T>(1.0,-1.0,1.0));
+
+  // create a point surface
+  TSplineSurface<T> apsurfacelower(NACAsurfpointslower,10,SPLINE_DEGREE,30,SPLINE_DEGREE,
+    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+  saveSurfaceIges(&apsurfacelower,DEBUG_DIR + "spline surface approximated (lower).iges");
+
+  // now we've got apsurface and apsurfacelower for an airfoil
+
+  // cylindrical surface cylsurface, combine them all into trimmed surfaces
+
+  std::vector<std::vector<TPoint<T>>> tr4intersections; 
+  std::vector<std::vector<TPoint<T>>> tr4boundary0,tr4boundary1;
+
+  bool tr4ok = apsurface.intersect(cylsurface,tr4intersections,tr4boundary0,tr4boundary1,NACAtolerance,
+    PARM_TOLERANCE,
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
+
+  assert(tr4ok);
+
+  // close boundary on first surface
+  std::vector<std::vector<std::vector<TPoint<T>>>> tr4closedboundary0;
+  std::vector<std::vector<TPoint<T>>> tr4loop;
+  bool tr4ok1 = apsurface.closeBoundaryLoop(tr4boundary0,tr4loop,NACAtolerance);
+  tr4closedboundary0.push_back(tr4loop);
+
+  assert(tr4ok1);
+
+  saveTrimmedSurfaceIges(&apsurface,tr4closedboundary0,DEBUG_DIR + "upper airfoil surface cut by another surface and trimmed.iges");
+
+  std::vector<std::vector<TPoint<T>>> tr5intersections; 
+  std::vector<std::vector<TPoint<T>>> tr5boundary0,tr5boundary1;
+
+  bool tr5ok = apsurfacelower.intersect(cylsurface,tr5intersections,tr5boundary0,tr5boundary1,NACAtolerance,
+    PARM_TOLERANCE,
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
+
+  assert(tr5ok);
+
+  // close boundary on first surface
+  std::vector<std::vector<std::vector<TPoint<T>>>> tr5closedboundary0;
+  std::vector<std::vector<TPoint<T>>> tr5loop;
+  bool tr5ok1 = apsurfacelower.closeBoundaryLoop(tr5boundary0,tr5loop,NACAtolerance);
+  tr5closedboundary0.push_back(tr5loop);
+
+  assert(tr5ok1);
+
+  saveTrimmedSurfaceIges(&apsurfacelower,tr5closedboundary0,DEBUG_DIR + "lower airfoil surface cut by another surface and trimmed.iges");
+
+  // cut cylinder, its trimming curve contains two parts from upper and lower surfaces
+  std::vector<std::vector<TPoint<T>>> tr6intersections; 
+  std::vector<std::vector<TPoint<T>>> tr6boundary0,tr6boundary1;
+
+  // intersect with upper surface...
+  bool tr6ok = cylsurface.intersect(apsurface,tr6intersections,tr6boundary0,tr6boundary1,NACAtolerance,
+    PARM_TOLERANCE,
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
+
+  assert(tr6ok);
+
+  // intersect with lower surface...
+  bool tr7ok = cylsurface.intersect(apsurfacelower,tr6intersections,tr6boundary0,tr6boundary1,NACAtolerance,
+    PARM_TOLERANCE,
+    MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
+    MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
+
+  assert(tr7ok);
+
+  // close boundary (hole) on first surface
+  std::vector<std::vector<std::vector<TPoint<T>>>> tr6closedboundary0;
+  std::vector<std::vector<TPoint<T>>> tr6loop;
+  bool tr6ok1 = cylsurface.closeBoundaryLoop(tr6boundary0,tr6loop,NACAtolerance);
+
+  tr6closedboundary0.push_back(tr6loop);
+
+  assert(tr6ok1);
+
+  //// to catch sharp TE
+  //TPointCurve<T> temp6(tr6closedboundary0[0]);
+  //int sharpindex6 = temp6.findPointOfMaxCurvature();
+  //temp6.shiftClosed(sharpindex6,NACAtolerance);
+  //tr6closedboundary0[0] = temp6.controlPoints();
+
+  // add outer boundary
+  std::vector<std::vector<TPoint<T>>> tr6outerloop;
+
+  cylsurface.closeOuterBoundaryLoop(tr6outerloop);
+  tr6closedboundary0.push_back(tr6outerloop);
+
+  saveTrimmedSurfaceIges(&cylsurface,tr6closedboundary0,DEBUG_DIR + "cylindrical surface cut by two airfoil parts and trimmed.iges");
 
   return 0;
 }

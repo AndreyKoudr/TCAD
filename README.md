@@ -98,6 +98,7 @@ Surfaces
 - 2.14 Surfaces : create B-spline surface from any other surface
 - 2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface
 - 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
+- 2.17 Surfaces : make a hole with trimmed B-spline surface (two loops)
 
 Doing trimmed surfaces ...
 ==========================

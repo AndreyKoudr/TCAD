@@ -196,15 +196,19 @@ template <class T> void addIges141(std::vector<std::string> &lines, int surfaceD
 }
 
 /** Entity 143 : add to lines. */
-template <class T> void addIges143(std::vector<std::string> &lines, int surfaceDE, int curve141DE, int dirline, int *count)
+template <class T> void addIges143(std::vector<std::string> &lines, int surfaceDE, 
+  std::vector<int> curve141DEs, int dirline, int *count)
 {
   std::string igesstr = "";
 
   addIgesString(lines,to_string(143),dirline,count,igesstr);
   addIgesString(lines,to_string(1),dirline,count,igesstr);
   addIgesString(lines,to_string(surfaceDE),dirline,count,igesstr);
-  addIgesString(lines,to_string(1),dirline,count,igesstr);
-  addIgesString(lines,to_string(curve141DE),dirline,count,igesstr);
+  addIgesString(lines,to_string(int(curve141DEs.size())),dirline,count,igesstr);
+  for (int i = 0; i < int(curve141DEs.size()); i++)
+  {
+    addIgesString(lines,to_string(curve141DEs[i]),dirline,count,igesstr);
+  }
 
   finalize(lines,dirline,count,igesstr);
 }
@@ -409,7 +413,8 @@ template <class T> bool makeSurfaceLinesIges(std::vector<tcad::TSplineSurface<T>
 
 /** Make iges lines for trimmed surfaces. */
 template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
-  std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &boundariesUV,
+//surface     loop        piece       points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<std::string> &lines, int splinedegree = SPLINE_DEGREE)
 {
   lines.clear();
@@ -459,29 +464,33 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
     
     if (!boundariesUV[i].empty())
     {
-      for (int j = 0; j < int(boundariesUV[i].size()); j++)
+      // loops
+      for (int il = 0; il < int(boundariesUV[i].size()); il++)
       {
-        // curve B (126)
-        s = makeIgesDirectoryLine0(dirline1260,-1,-1,&dcount);
-        lines.push_back(s);
-        s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name);
-        lines.push_back(s);
-        dlines++;
+        for (int j = 0; j < int(boundariesUV[i][il].size()); j++)
+        {
+          // curve B (126)
+          s = makeIgesDirectoryLine0(dirline1260,-1,-1,&dcount);
+          lines.push_back(s);
+          s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name);
+          lines.push_back(s);
+          dlines++;
 
-        // curve C (126)
-        s = makeIgesDirectoryLine0(dirline1260,-1,-1,&dcount);
+          // curve C (126)
+          s = makeIgesDirectoryLine0(dirline1260,-1,-1,&dcount);
+          lines.push_back(s);
+          s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name);
+          lines.push_back(s);
+          dlines++;
+        }
+
+        // bounding curve (141)
+        s = makeIgesDirectoryLine0(dirline1410,-1,-1,&dcount);
         lines.push_back(s);
-        s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name);
+        s = makeIgesDirectoryLine1(dirline1411,-1,-1,&dcount,name);
         lines.push_back(s);
         dlines++;
       }
-
-      // bounding curve (141)
-      s = makeIgesDirectoryLine0(dirline1410,-1,-1,&dcount);
-      lines.push_back(s);
-      s = makeIgesDirectoryLine1(dirline1411,-1,-1,&dcount,name);
-      lines.push_back(s);
-      dlines++;
 
       // trimmed surface (143)
       s = makeIgesDirectoryLine0(dirline1430,-1,-1,&dcount);
@@ -528,64 +537,73 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
 
     if (!boundariesUV[i].empty())
     {
-      // parametric boundary is input, we need XYZ boundary as well
-      std::vector<std::vector<tcad::TPoint<T>>> boundary;
-      surface->boundaryIntoPoints(boundariesUV[i],boundary);
-
-      // spline boundary curve is combined of boundary parts which 
-      // connect to each other with C1 discontinuity
-      for (int j = 0; j < int(boundariesUV[i].size()); j++)
+      // loops
+      std::vector<int> list141;
+      int surfacedir = 0;
+      for (int il = 0; il < int(boundariesUV[i].size()); il++)
       {
-        tcad::TSplineCurve<T> B(boundariesUV[i][j],splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+        // parametric boundary is input, we need XYZ boundary as well
+        std::vector<std::vector<tcad::TPoint<T>>> boundary;
+        surface->boundaryIntoPoints(boundariesUV[i][il],boundary);
 
-        lines[dir128line] = makeIgesDirectoryLine0(dirline1260parametric,pcount,-1,&dcount);
+        // spline boundary curve is combined of boundary parts which 
+        // connect to each other with C1 discontinuity
+        for (int j = 0; j < int(boundariesUV[i][il].size()); j++)
+        {
+          tcad::TSplineCurve<T> B(boundariesUV[i][il][j],splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+
+          lines[dir128line] = makeIgesDirectoryLine0(dirline1260parametric,pcount,-1,&dcount);
+          dir128line++;
+
+          // add lines
+          int before = int(lines.size());
+          addIgesCurveLines(lines,&B,dcount - 1,&pcount);
+          int after = int(lines.size());
+
+          // modify directory
+          lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name);
+          dir128line++;
+        }
+
+        // curve C in XYZ
+        for (int j = 0; j < int(boundary.size()); j++)
+        {
+          tcad::TSplineCurve<T> C(boundary[j],splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+
+          lines[dir128line] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
+          dir128line++;
+
+          // add lines
+          before = int(lines.size());
+          addIgesCurveLines(lines,&C,dcount - 1,&pcount);
+          after = int(lines.size());
+
+          // modify directory
+          lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name);
+          dir128line++;
+        }
+
+        // save 141 
+        lines[dir128line] = makeIgesDirectoryLine0(dirline1410,pcount,-1,&dcount);
         dir128line++;
 
-        // add lines
-        int before = int(lines.size());
-        addIgesCurveLines(lines,&B,dcount - 1,&pcount);
-        int after = int(lines.size());
+        int numcurves = int(boundary.size());
+        if (il == 0)
+          surfacedir = dcount - (numcurves * 2 + 2) * 2 + 1;
 
-        // modify directory
-        lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name);
-        dir128line++;
-      }
-
-      // curve C in XYZ
-      for (int j = 0; j < int(boundary.size()); j++)
-      {
-        tcad::TSplineCurve<T> C(boundary[j],splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
-
-        lines[dir128line] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
-        dir128line++;
-
-        // add lines
+        // add lines B and C
         before = int(lines.size());
-        addIgesCurveLines(lines,&C,dcount - 1,&pcount);
+        addIges141<T>(lines,surfacedir,dcount - (numcurves * 2 + 1) * 2 + 1,
+          dcount - (numcurves + 1) * 2 + 1,
+          dcount - 1,&pcount,numcurves);
         after = int(lines.size());
 
         // modify directory
-        lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name);
+        lines[dir128line] = makeIgesDirectoryLine1(dirline1411,-1,(after - before),&dcount,name);
         dir128line++;
-      }
 
-      // save 141 
-      lines[dir128line] = makeIgesDirectoryLine0(dirline1410,pcount,-1,&dcount);
-      dir128line++;
-
-      int numcurves = int(boundary.size());
-      int surfacedir = dcount - (numcurves * 2 + 2) * 2 + 1;
-
-      // add lines B and C
-      before = int(lines.size());
-      addIges141<T>(lines,surfacedir,dcount - (numcurves * 2 + 1) * 2 + 1,
-        dcount - (numcurves + 1) * 2 + 1,
-        dcount - 1,&pcount,numcurves);
-      after = int(lines.size());
-
-      // modify directory
-      lines[dir128line] = makeIgesDirectoryLine1(dirline1411,-1,(after - before),&dcount,name);
-      dir128line++;
+        list141.push_back(dcount - 1 * 2);
+      } // loops
 
       // save 143 
       lines[dir128line] = makeIgesDirectoryLine0(dirline1430,pcount,-1,&dcount);
@@ -593,13 +611,13 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
 
       // add lines
       before = int(lines.size());
-      addIges143<T>(lines,surfacedir,dcount - 1 * 2 - 1,dcount - 1,&pcount);
+      addIges143<T>(lines,surfacedir,list141,dcount - 1,&pcount);
       after = int(lines.size());
 
       // modify directory
       lines[dir128line] = makeIgesDirectoryLine1(dirline1431,-1,(after - before),&dcount,name);
       dir128line++;
-    } // if boundary
+    } // loops
   } // loop on surfaces
 
   int plines = pcount - 1;
@@ -715,7 +733,8 @@ template <class T> bool saveSurfaceIges(tcad::TSplineSurface<T> *surface, const 
 
 /** Save trimmed surfaces in IGES. boundaries must be closed. */
 template <class T> bool saveTrimmedSurfacesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
-  std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &boundariesUV, const std::string &filename,
+//surface     loop        piece       points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, const std::string &filename,
   int splinedegree = SPLINE_DEGREE)
 {
   std::vector<std::string> lines;
@@ -732,13 +751,14 @@ template <class T> bool saveTrimmedSurfacesIges(std::vector<tcad::TSplineSurface
 
 /** Save trimmed surface in IGES. boundary must be closed. */
 template <class T> bool saveTrimmedSurfaceIges(tcad::TSplineSurface<T> *surface, 
-  std::vector<std::vector<tcad::TPoint<T>>> &boundaryUV, const std::string &filename,
+//loop        piece       points
+  std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &boundaryUV, const std::string &filename,
   int splinedegree = SPLINE_DEGREE)
 {
   std::vector<tcad::TSplineSurface<T> *> surfaces;
   surfaces.push_back(surface);
 
-  std::vector<std::vector<std::vector<tcad::TPoint<T>>>> boundariesUV;
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV;
   boundariesUV.push_back(boundaryUV);
 
   return saveTrimmedSurfacesIges(surfaces,boundariesUV,filename,splinedegree);

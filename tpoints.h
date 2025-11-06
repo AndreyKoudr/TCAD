@@ -746,7 +746,9 @@ template <class T> bool closed(const std::vector<TPoint<T>> &points, T tolerance
   if (points.empty())
     return false;
 
-  return (!(points.front() - points.back()) < tolerance);
+  T d = !(points.front() - points.back());
+
+  return (d < tolerance);
 }
 
 /** Get three neighbours around point index. */

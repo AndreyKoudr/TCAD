@@ -57,6 +57,29 @@ enum Parameter {
   PARAMETER_ANY
 };
 
+/** Surface corner UV values. 
+
+                        side 2      
+            3------------------------------2
+            |                              |
+            |                              |
+            |                              |
+   side 3   |                              | side 1
+            ^ V                            |
+            |    U                         |
+            0---->-------------------------1
+                       side 0      
+
+*/
+
+template <class T> const std::array<TPoint<T>,4> cornerUV =
+{
+  TPoint<T>(0.0,0.0,0.0),
+  TPoint<T>(1.0,0.0,0.0),
+  TPoint<T>(1.0,1.0,0.0),
+  TPoint<T>(0.0,1.0,0.0)
+};
+
 template <class T> class TBaseSurface {
 public:
 
@@ -522,9 +545,9 @@ public:
   }
 
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
-  template <class T> bool closeBoundary(std::vector<std::vector<TPoint<T>>> &cutUV,
-    std::vector<std::vector<TPoint<T>>> &closedboundary, int numdivisions = 100,
-    T parmtolerance = PARM_TOLERANCE)
+  template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
+    std::vector<std::vector<TPoint<T>>> &closedboundary, 
+    T tolerance, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
   {
     if (cutUV.empty())
       return false;
@@ -537,10 +560,33 @@ public:
       cut = cutUV[0];
     } else
     {
-      return false; //!!!!!!! extend
+      // this may be a number of intersection parts, combine them into one
+      std::vector<std::vector<TPoint<T>>> lines;
+      if (!curvesFromPieces(cutUV,lines,tolerance))
+        return false;
+
+      if (lines.size() == 1)
+      {
+        cut = lines[0];
+      } else
+      {
+        // not continuous cut
+        return false;
+      }
     }
 
     closedboundary.push_back(cut);
+
+    // e.g. a hole inside face
+    T closetolerance = calculateLength(closedboundary[0]) * 0.01;
+    if (closed(closedboundary[0],closetolerance))
+    {
+      if (!closed(closedboundary[0],tolerance))
+      {
+        closedboundary[0].push_back(closedboundary[0].front());
+      }
+      return true;
+    }
 
     // step 2 : check if both cut ends lay on one of four surface boundaries
     T parm0 = 0.0;
@@ -586,6 +632,25 @@ public:
     assert(ok);
 
     return ok;
+  }
+
+  /** Close outer UV boundary by 4 pieces. */
+  template <class T> void closeOuterBoundaryLoop(std::vector<std::vector<TPoint<T>>> &closedboundary, 
+    int numdivisions = 100)
+  {
+    for (int i = 0; i < 4; i++)
+    {
+      int i1 = i + 1;
+      if (i1 > 3)
+        i1 = 0;
+
+      TPoint<T> UV = cornerUV<T>[i];
+      TPoint<T> nextUV = cornerUV<T>[i1];
+
+      TPointCurve<T> line(UV,nextUV,numdivisions);
+
+      closedboundary.push_back(line.controlPoints());
+    }
   }
 
 public: //!!!!!!!

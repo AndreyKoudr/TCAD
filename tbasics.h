@@ -145,5 +145,8 @@ namespace tcad {
 // default number of points used for output, linearisation etc.
 #define MANY_POINTS 251
 
+// default number of points for surface intersections etc.
+#define MANY_POINTS2D 50
+
 }
 
