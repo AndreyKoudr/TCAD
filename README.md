@@ -10,10 +10,10 @@
 The plan :
 - point (done)
 - curves (done)
-- surfaces (<B>completing...</B>)
+- surfaces (done)
+- volumes (<B>doing...</B>)
 
 <B>to do</B>
-- volumes
 - blocks
 - FFD
 - intersections, maybe implicit
