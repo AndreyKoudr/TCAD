@@ -34,6 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ttransform.h"
 #include "tplane.h"
 #include "tjacobipoly.h"
+// used to speedup triangle/triangle intersections by spacial partitioning
+#include "obackground.h"
 
 #include "strings.h"
 
@@ -2046,10 +2048,180 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   // make parametric boundaries
   bool makeboundaries = boundary0 && boundary1 && !UVcorners.empty() && !other.UVcorners.empty();
 
+  // for collision test
   std::vector<TPoint<T>> centres,ocentres;
   getCentresAndRadii(centres);
   other.getCentresAndRadii(ocentres);
 
+  // use octree background cells for spacial partitioning...
+#if 1 
+
+  // min/max of all triangles
+  std::pair<TPoint<T>,TPoint<T>> mm0 = minmax();
+  std::pair<TPoint<T>,TPoint<T>> mm1 = other.minmax();
+  TPoint<T> min = pointMin(mm0.first,mm1.first);
+  TPoint<T> max = pointMax(mm0.second,mm1.second);
+
+  // extend
+  extendMinMax(min,max,1.01);
+
+  // max tri size for cell size
+  T minedge,maxedge;
+  getEdgeMinMax(minedge,maxedge);
+  T ominedge,omaxedge;
+  other.getEdgeMinMax(ominedge,omaxedge);
+
+//!!!!!!!
+  maxedge = std::max(maxedge,omaxedge) * 2.0;
+  TPoint<T> dmm = max - min;
+
+  // cells big enough for spacial partitioning to identify if two triangles
+  // may intersect, they can if they have a node in the same cell only
+  OBackground<T> cells(min,max,(LINT) (dmm.X / maxedge),(LINT) (dmm.Y / maxedge),(LINT) (dmm.Z / maxedge),8);
+
+  // total number of cells
+  LINT numcells = cells.numBackgroundCells();
+
+  // now distribute all tris over cells
+  std::vector<std::set<LINT>> celltris(numcells);
+  for (LINT i = 0; i < numFaces(); i++)
+  {
+    std::array<TPoint<T>,3> corners = threeCorners(i);
+    
+    for (int j = 0; j < 3; j++)
+    {
+      LINT index = cells.findCell(corners[j]);
+      assert(index >= 0);
+
+      celltris[index].insert(i);
+    }
+  }
+
+  std::vector<std::set<LINT>> ocelltris(numcells);
+  for (LINT i = 0; i < other.numFaces(); i++)
+  {
+    std::array<TPoint<T>,3> corners = other.threeCorners(i);
+    
+    for (int j = 0; j < 3; j++)
+    {
+      LINT index = cells.findCell(corners[j]);
+      assert(index >= 0);
+
+      ocelltris[index].insert(i);
+    }
+  }
+
+  // we do not want to intersect same pair twice
+  std::set<std::pair<LINT,LINT>> intersected;
+
+  // now we've got two plain lists of triangles for every cell
+
+  if (makeboundaries)
+  {
+    for (LINT i = 0; i < numcells; i++)
+    {
+      for (LINT index0 : celltris[i])
+      {
+        TPoint<T> c = centres[index0];
+
+        std::array<TPoint<T>,3> corners = threeCorners(index0);
+
+        // UVcorners must be filled in TBaseSurface::createTriangles()
+        std::array<TPoint<T>,3> uvcorners = UVcorners[index0];
+
+        for (LINT index1 : ocelltris[i])
+        {
+          // already considered
+          if (intersected.find(std::pair<LINT,LINT>(index0,index1)) != intersected.end())
+            continue;
+
+          // check by sizes
+          TPoint<T> oc = ocentres[index1];
+          T d = !(oc - c);
+          if (d > oc.W + c.W)
+            continue;
+
+          std::array<TPoint<T>,3> ocorners = other.threeCorners(index1);
+          // UVcorners must be filled in TBaseSurface::createTriangles()
+          std::array<TPoint<T>,3> ouvcorners = other.UVcorners[index1];
+
+          std::vector<TPoint<T>> intrs;
+          if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
+          {
+            if (intrs.size() == 2)
+            {
+              TPoint<T> coord0 = barycentricCoord(corners,intrs[0]);
+              TPoint<T> coord1 = barycentricCoord(corners,intrs[1]);
+              TPoint<T> ocoord0 = barycentricCoord(ocorners,intrs[0]);
+              TPoint<T> ocoord1 = barycentricCoord(ocorners,intrs[1]);
+
+              // these will contain U,V in X,Y for every intersection point
+              TPoint<T> uv0,uv1,ouv0,ouv1;
+              for (int k = 0; k < 3; k++)
+              {
+                uv0 += uvcorners[k] * coord0.XYZW[k];
+                uv1 += uvcorners[k] * coord1.XYZW[k];
+                ouv0 += ouvcorners[k] * ocoord0.XYZW[k];
+                ouv1 += ouvcorners[k] * ocoord1.XYZW[k];
+              }
+
+              // keep U,V for every intersection on both surfaces
+              UVintrs.push_back(TPoint<T>(uv0.X,uv0.Y,ouv0.X,ouv0.Y));
+              intrs[0].W = T(UVintrs.size() - 1);
+              UVintrs.push_back(TPoint<T>(uv1.X,uv1.Y,ouv1.X,ouv1.Y));
+              intrs[1].W = T(UVintrs.size() - 1);
+
+              edges.push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+            }
+          }
+
+          // register as already tested
+          intersected.insert(std::pair<LINT,LINT>(index0,index1));
+        }
+      }
+    }
+  } else
+  {
+    for (LINT i = 0; i < numcells; i++)
+    {
+      for (LINT index0 : celltris[i])
+      {
+        TPoint<T> c = centres[index0];
+
+        std::array<TPoint<T>,3> corners = threeCorners(index0);
+
+        for (LINT index1 : ocelltris[i])
+        {
+          // already considered
+          if (intersected.find(std::pair<LINT,LINT>(index0,index1)) != intersected.end())
+            continue;
+
+          // check by sizes
+          TPoint<T> oc = ocentres[index1];
+          T d = !(oc - c);
+          if (d > oc.W + c.W)
+            continue;
+
+          std::array<TPoint<T>,3> ocorners = other.threeCorners(index1);
+
+          std::vector<TPoint<T>> intrs;
+          if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
+          {
+            if (intrs.size() == 2)
+            {
+              edges.push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+            }
+          }
+
+          // register as already tested
+          intersected.insert(std::pair<LINT,LINT>(index0,index1));
+        }
+      }
+    }  
+  }
+
+#else
+  
   if (makeboundaries)
   {
     // take every face, intersect with 3 other edges
@@ -2133,6 +2305,8 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
       }
     }  
   }
+
+#endif
 
   std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
 

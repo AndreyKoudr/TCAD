@@ -187,7 +187,7 @@ public:
     Set refine... to 0.5 at a corresponding end to refine,
     1.0 has no effect. */
   virtual bool createTriangles(TTriangles<T> &tris,
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D,
     T refinestartU = 1.0, T refineendU = 1.0, 
     T refinestartV = 1.0, T refineendV = 1.0)
   {
@@ -429,7 +429,7 @@ public:
   bool intersectByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, 
     std::vector<std::vector<TPoint<T>>> &boundary,
     T tolerance, T parmtolerance = TOLERANCE(T), 
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D,
     T refinestartU = 1.0, T refineendU = 1.0, 
     T refinestartV = 1.0, T refineendV = 1.0)
   {
@@ -474,10 +474,10 @@ public:
   template <class T> int intersect(TBaseSurface<T> &other, std::vector<std::vector<TPoint<T>>> &intersections, 
     std::vector<std::vector<TPoint<T>>> &boundary0, std::vector<std::vector<TPoint<T>>> &boundary1,
     T tolerance, T parmtolerance = TOLERANCE(T), 
-    int numpointsU0 = MANY_POINTS, int numpointsV0 = MANY_POINTS,
+    int numpointsU0 = MANY_POINTS2D, int numpointsV0 = MANY_POINTS2D,
     T refinestartU0 = 1.0, T refineendU0 = 1.0, 
     T refinestartV0 = 1.0, T refineendV0 = 1.0,
-    int numpointsU1 = MANY_POINTS, int numpointsV1 = MANY_POINTS,
+    int numpointsU1 = MANY_POINTS2D, int numpointsV1 = MANY_POINTS2D,
     T refinestartU1 = 1.0, T refineendU1 = 1.0, 
     T refinestartV1 = 1.0, T refineendV1 = 1.0)
   {
@@ -547,7 +547,7 @@ public:
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
     std::vector<std::vector<TPoint<T>>> &closedboundary, 
-    T tolerance, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
+    T tolerance, T bigtolerance = 0.1, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
   {
     if (cutUV.empty())
       return false;
@@ -561,8 +561,21 @@ public:
     } else
     {
       // this may be a number of intersection parts, combine them into one
+      // with high tolerance (some segments may be missing due to coincident
+      // triangle edges)
+      //T bigtolerance = tolerance;
+      //for (int i = 0; i < int(cutUV.size()); i++)
+      //{
+      //  T min,max;
+      //  if (tcad::segmentLenMinMax(cutUV[i],min,max))
+      //  {
+      //    bigtolerance = std::max<T>(bigtolerance,max);
+      //  }
+      //}
+      //bigtolerance *= 1.1;
+      
       std::vector<std::vector<TPoint<T>>> lines;
-      if (!curvesFromPieces(cutUV,lines,tolerance))
+      if (!curvesFromPieces(cutUV,lines,bigtolerance))
         return false;
 
       if (lines.size() == 1)

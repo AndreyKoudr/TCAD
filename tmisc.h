@@ -116,7 +116,8 @@ template <class T> const std::vector<std::pair<T,T>> NACA0012xy = {
   {0.993844, 0.002120},
   {0.997261, 0.001644},
   {0.999315, 0.001356},
-  {1.000000, 0.001260}
+  {1.000000, 0.0}
+//!!!!!!!  {1.000000, 0.001260}
 };
 
 /** Get sign. */
@@ -1025,6 +1026,15 @@ template <class T> bool nextBoundaryParm(T parm, T endparm, T &nextparm,
     nextparm = endparm;
 
   return true;
+}
+
+/** Extend min/max box by coef. */
+template <class T> void extendMinMax(TPoint<T> &min, TPoint<T> &max, T coef = 1.0)
+{
+  TPoint<T> c = (min + max) * 0.5;
+  TPoint<T> d = (max - min) * 0.5 * coef;
+  min = c - d;
+  max = c + d;
 }
 
 }

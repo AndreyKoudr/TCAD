@@ -24,6 +24,9 @@
     <Filter Include="SURFACES">
       <UniqueIdentifier>{f6ac58e8-e8c9-48a6-bb5a-a14dd8076a31}</UniqueIdentifier>
     </Filter>
+    <Filter Include="OCTREE">
+      <UniqueIdentifier>{bf94456e-53bb-4d03-b9cb-0df454005787}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -129,6 +132,9 @@
     </ClInclude>
     <ClInclude Include="tsplinesurface.h">
       <Filter>SURFACES</Filter>
+    </ClInclude>
+    <ClInclude Include="obackground.h">
+      <Filter>OCTREE</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

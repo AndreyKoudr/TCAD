@@ -133,6 +133,7 @@
   <ItemGroup>
     <ClInclude Include="export.h" />
     <ClInclude Include="import.h" />
+    <ClInclude Include="obackground.h" />
     <ClInclude Include="strings.h" />
     <ClInclude Include="tbasecurve.h" />
     <ClInclude Include="tbasesurface.h" />

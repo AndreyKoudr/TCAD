@@ -94,8 +94,8 @@ public:
                               // initialise to zero vector
   void init()
   {
-    X = Y = Z = 0.0; 
-    W = 0.0;
+    X = Y = Z = (T) (0.0); 
+    W = (T) (0.0);
   }
 
   TPoint(T x, T y = 0.0, T z = 0.0, T w = 0.0) 
@@ -375,13 +375,13 @@ template <class T> TPoint<T> operator*(const double scalar, const TPoint<T> v)
 /** Get min from components. */
 template <typename T> TPoint<T> pointMin(TPoint<T> &first, TPoint<T> &second)
 {
-  return TPoint<T>(std::min<T>(first.X,second.X),std::min<T>(first.Y,second.Y),std::min<T>(first.Z,second.X));
+  return TPoint<T>(std::min<T>(first.X,second.X),std::min<T>(first.Y,second.Y),std::min<T>(first.Z,second.Z));
 }
 
 /** Get max from components. */
 template <typename T> TPoint<T> pointMax(TPoint<T> &first, TPoint<T> &second)
 {
-  return TPoint<T>(std::max<T>(first.X,second.X),std::max<T>(first.Y,second.Y),std::max<T>(first.Z,second.X));
+  return TPoint<T>(std::max<T>(first.X,second.X),std::max<T>(first.Y,second.Y),std::max<T>(first.Z,second.Z));
 }
 
 

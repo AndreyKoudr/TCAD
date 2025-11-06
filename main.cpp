@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 1 : CURVES. What can we do with them?" << endl;
+  cout << "    Part 1 : CURVES" << endl;
 
   // Let us take points of NACA0012 airfoil, they are in XY but of course
   // all your curves are 3-dimensional
@@ -887,7 +887,7 @@ int main(int argc, char* argv[])
 
   // create a point surface
   TSplineSurface<T> apsurface(NACAsurfpoints,10,SPLINE_DEGREE,30,SPLINE_DEGREE,
-    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+    END_CLAMPED,END_FREE,END_FREE,END_FREE);
 
   saveSurfaceIges(&apsurface,DEBUG_DIR + "spline surface approximated.iges");
 
@@ -1109,10 +1109,10 @@ int main(int argc, char* argv[])
   saveTrimmedSurfaceIges(&apsurface,tr3closedboundary0,DEBUG_DIR + "spline surface cut by another surface and trimmed.iges");
 
   /*****************************************************************************
-    2.17 Surfaces : make a hole with trimmed B-spline surface (two loops)
+    2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface
   *****************************************************************************/
 
-  cout << "2.17 Surfaces : make a hole with trimmed B-spline surface (two loops)" << endl;
+  cout << "2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface" << endl;
 
   // make a lower surface
   std::vector<std::vector<TPoint<T>>> NACAsurfpointslower;
@@ -1120,7 +1120,7 @@ int main(int argc, char* argv[])
 
   // create a point surface
   TSplineSurface<T> apsurfacelower(NACAsurfpointslower,10,SPLINE_DEGREE,30,SPLINE_DEGREE,
-    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+    END_CLAMPED,END_FREE,END_FREE,END_FREE);
 
   saveSurfaceIges(&apsurfacelower,DEBUG_DIR + "spline surface approximated (lower).iges");
 
@@ -1196,12 +1196,6 @@ int main(int argc, char* argv[])
   tr6closedboundary0.push_back(tr6loop);
 
   assert(tr6ok1);
-
-  //// to catch sharp TE
-  //TPointCurve<T> temp6(tr6closedboundary0[0]);
-  //int sharpindex6 = temp6.findPointOfMaxCurvature();
-  //temp6.shiftClosed(sharpindex6,NACAtolerance);
-  //tr6closedboundary0[0] = temp6.controlPoints();
 
   // add outer boundary
   std::vector<std::vector<TPoint<T>>> tr6outerloop;
