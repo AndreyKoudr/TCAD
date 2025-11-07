@@ -143,10 +143,26 @@ namespace tcad {
 #define SPLINE_DEGREE 3
 
 // default number of points used for output, linearisation etc.
-#define MANY_POINTS 251
+#define MANY_POINTS 501
 
 // default number of points for surface intersections etc.
-#define MANY_POINTS2D 51
+#define MANY_POINTS2D 101 
+
+// use space partitioning for speed
+#define USE_SPACEPARTITIONING
+
+// use threading for speed
+#define USE_THREADS
+
+// default number of threads
+#define NUM_THREADS 8
+
+// partition is part of threading
+#ifdef USE_THREADS
+  #ifndef USE_SPACEPARTITIONING
+    #define USE_SPACEPARTITIONING
+  #endif
+#endif
 
 }
 

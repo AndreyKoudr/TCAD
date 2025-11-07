@@ -141,6 +141,39 @@ void makeRandomNoise(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &spo
   }
 }
 
+//===== High-resolution timer ==================================================
+
+bool highrestimer = false;
+LARGE_INTEGER timerfrequency = { 1000 };
+
+/** Start mesurement, check if high-res timer is supported. */
+void TestTimer()
+{
+  // which counter to use?
+  if (QueryPerformanceFrequency(&timerfrequency))
+  {
+    highrestimer = true;
+  } else
+  {
+    timerfrequency.QuadPart = 1000;
+    highrestimer = false;
+  }
+}
+
+// get time in seconds
+double GetTime()
+{
+  if (highrestimer)
+  {
+    LARGE_INTEGER count;
+    QueryPerformanceCounter(&count);
+    return (double) count.QuadPart / (double) timerfrequency.QuadPart;
+  } else
+  { 
+    return (double) (GetTickCount()) / 1000.0;
+  }
+}
+
 /** Randomly swap points. */
 void makeRandomSwap(int numswaps, std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &spoiltpoints)
 {
@@ -243,6 +276,9 @@ bool rewriteSTLAsBinary(const std::string &filename)
 
 int main(int argc, char* argv[])
 {
+  // start time measurement
+  TestTimer();
+  double starttime = GetTime();
 
   /*****************************************************************************
 
@@ -760,7 +796,8 @@ int main(int argc, char* argv[])
   bool sok1 = checkTopoCutAndBoundary("shuttle",scutplane,true,true,10.0);
   assert(sok1);
 
-  rewriteSTLAsBinary("wing.stl");
+  // already binary
+  //rewriteSTLAsBinary("wing.stl");
 
   // cut it by plane, define by normal and one point on plane
   TPlane<T> wcutplane(TPoint<T>(0.0,0.0,1.0),TPoint<T>(0.0,0.0,0.0)); 
@@ -1204,6 +1241,10 @@ int main(int argc, char* argv[])
   tr6closedboundary0.push_back(tr6outerloop);
 
   saveTrimmedSurfaceIges(&cylsurface,tr6closedboundary0,DEBUG_DIR + "cylindrical surface cut by two airfoil parts and trimmed.iges");
+
+  double endtime = GetTime();
+
+  cout << "Time elapsed " << (endtime - starttime) << " sec" << endl;
 
   return 0;
 }

@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ttransform.h"
 
 #include <vector>
+#include <map>
 #include <algorithm>
 
 namespace tcad {
@@ -1155,6 +1156,75 @@ template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool so
   std::vector<LINT> rep;
   rep.resize(points.size(),-1);
 
+#if 1 // for very big arrays : temporarily replace vectors by map, 
+// vectors erase is too slow for e.g. 240000 elements
+
+  std::map<int,TPoint<T>> list;
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    list.insert(std::pair<int,TPoint<T>>(i,points[i]));
+  }
+
+  // now move down and remove duplicates which are neighbours to each other
+  for (int i = int(points.size()) - 1; i >= 0; i--)
+  {
+    // len is number of same points closed to each other
+    int len = 0;
+    for (int j = i; j >= 0; j--)
+    {
+      // len cannot be 0, it includes the leftmost node as well
+      T dist = !(points[i] - points[j]);
+      if (dist <= tolerance)
+      {
+        len++;
+      } else
+      {
+        break;
+      }
+    }
+
+    // this number is leftmost remaining, all the rest to the right (len - 1) 
+    // points are deleted
+    int i1 = i - len + 1;
+    int count = len;
+    for (int j = i; j >= 0; j--)
+    {
+      rep[ROUND(points[j].W)] = i1;
+      if (--count == 0)
+        break;
+    }
+
+    // delete len - 1 nodes to the right from i1;
+    // we are deleting list - correct replacement indices 
+    if (len > 1)
+    {
+      for (int j = len - 1; j >= 1; j--)
+      {
+        // removing node n
+        int n = i1 + j;
+        list.erase(n);
+
+        // correct replacements
+        for (auto &k : rep)
+        {
+          if (k >= n)
+            k--;
+        }
+      }
+    }
+
+    // skip len - 1 nodes
+    i -= (len - 1);
+  }
+
+  points.clear();
+  for (auto p : list)
+  {
+    points.push_back(p.second);
+  }
+
+#else
+
   // now move down and remove duplicates which are neighbours to each other
   for (int i = int(points.size()) - 1; i >= 0; i--)
   {
@@ -1206,6 +1276,8 @@ template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool so
     // skip len - 1 nodes
     i -= (len - 1);
   }
+
+#endif
 
   // all replacements must be filled up
 #ifdef _DEBUG

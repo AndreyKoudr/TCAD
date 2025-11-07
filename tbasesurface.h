@@ -248,8 +248,13 @@ public:
     T tolerance = !d * PARM_TOLERANCE;
 
     // remove duplicate nodes and renumber corners
-    bool ok = tris.buildConnectivityArray(tolerance);
 
+#if 1
+    bool ok = true;
+#else
+    // this can be very very slow for 200x200 quads and 240000 nodes
+    bool ok = tris.buildConnectivityArray(tolerance);
+#endif
     return ok;
   }
 

@@ -137,6 +137,7 @@
     <ClInclude Include="strings.h" />
     <ClInclude Include="tbasecurve.h" />
     <ClInclude Include="tbasesurface.h" />
+    <ClInclude Include="tbasevolume.h" />
     <ClInclude Include="tbasics.h" />
     <ClInclude Include="tbezierpatch.h" />
     <ClInclude Include="tbeziersegment.h" />

@@ -27,6 +27,9 @@
     <Filter Include="OCTREE">
       <UniqueIdentifier>{bf94456e-53bb-4d03-b9cb-0df454005787}</UniqueIdentifier>
     </Filter>
+    <Filter Include="VOLUMES">
+      <UniqueIdentifier>{b7e7c482-8f8b-46e7-aa95-001702a9b9bb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -135,6 +138,9 @@
     </ClInclude>
     <ClInclude Include="obackground.h">
       <Filter>OCTREE</Filter>
+    </ClInclude>
+    <ClInclude Include="tbasevolume.h">
+      <Filter>VOLUMES</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

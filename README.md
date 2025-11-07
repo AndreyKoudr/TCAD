@@ -44,6 +44,9 @@ Files
     - tbeziersurface.h      - Bezier surface (regular composite of Bezier patches)
     - tsplinesurface.h      - B-spline surface, polynomial
 
+- tbasevolume.h  - volumes, abstract class
+
+
 Point
 =====
   tpoint.h                  - 3-dimensional vector (0 parametric dimensions) point with ariphmetic operations
@@ -55,9 +58,6 @@ Curves of various kinds, parametric, dependent of one parameter U. Most operatio
 Some operations are n-squared (yet).
 
 <B>Example code how to use</B><br />
-
-main.cpp, see examples on how to use curves, like create, smooth, intersect, order points etc.<br />
-<B>Important : set DEBUG_DIR for place to output of debug CAD files.</B>
 
 - 1.1 Curves : how to exclude neighbour duplicate nodes
 - 1.2 Curves : compare original points and low-power LSQ segment, do not expecta good correspondence - 
@@ -100,9 +100,40 @@ Surfaces
 - 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
 - 2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface
 
+Important parameters in main.cpp
+================================
 
-Doing 3D volumes ...
-====================
+main.cpp, see examples on how to use TCAD.<br />
+
+<B>Set DEBUG_DIR for place to output of debug CAD files.</B><br />
+
+<B>Also important :</B><br />
+
+```
+
+// default number of points used for output, linearisation etc.
+#define MANY_POINTS 501
+
+// default number of points for surface intersections etc.
+#define MANY_POINTS2D 101 
+
+// use space partitioning for speed
+#define USE_SPACEPARTITIONING
+
+// use threading for speed
+#define USE_THREADS
+
+// default number of threads
+#define NUM_THREADS 8
+
+```
+
+Recent update ...
+=================
+
+Just done : dramatic speedup by spatial partitioning, threads and removal of unnecessary operations.<br /> 
+Now doing volumes.<br />
+
 
 
 

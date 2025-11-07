@@ -1037,4 +1037,26 @@ template <class T> void extendMinMax(TPoint<T> &min, TPoint<T> &max, T coef = 1.
   max = c + d;
 }
 
+/** Generates ranges array of numranges + 1 elements. */
+template <class T> void getRanges(T max, int numranges, std::vector<T> &ranges)
+{
+  T step = max / numranges;
+  LIMIT_MIN(step, 1);
+
+  ranges.resize(numranges + 1);
+  T value = T(0);
+
+  for (size_t i = 0; i <= numranges; i++)
+  {
+    if (value >= max)
+      value = max;
+
+    ranges[i] = value;
+
+    value += step;
+  }
+
+  ranges[numranges] = max;
+}
+
 }
