@@ -2250,9 +2250,8 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   T ominedge,omaxedge;
   other.getEdgeMinMax(ominedge,omaxedge);
 
-//!!!!!!!
-  maxedge = std::max(maxedge,omaxedge) * 1.2;
-//!!!!!!!  maxedge = std::max(maxedge,omaxedge) * 2.0;
+  //!!!!!!
+  maxedge = std::max(maxedge,omaxedge) * 2.0;
   TPoint<T> dmm = max - min;
 
   // cells big enough for spacial partitioning to identify if two triangles

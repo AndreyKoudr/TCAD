@@ -1059,4 +1059,197 @@ template <class T> void getRanges(T max, int numranges, std::vector<T> &ranges)
   ranges[numranges] = max;
 }
 
+/** Bezier basis. */
+template <class T> void BezierBasis(T U, std::vector<T> &knots, std::vector<T> &basis, 
+  int &segment) 
+{
+  assert(knots.size() > 0);
+  static const int degree = 3;
+
+  // number of knots (num segments plus 1)
+  int numKnots = static_cast<int>(knots.size());
+
+  // allocate and clear space for basis functions
+  int numPoints = (numKnots - 1) * degree + 1;
+  basis.resize(numPoints,0.0);
+
+  // tolerance
+  T tolerance = TOLERANCE(T);
+
+  // find knots interval (segment) for U by bisection
+  segment = findInterval<T>(knots,U);
+  assert(segment != -1 && "Unable to find parametric interval for parameter");
+
+  // get local parameter within segment [0..1]
+  T d = knots[segment + 1] - knots[segment];
+  assert(d > tolerance);
+
+  T u = 0;
+  if (d > tolerance)
+  {
+    u = (U - knots[segment]) / d;
+  }
+
+  // starting non-zero basis function point
+  int i0 = segment * degree;
+
+  T u1 = 1.0 - u;
+  basis[i0] = u1 * u1 * u1;
+  basis[i0 + 1] = 3.0 * u * u1 * u1;
+  basis[i0 + 2] = 3.0 * u * u * u1;
+  basis[i0 + 3] = u * u * u;
+}
+
+/** Location index for 2D regular mesh of points. */
+template <class T> int getIndex(int K1, int K2, int i, int j)
+{
+  assert (i < (K1 + 1));
+  assert (j < (K2 + 1));
+
+  return j * (K1 + 1) + i;
+}
+
+/** Location index for 3D regular mesh of points. */
+template <class T> int getIndex(int K1, int K2, int K3, int i, int j, int k)
+{
+  assert (i < (K1 + 1));
+  assert (j < (K2 + 1));
+  assert (k < (K3 + 1));
+
+  return k * (K2 + 1) * (K1 + 1) + j * (K1 + 1) + i;
+}
+
+/** Get row of control points (numbers) for 3D regular mesh of points. */
+template <class T> void getULinePoints(int K1, int K2, int K3, int j, int k, std::vector<int> &points)
+{
+  int index = tcad::getIndex<T>(K1,K2,K3,0,j,k);
+  for (int l = 0; l < (K1 + 1); l++)
+  {
+    points.push_back(index);
+    index += 1;
+  }
+}
+
+/** Get column of control points (numbers) for 3D regular mesh of points. */
+template <class T> void getVLinePoints(int K1, int K2, int K3, int i, int k, std::vector<int> &points)
+{
+  int index = tcad::getIndex<T>(K1,K2,K3,i,0,k);
+  for (int l = 0; l < (K2 + 1); l++)
+  {
+    points.push_back(index);
+    index += (K1 + 1);
+  }
+}
+
+/** Get layer of control points (numbers) for 3D regular mesh of points. */
+template <class T> void getWLinePoints(int K1, int K2, int K3, int i, int j, std::vector<int> &points)
+{
+  int numUV = (K1 + 1) * (K2 + 1);
+  int index = tcad::getIndex<T>(K1,K2,K3,i,j,0);
+  for (int l = 0; l < (K3 + 1); l++)
+  {
+    points.push_back(index);
+    index += numUV;
+  }
+}
+
+/** Get row of control points for 3D regular mesh of points. 
+  cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
+template <class T> void getRow(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+  int j, int k, std::vector<TPoint<T>> &points)
+{
+  std::vector<int> ipoints;
+  tcad::getULinePoints<T>(K1,K2,K3,j,k,ipoints);
+
+  points.clear();
+  for (int i = 0; i < int(ipoints.size()); i++)
+  {
+    points.push_back(cpoints[ipoints[i]]);
+  }
+
+  assert(int(points.size()) == K1 + 1);
+}
+
+/** Set row of control points for 3D regular mesh of points.
+  cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
+template <class T> void setRow(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+  int j, int k, std::vector<TPoint<T>> &points)
+{
+  assert(int(points.size()) == K1 + 1);
+
+  std::vector<int> ipoints;
+  tcad::getULinePoints<T>(K1,K2,K3,j,k,ipoints);
+
+  for (int i = 0; i < int(ipoints.size()); i++)
+  {
+    cpoints[ipoints[i]] = points[i];
+  }
+}
+
+/** Get column of control points for 3D regular mesh of points.
+  cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
+template <class T> void getColumn(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+  int i, int k, std::vector<TPoint<T>> &points)
+{
+  std::vector<int> ipoints;
+  tcad::getVLinePoints<T>(K1,K2,K3,i,k,ipoints);
+
+  points.clear();
+  for (int i = 0; i < int(ipoints.size()); i++)
+  {
+    points.push_back(cpoints[ipoints[i]]);
+  }
+
+  assert(int(points.size()) == K2 + 1);
+}
+
+/** Set column of control points for 3D regular mesh of points. 
+  cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
+template <class T> void setColumn(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+  int i, int k, std::vector<TPoint<T>> &points)
+{
+  assert(int(points.size()) == K2 + 1);
+
+  std::vector<int> ipoints;
+  tcad::getVLinePoints<T>(K1,K2,K3,i,k,ipoints);
+
+  for (int i = 0; i < int(ipoints.size()); i++)
+  {
+    cpoints[ipoints[i]] = points[i];
+  }
+}
+
+/** Get layer of control points for 3D regular mesh of points.
+  cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
+template <class T> void getLayer(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+  int i, int j, std::vector<TPoint<T>> &points)
+{
+  std::vector<int> ipoints;
+  tcad::getWLinePoints<T>(K1,K2,K3,i,j,ipoints);
+
+  points.clear();
+  for (int i = 0; i < int(ipoints.size()); i++)
+  {
+    points.push_back(cpoints[ipoints[i]]);
+  }
+
+  assert(int(points.size()) == K3 + 1);
+}
+
+/** Set layer of control points for 3D regular mesh of points.
+  cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
+template <class T> void setLayer(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+  int i, int j, std::vector<TPoint<T>> &points)
+{
+  assert(int(points.size()) == K3 + 1);
+
+  std::vector<int> ipoints;
+  tcad::getWLinePoints<T>(K1,K2,K3,i,j,ipoints);
+
+  for (int i = 0; i < int(ipoints.size()); i++)
+  {
+    cpoints[ipoints[i]] = points[i];
+  }
+}
+
 }

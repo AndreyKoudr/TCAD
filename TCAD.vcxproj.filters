@@ -142,5 +142,8 @@
     <ClInclude Include="tbasevolume.h">
       <Filter>VOLUMES</Filter>
     </ClInclude>
+    <ClInclude Include="tbeziervolume.h">
+      <Filter>VOLUMES</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

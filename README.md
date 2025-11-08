@@ -1,7 +1,7 @@
 # TCAD - templated CAD, full 3D CAD in source code
 
 - (1) C++ templates
-- (2) As simple as any STL
+- (2) As simple as all STLs
 - (3) All in front of you, no first-, second- or third-party libs, no millions of dlls
 - (4) Interface is simple, mostly one-line code (see main.cpp with examples)
 - (5) Easy debugging, heavily commented
@@ -76,7 +76,6 @@ Some operations are n-squared (yet).
 - 1.13 Curves : cut a piece of curve from the previous example
 - 1.14 Curves : order unordered points.
 
-
 Surfaces
 ========
 
@@ -99,6 +98,13 @@ Surfaces
 - 2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface
 - 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
 - 2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface
+- 2.18 Surfaces : find parameters U,V for a point on (or close to) a surface
+
+Volumes
+=======
+
+- 3.1 Volumes : create a Bezier volume around our wing, check definition of parametric values U,V,W for inner X,Y,Z points
+
 
 Important parameters in main.cpp
 ================================
@@ -117,6 +123,9 @@ main.cpp, see examples on how to use TCAD.<br />
 // default number of points for surface intersections etc.
 #define MANY_POINTS2D 101 
 
+// default number of points for volumes
+#define MANY_POINTS3D 51 
+
 // use space partitioning for speed
 #define USE_SPACEPARTITIONING
 
@@ -131,8 +140,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Just done : dramatic speedup by spatial partitioning, threads and removal of unnecessary operations.<br /> 
-Now doing volumes.<br />
+Volume on Bezier basis is ready, testing.<br /> 
 
 
 

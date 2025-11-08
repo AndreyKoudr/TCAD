@@ -56,6 +56,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         tpointsurface.h       - point surface (a regular net of straight-line segments)
         tbeziersurface.h      - Bezier surface (regular composite of Bezier patches)
         tsplinesurface.h      - B-spline surface, polynomial
+      tbasevolume.h     - volumes (3 parametric dimensions), abstract class
+        tbeziervolume.h       - volume on Bezier basis, uniform parameterisation
 
   Auxilliary for debugging and export
     strings.h/cpp       - strings
@@ -147,6 +149,9 @@ namespace tcad {
 
 // default number of points for surface intersections etc.
 #define MANY_POINTS2D 101 
+
+// default number of points for volumes
+#define MANY_POINTS3D 51 
 
 // use space partitioning for speed
 #define USE_SPACEPARTITIONING

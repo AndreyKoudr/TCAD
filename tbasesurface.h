@@ -42,6 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "tbasics.h"
 #include "tpoint.h"
+#include "tmisc.h"
 #include "ttransform.h"
 #include "tbasecurve.h"
 #include "ttriangles.h"
@@ -151,7 +152,7 @@ public:
   virtual void createPoints(std::vector<TPoint<T>> &points, 
     std::vector<TPoint<T>> *UVpoints,
     int *k1 = nullptr, int *k2 = nullptr,
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D,
     T refinestartU = 1.0, T refineendU = 1.0, 
     T refinestartV = 1.0, T refineendV = 1.0)
   {
@@ -352,8 +353,8 @@ public:
   }
 
   /** Are equal? */
-  virtual bool equal(TBaseSurface &other, T tolerance, int numpointsU = MANY_POINTS, 
-    int numpointsV = MANY_POINTS)
+  virtual bool equal(TBaseSurface &other, T tolerance, int numpointsU = MANY_POINTS2D, 
+    int numpointsV = MANY_POINTS2D)
   {
     std::vector<TPoint<T>> points,otherpoints;
     createPoints(points,nullptr,nullptr,nullptr,numpointsU,numpointsV);
@@ -363,15 +364,11 @@ public:
     return (diff >= 0.0 && diff < tolerance);
   }
 
-  /** Find values of parameters U,V for a point on (or close to) the curve. Returns -1 in failure. */
-  virtual TPoint<T> findUVforPoint(TPoint<T> p, int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+  /** Find values of parameters U,V for a point on (or close to) the surface. 
+    Create finer mesh by createPoints() for more accurate results. */
+  static TPoint<T> findUVforPoint(std::vector<TPoint<T>> &points,
+    std::vector<TPoint<T>> &UVpoints, int k1, int k2, TPoint<T> p) 
   {
-    // create fine mesh of points
-    std::vector<TPoint<T>> points;
-    int k1 = 0;
-    int k2 = 0;
-    createPoints(points,nullptr,&k1,&k2,numpointsU,numpointsV);
-
     // temp
     TPoint<T> proj;
     int seg = 0;
@@ -380,10 +377,10 @@ public:
     // look for closest point on rows
     T U = -1.0;
     T mindist = std::numeric_limits<T>::max();
-    for (int i = 0; i < k2 + 1; i++)
+    for (int j = 0; j < k2 + 1; j++)
     {
       std::vector<TPoint<T>> row;
-      tcad::getRow(points,k1,k2,i,row);
+      tcad::getRow(points,k1,k2,j,row);
       if (projectPointOnPoints(row,p,proj,&seg,&u))
       {
         T dist = !(p - proj);
@@ -391,7 +388,9 @@ public:
         {
           TPoint<T> p0 = row[seg];
           TPoint<T> p1 = row[seg + 1];
-          U = p0.W + (p1.W - p0.W) * u;
+          int index0 = tcad::getIndex<T>(k1,k2,seg,j);
+          int index1 = tcad::getIndex<T>(k1,k2,seg + 1,j);
+          U = UVpoints[index0].X + (UVpoints[index1].X - UVpoints[index0].X) * u;
           mindist = dist;
         }
       }
@@ -411,7 +410,9 @@ public:
         {
           TPoint<T> p0 = col[seg];
           TPoint<T> p1 = col[seg + 1];
-          V = p0.W + (p1.W - p0.W) * u;
+          int index0 = tcad::getIndex<T>(k1,k2,i,seg);
+          int index1 = tcad::getIndex<T>(k1,k2,i,seg + 1);
+          V = UVpoints[index0].Y + (UVpoints[index1].Y - UVpoints[index0].Y) * u;
           mindist = dist;
         }
       }
@@ -422,7 +423,7 @@ public:
 
   /** Calculate min/max. */
   virtual bool calculateMinMax(TPoint<T> *min, TPoint<T> *max, TPoint<T> *imin = nullptr, 
-    TPoint<T> *imax = nullptr, int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+    TPoint<T> *imax = nullptr, int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
   {
     std::vector<TPoint<T>> points;
     createPoints(points,nullptr,nullptr,nullptr,numpointsU,numpointsV);
@@ -450,7 +451,7 @@ public:
 
   /** Cut out a part of surface from U0 to U1 and from V0 to V1 into list of points. */
   template <class T> void cutPiece(T Ufrom, T Uto, T Vfrom, T Vto, std::vector<TPoint<T>> &points,
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS)
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
   {
     LIMIT(Ufrom,0.0,1.0);
     LIMIT(Uto,0.0,1.0);
@@ -511,7 +512,7 @@ public:
   template <class T> int intersectByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &intersections, 
     std::vector<std::vector<TPoint<T>>> &boundary,
     T tolerance, T parmtolerance = TOLERANCE(T), 
-    int numpointsU = MANY_POINTS, int numpointsV = MANY_POINTS,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D,
     T refinestartU = 1.0, T refineendU = 1.0, 
     T refinestartV = 1.0, T refineendV = 1.0)
   {
