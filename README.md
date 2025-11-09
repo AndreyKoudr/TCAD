@@ -47,7 +47,6 @@ Files
 
 - tbasevolume.h  - volumes, abstract class
 
-
 Point
 =====
   tpoint.h                  - 3-dimensional vector (0 parametric dimensions) point with ariphmetic operations
@@ -65,17 +64,19 @@ Some operations are n-squared (yet).
   the lsq is a simple poly of power 3
 - 1.3 Curves : compare points and Bezier segment, do not expect a good correspondence - Bezier segment is qubic
 - 1.4 Curves : compare points and segment of orthogonal polynomials of degree 4. Starting END_ROUNDED 
-  end is set to handle the round LE.
-- 1.5 Curves : compare points and Bezier curve (collection of Bezier segments).
-- 1.6 Curves : compare points and approximated b-spline.
-- 1.7 Curves : compare points and approximated b-spline with less number of control points (10 here).
-- 1.8 Curves : how to smooth a curve (curve2 below) with various approximants.
-- 1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)
-- 1.10 Curves : how to find parameter U for a point on curve.
-- 1.11 Curves : how to intersect by plane.
-- 1.12 Curves : how to intersect two curves.
+  end is set to handle the round LE
+- 1.5 Curves : compare points and Bezier curve (collection of Bezier segments)
+- 1.6 Curves : compare points and approximated b-spline
+- 1.7 Curves : compare points and approximated b-spline with less number of control points (10 here)
+- 1.8 Curves : how to smooth a curve (curve2 below) with various approximants
+- 1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)<br />
+![Curve smoothed by spline](https://github.com/AndreyKoudr/TCAD/blob/master/Curve_smoothed_by_spline.png)
+- 1.10 Curves : how to find parameter U for a point on curve
+- 1.11 Curves : how to intersect by plane
+- 1.12 Curves : how to intersect two curves
 - 1.13 Curves : cut a piece of curve from the previous example
-- 1.14 Curves : order unordered points.
+- 1.14 Curves : order unordered points<br />
+![Ordered points](https://github.com/AndreyKoudr/TCAD/blob/master/Ordered_points.png)
 
 Surfaces
 ========
@@ -86,20 +87,25 @@ Surfaces
 - 2.2 Surfaces : triangles : manifold? solid?
 - 2.3 Surfaces : triangles : cut by plane
 - 2.4 Surfaces : triangles : how to find a sharpest point in intersection curve
-- 2.5 Surfaces : triangles : how to get triangulation boundary
+- 2.5 Surfaces : triangles : how to get triangulation boundary<br />
+![Fuselage boundary](https://github.com/AndreyKoudr/TCAD/blob/master/Fuselage_boundary.png)
 - 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane<br />
-![Wing cut by curve](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cut_curve.png)
-- 2.7 Surfaces : triangles : find intersection of one set of triangles with another
+![Shuttle cut curves](https://github.com/AndreyKoudr/TCAD/blob/master/Shuttle_cut_curves.png)<br />
+![Wing cut by curve](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cut_curve.png)<br />
+- 2.7 Surfaces : triangles : find intersection of one set of triangles with another<br />
+![Intersection curve](https://github.com/AndreyKoudr/TCAD/blob/master/Fuselage_fuselage.png)<br />
 - 2.8 Surfaces : Bezier patch
 - 2.9 Surfaces : Bezier surface, a composite of Bezier patches
 - 2.10 Surfaces : point surface, a regular net of points with linear interpolation between
 - 2.11 Surfaces : B-spline surface, interpolated and approximated, with and without clamping
-- 2.12 Surfaces : intersection of two, get intersection curve and two parametric curves for trimming
+- 2.12 Surfaces : intersection of two, get intersection curve and two parametric curves for trimming<br />
+![Wing cylinder intersection](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cylinder.png)
 - 2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming
 - 2.14 Surfaces : create B-spline surface from any other surface
 - 2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface
 - 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
-- 2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface
+- 2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface<br />
+![Wing cylinder trimmed](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cylinder_trimmed.png)
 - 2.18 Surfaces : find parameters U,V for a point on (or close to) a surface
 
 Volumes
@@ -110,7 +116,7 @@ Volumes
 Free form deformation (FFD)
 ===========================
 
-- 4.1 FFD : distort wing shape by displacement of two points
+- 4.1 FFD : distort wing shape by displacement of two points<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/FFD.png)
 
 Important parameters in main.cpp

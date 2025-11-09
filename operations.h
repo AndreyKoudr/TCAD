@@ -219,7 +219,7 @@ template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points
   prepareParameters(points,parms,true,false);
 
   // (2) create a spline from points
-  TSplineCurve<T> scurve(points,k,start,end,degree);
+  TSplineCurve<T> scurve(points,k,degree,start,end);
   std::vector<TPoint<T>> spoints;
   scurve.createPoints(spoints);
 

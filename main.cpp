@@ -471,7 +471,7 @@ int main(int argc, char* argv[])
   saveTwoCurvesIges(curve,splinecurve10,DEBUG_DIR + "Compare_points_and_spline_curve_K10.iges");
 
   /*****************************************************************************
-    1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants
+    1.8 Curves : how to smooth a curve (curve2 below) with various approximants
   *****************************************************************************/
 
   cout << "1.8 Curves : how to smooth a curve (curve2 below) with variuos approximants" << endl;
@@ -522,7 +522,7 @@ int main(int argc, char* argv[])
   //===== smooth by spline curve ===============================================
   // these will be smoothed points
   std::vector<TPoint<T>> points6 = points2;
-  smoothPointsBySplineCurve(points6,10,END_CLAMPED,END_CLAMPED);
+  smoothPointsBySplineCurve(points6,10,END_CLAMPED,END_FREE);
 
   TPointCurve<T> curve6(points6);
 
@@ -890,7 +890,7 @@ int main(int argc, char* argv[])
       interpolation between
   *****************************************************************************/
 
-  cout << "2.10 Surfaces : point surface, a regilar net of points with linear interpolation between" << endl;
+  cout << "2.10 Surfaces : point surface, a regular net of points with linear interpolation between" << endl;
 
   // create a point surface
   TPointSurface<T> psurface(NACAsurfpoints);
