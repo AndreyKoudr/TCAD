@@ -132,6 +132,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="export.h" />
+    <ClInclude Include="FFD.h" />
     <ClInclude Include="import.h" />
     <ClInclude Include="obackground.h" />
     <ClInclude Include="strings.h" />
@@ -150,7 +151,7 @@
     <ClInclude Include="tlsqsegment.h" />
     <ClInclude Include="tmatrix.h" />
     <ClInclude Include="tmisc.h" />
-    <ClInclude Include="toperations.h" />
+    <ClInclude Include="operations.h" />
     <ClInclude Include="torthosegment.h" />
     <ClInclude Include="tplane.h" />
     <ClInclude Include="tpoint.h" />

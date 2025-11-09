@@ -12,6 +12,7 @@ The plan :
 - curves (done)
 - surfaces (done)
 - volumes (<B>doing...</B>)
+- FFD (almost done)
 
 <B>to do</B>
 - blocks
@@ -105,6 +106,11 @@ Volumes
 
 - 3.1 Volumes : create a Bezier volume around our wing, check definition of parametric values U,V,W for inner X,Y,Z points
 
+Free form deformation (FFD)
+===========================
+
+- 4.1 FFD : distort wing shape by displacement of two points
+![FFD](ffd.png)
 
 Important parameters in main.cpp
 ================================
@@ -140,7 +146,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Volume on Bezier basis is ready, testing.<br /> 
+FFD is here, need to complete volumes by adding a spline-based.<br /> 
 
 
 

@@ -39,6 +39,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "tbasics.h"
+#include "tpoint.h"
 
 namespace tcad {
 
@@ -314,14 +315,14 @@ template <class T> bool solveSystemWithPivotingOnce(int N, T A[], T B[], T toler
   {
     K1 = K + 1;
                               // find equation with the biggest diagonal element
-    int index = K; T dmax = FABS(A[K*N+K]);
+    int index = K; T dmax = std::abs(A[K*N+K]);
     for (int i = K1; i < N; i++)
     {
       int dindex = i * N + K;
-      if (FABS(A[dindex]) > dmax)
+      if (std::abs(A[dindex]) > dmax)
       {
         index = i;
-        dmax = FABS(A[dindex]);
+        dmax = std::abs(A[dindex]);
       };
     };
                               // make permutation
@@ -343,7 +344,7 @@ template <class T> bool solveSystemWithPivotingOnce(int N, T A[], T B[], T toler
     K1 = K + 1;
     AKK = A[K*N+K];
 
-    if (FABS(AKK) < tolerance)
+    if (std::abs(AKK) < tolerance)
 	  {	
       FREE(temp);
 	    return false;
@@ -569,5 +570,182 @@ private:
   std::vector<T> buffer;
 };
 
+/** Find pivot, right-hand side is vectors. */
+template <class T, class Tint> void FindPivotVec(Tint N, Tint row, T A[], TPoint<T> B[], 
+  std::vector<T> &temp)
+{
+  for (Tint K = row; K < N - 1; K++)
+  {
+    Tint K1 = K + 1;
+                          
+    // Find equation with the largest diagonal element
+    Tint index = K; T dmax = std::abs(A[K*N+K]);
+    for (Tint i = K1; i < N; i++)
+    {
+      Tint dindex = i * N + K;
+      if (std::abs(A[dindex]) > dmax)
+      {
+        index = i;
+        dmax = std::abs(A[dindex]);
+      };
+    };
+                          
+    // Make permutation
+    if (index != K)
+    {
+      // Swap matrix raws
+      memmove(&temp[0],&A[K * N],sizeof(T) * N);
+      memmove(&A[K * N],&A[index * N],sizeof(T) * N);
+      memmove(&A[index * N],&temp[0],sizeof(T) * N);
+
+      // Swap right-hand side values
+      TPoint<T> btemp = B[K];
+      B[K] = B[index];
+      B[index] = btemp;
+    }
+  }
+}
+
+/** System with pivoting, right-hand side is vectors. */
+template <class T, class Tint> bool SolveSystemWithPivotingVec(
+  Tint N, T A[], TPoint<T> B[], T tolerance, T &quality, bool makePivoting)
+{
+  Tint K,K1,J,I;
+  Tint I0,I1,I2;
+  T AKK;
+
+  // Temporary storage to swap matrix rows
+  std::vector<T> temp(N);
+
+//#ifdef _DEBUG
+//  // temp
+//  std::vector<T> akk;
+//  T akkmin;
+//#endif
+
+  // Solution itself
+  quality = 1.0e30;
+
+  for (K = 0; K < N; K++)
+  {
+    // Reshuffle matrices A and B
+    if (makePivoting)
+      FindPivotVec<T,Tint>(N,K,A,B,temp);
+
+    K1 = K + 1;
+    AKK = A[K*N+K];
+
+    if (fabs(AKK) < quality)
+    {
+      quality = fabs(AKK);
+    }
+
+    // Pivot is too small
+    if (std::abs(AKK) < tolerance)
+    {	
+      return false;
+    };
+
+    B[K] /= AKK;
+    if (K == (N-1)) break;
+
+    for (J = K1; J < N; J++)
+    {
+      I0 = K*N+J;
+      A[I0] /= AKK;
+      for (I = K1; I < N; I++) 
+      {
+        I1 = I*N+J;
+        I2 = I*N+K;
+        A[I1] -= (A[I2] * A[I0]);
+      };
+      B[J] -= (B[K] * A[J*N+K]);
+    }
+  }
+
+  // Back substitution
+  for (;;)
+  {
+    K1 = K;
+    K -= 1;
+    if (K < 0) 
+      break;
+    for (J = K1; J < N; J++) 
+      B[K] -= B[J] * A[K*N+J];
+  }
+
+  return true;
+}
+
+/** System with pivoting, right-hand side is vectors. */
+template <class T, class Tint> bool SolveATASystem(Tint N1, Tint N2, T A[], 
+  TPoint<T> B[], T tolerance, bool multiplyATB = true)
+{
+  // AT * A
+  std::vector<T> ATA(N2 * N2);
+
+  // AT * B
+  std::vector<TPoint<T>> ATB(N2,TPoint<T>());
+  // To deallocate AT
+  {
+    // Make transpose
+    std::vector<T> AT(N1 * N2);
+
+    transpose(A,N1,N2,&AT[0]);
+
+    FastM(&AT[0],A,&ATA[0],N2,N1,N2,N1,N2,N2);
+
+    if (multiplyATB)
+    {
+      for (int i = 0; i < N2; i++)
+      {
+        for (int j = 0; j < N1; j++)
+        {
+          ATB[i] += B[j] * AT[i * N1 + j];
+        }
+      }
+    } else
+    {
+      for (int i = 0; i < N2; i++)
+      {
+        ATB[i] = B[i];
+      }
+    }
+  }
+
+#ifdef _DEBUG
+  // Check for identical equations
+  T maxmaxdist = 0;
+  for (Tint i = 0; i < N2; i++)
+  {
+    for (Tint j = i + 1; j < N2; j++)
+    {
+      T maxdist = 0;
+      for (Tint k = 0; k < N2; k++)
+      {
+        T dist = std::abs(ATA[i * N2 + k] - ATA[j * N2 + k]);
+        if (dist > maxdist)
+          maxdist = dist;
+      }
+
+      if (maxdist > maxmaxdist)
+        maxmaxdist = maxdist;
+
+      assert(maxdist > 0.00000001);
+    }
+  }
+#endif
+           
+  // Solve system
+  T quality;
+  bool res = SolveSystemWithPivotingVec(N2,&ATA[0],&ATB[0],tolerance,quality,true);
+
+  for (int i = 0; i < N2; i++)
+  {
+    B[i] = ATB[i];
+  }
+
+  return res;
+}
 
 }

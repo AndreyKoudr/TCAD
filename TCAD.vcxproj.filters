@@ -112,7 +112,7 @@
     <ClInclude Include="tvalues.h">
       <Filter>INFRASTRUCTURE</Filter>
     </ClInclude>
-    <ClInclude Include="toperations.h">
+    <ClInclude Include="operations.h">
       <Filter>OPERATIONS</Filter>
     </ClInclude>
     <ClInclude Include="ttriangles.h">
@@ -144,6 +144,9 @@
     </ClInclude>
     <ClInclude Include="tbeziervolume.h">
       <Filter>VOLUMES</Filter>
+    </ClInclude>
+    <ClInclude Include="FFD.h">
+      <Filter>OPERATIONS</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

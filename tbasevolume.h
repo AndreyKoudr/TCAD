@@ -101,61 +101,61 @@ public:
   /** Location index for a control point. */
   int getIndex(int i, int j, int k)
   {
-    return tcad::getIndex(K1,K2,K3,i,j,k);
+    return tcad::getIndex<T>(K1,K2,K3,i,j,k);
   }
 
   /** Get row of control points (numbers). */
   void getULinePoints(int j, int k, std::vector<int> &points)
   {
-    tcad::getULinePoints(K1,K2,K3,j,k,points);
+    tcad::getULinePoints<T>(K1,K2,K3,j,k,points);
   }
 
   /** Get column of control points (numbers). */
   void getVLinePoints(int i, int k, std::vector<int> &points)
   {
-    tcad::getVLinePoints(K1,K2,K3,i,k,points);
+    tcad::getVLinePoints<T>(K1,K2,K3,i,k,points);
   }
 
   /** Get layer of control points (numbers). */
   void getWLinePoints(int i, int j, std::vector<int> &points)
   {
-    tcad::getWLinePoints(K1,K2,K3,i,j,points);
+    tcad::getWLinePoints<T>(K1,K2,K3,i,j,points);
   }
 
   /** Get row of control points. */
   void getRow(int j, int k, std::vector<TPoint<T>> &points)
   {
-    tcad::getRow(this->cpoints,K1,K2,K3,j,k,points);
+    tcad::getRow<T>(this->cpoints,K1,K2,K3,j,k,points);
   }
 
   /** Set row of control points. */
   void setRow(int j, int k, std::vector<TPoint<T>> &points)
   {
-    tcad::setRow(this->cpoints,K1,K2,K3,j,k,points);
+    tcad::setRow<T>(this->cpoints,K1,K2,K3,j,k,points);
   }
 
   /** Get column of control points. */
   void getColumn(int i, int k, std::vector<TPoint<T>> &points)
   {
-    tcad::getColumn(this->cpoints,K1,K2,K3,i,k,points);
+    tcad::getColumn<T>(this->cpoints,K1,K2,K3,i,k,points);
   }
 
   /** Set column of control points. */
   void setColumn(int i, int k, std::vector<TPoint<T>> &points)
   {
-    tcad::setColumn(this->cpoints,K1,K2,K3,i,k,points);
+    tcad::setColumn<T>(this->cpoints,K1,K2,K3,i,k,points);
   }
 
   /** Get layer of control points. */
   void getLayer(int i, int j, std::vector<TPoint<T>> &points)
   {
-    tcad::getLayer(this->cpoints,K1,K2,K3,i,j,points);
+    tcad::getLayer<T>(this->cpoints,K1,K2,K3,i,j,points);
   }
 
   /** Set layer of control points. */
   void setLayer(int i, int j, std::vector<TPoint<T>> &points)
   {
-    tcad::setLayer(this->cpoints,K1,K2,K3,i,j,points);
+    tcad::setLayer<T>(this->cpoints,K1,K2,K3,i,j,points);
   }
 
   /** Generate a uniform set of actual points inside the volume. 

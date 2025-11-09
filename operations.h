@@ -30,7 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   Templated CAD
 
-  toperations.h
+  operations.h
 
   Simplified operations on curves (for easy usage)
 

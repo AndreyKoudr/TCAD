@@ -686,4 +686,33 @@ protected:
 
 };
 
+/** Calculate min/max from control points. */
+template <class T> bool calculateMinMax(std::vector<TBaseSurface<T> *> &surfaces,
+  TPoint<T> &min, TPoint<T> &max)
+{
+  bool ok = false;
+
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    TPoint<T> mi,ma;
+    
+    if (tcad::calculateMinMax(surfaces[i]->controlPoints(),&mi,&ma))
+    {
+      if (!ok)
+      {
+        min = mi;
+        max = ma;
+      } else
+      {
+        min = pointMin(min,mi);
+        max = pointMax(max,ma);
+      }
+
+      ok = true;
+    }
+  }
+
+  return ok;
+}
+
 }

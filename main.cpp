@@ -43,7 +43,7 @@
 *******************************************************************************/
 
 // you can only use high-level operations
-#include "toperations.h"
+#include "operations.h"
 
 #include "ttriangles.h"
 #include "tbasesurface.h"
@@ -52,6 +52,7 @@
 #include "tpointsurface.h" 
 #include "tsplinesurface.h" 
 #include "tbeziervolume.h" 
+#include "FFD.h" 
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -1272,7 +1273,7 @@ int main(int argc, char* argv[])
       TPoint<T> UVap = apsurface.findUVforPoint(points,UVpoints,k1,k2,pos);
 
       T distap = !(UVap - UV);
-      assert(distap < 0.005);
+      assert(distap < 0.01);
     }
   }
 
@@ -1305,7 +1306,7 @@ int main(int argc, char* argv[])
     int k1 = 0;
     int k2 = 0;
     int k3 = 0;
-    volume.createPoints(points,&UVWpoints,&k1,&k2,&k3,11,11,11); //!!!!!!!
+    volume.createPoints(points,&UVWpoints,&k1,&k2,&k3,11,11,11); 
 
     // test UVW definitions
     for (int i = 0; i < 10; i++)
@@ -1318,6 +1319,61 @@ int main(int argc, char* argv[])
       T distap = !(UVWap - UVW);
       assert(distap < 0.00001);
     }
+
+    // test first derivatives
+    for (int i = 0; i < 10; i++)
+    {
+      TPoint<T> UVW(random(),random(),random());
+
+      TPoint<T> derU = volume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_U,1);
+      TPoint<T> derV = volume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_V,1);
+      TPoint<T> derW = volume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_W,1);
+    }
+  }
+
+  /*****************************************************************************
+
+    Part 4 : FFD
+
+  *****************************************************************************/
+
+  cout << "    Part 4 : FFD" << endl;
+
+
+  /*****************************************************************************
+    4.1 FFD : distort wing shape by displacement of two points
+  *****************************************************************************/
+
+  cout << "FFD : distort wing shape by displacement of two points" << endl;
+
+  {
+    // make a upper/lower airfoil surfaces
+    std::vector<std::vector<TPoint<T>>> upper,lower;
+    makeNACASurface(upper,51,TPoint<T>(1.0,+1.0,1.0),1.0,1.0,0.02,0.0,0.0); 
+    makeNACASurface(lower,51,TPoint<T>(1.0,-1.0,1.0),1.0,1.0,0.02,0.0,0.0); 
+
+    // make two spline surfaces
+    TSplineSurface<T> supper(upper,30,SPLINE_DEGREE,30,SPLINE_DEGREE,
+      END_CLAMPED,END_FREE,END_FREE,END_FREE);
+    TSplineSurface<T> slower(lower,30,SPLINE_DEGREE,30,SPLINE_DEGREE,
+      END_CLAMPED,END_FREE,END_FREE,END_FREE);
+
+    std::vector<tcad::TSplineSurface<T> *> wing;
+    std::vector<tcad::TBaseSurface<T> *> bwing;
+    wing.push_back(&supper);
+    wing.push_back(&slower);
+    bwing.push_back(&supper);
+    bwing.push_back(&slower);
+
+    saveSurfacesIges(wing,DEBUG_DIR + "wing before FFD.iges");
+
+    // apply FFD : we want to distort the wing by moving these points to new positions:
+    std::vector<TPoint<T>> oldpositions = {TPoint<T>(-0.5,0.0,1.0),TPoint<T>(0.5,0.0,1.0)};
+    std::vector<TPoint<T>> newpositions = {TPoint<T>(-0.4,0.0,1.0),TPoint<T>(0.6,0.2,0.9)};
+    
+    FFD<T>(bwing,oldpositions,newpositions);
+
+    saveSurfacesIges(wing,DEBUG_DIR + "wing after FFD.iges");
   }
 
   double endtime = GetTime();

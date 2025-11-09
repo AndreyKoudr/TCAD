@@ -590,6 +590,9 @@ public: //!!!!!!!
   // V knots
   std::vector<T> Vknots;
 
+  // original points
+  std::vector<std::vector<TPoint<T>>> points;
+
 private:
 
   // every row/columns makes a Bezier curve of K1/K2 points;
@@ -612,9 +615,6 @@ private:
   bool clampedendU = false;
   bool clampedstartV = false;
   bool clampedendV = false;
-
-  // original points
-  std::vector<std::vector<TPoint<T>>> points;
 
   // initialised in update(); they are underinitialised, can be called for 
   // derivative(U,0) but not ,1) or ,2).

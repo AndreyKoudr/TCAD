@@ -1100,6 +1100,58 @@ template <class T> void BezierBasis(T U, std::vector<T> &knots, std::vector<T> &
   basis[i0 + 3] = u * u * u;
 }
 
+/** Bezier basis, first derivative. Derivatives are scaled by the whole length. */
+template <class T> void BezierBasisDer1(T U, std::vector<T> &knots, std::vector<T> &basis, 
+  int &segment) 
+{
+  assert(knots.size() > 0);
+  static const int degree = 3;
+
+  // number of knots (num segments plus 1)
+  int numKnots = static_cast<int>(knots.size());
+
+  // allocate and clear space for basis functions
+  int numPoints = (numKnots - 1) * degree + 1;
+  basis.resize(numPoints,0.0);
+
+  // tolerance
+  T tolerance = TOLERANCE(T);
+
+  // find knots interval (segment) for U by bisection
+  segment = findInterval<T>(knots,U);
+  assert(segment != -1 && "Unable to find parametric interval for parameter");
+
+  // get local parameter within segment [0..1]
+  T d = knots[segment + 1] - knots[segment];
+  assert(d > tolerance);
+
+  T u = 0;
+  if (d > tolerance)
+  {
+    u = (U - knots[segment]) / d;
+  }
+
+  // starting non-zero basis function point
+  int i0 = segment * degree;
+
+  T u1 = 1.0 - u;
+  T u2 = u * u;
+
+  // multiply by d to scale into whole length
+  basis[i0] = -3.0 * u1 * u1;
+  basis[i0 + 1] = 3.0 - 12.0 * u + 9.0 * u2;
+  basis[i0 + 2] = 6.0 * u - 9.0 * u2;
+  basis[i0 + 3] = 3.0 * u2;
+
+  if (d > tolerance)
+  {
+    basis[i0] /= d;
+    basis[i0 + 1] /= d;
+    basis[i0 + 2] /= d;
+    basis[i0 + 3] /= d;
+  }
+}
+
 /** Location index for 2D regular mesh of points. */
 template <class T> int getIndex(int K1, int K2, int i, int j)
 {

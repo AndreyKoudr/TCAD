@@ -55,6 +55,42 @@ public:
   /** Constrictor for box. numsegs... - number of Bezier segments in each direction. */
   TBezierVolume(TPoint<T> min, TPoint<T> max, int numsegsU, int numsegsV, int numsegsW) : TBaseVolume<T>() 
   {
+    initBox(min,max,numsegsU,numsegsV,numsegsW);
+  }
+
+  /** Constructor. */
+  TBezierVolume(const TBezierVolume &other) : TBaseVolume<T>()
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->K3 = other.K3;
+    this->cpoints = other.cpoints;
+    this->knotsU = other.knotsU;
+    this->knotsV = other.knotsV;
+    this->knotsW = other.knotsW;
+
+    update();
+  }
+
+  /** Assignment operator. */
+  TBezierVolume &operator = (const TBezierVolume &other)  
+  {
+    this->K1 = other.K1;
+    this->K2 = other.K2;
+    this->K3 = other.K3;
+    this->cpoints = other.cpoints;
+    this->knotsU = other.knotsU;
+    this->knotsV = other.knotsV;
+    this->knotsW = other.knotsW;
+
+    update();
+
+    return *this;
+  }
+
+  /** Initialize from box. */
+  void initBox(TPoint<T> min, TPoint<T> max, int numsegsU = 1, int numsegsV = 1, int numsegsW = 1) 
+  {
     assert(numsegsU > 0);
     assert(numsegsV > 0);
     assert(numsegsW > 0);
@@ -94,36 +130,6 @@ public:
 
     // make knots between segments
     makeKnots();
-  }
-
-  /** Constructor. */
-  TBezierVolume(const TBezierVolume &other) : TBaseVolume<T>()
-  {
-    this->K1 = other.K1;
-    this->K2 = other.K2;
-    this->K3 = other.K3;
-    this->cpoints = other.cpoints;
-    this->knotsU = other.knotsU;
-    this->knotsV = other.knotsV;
-    this->knotsW = other.knotsW;
-
-    update();
-  }
-
-  /** Assignment operator. */
-  TBezierVolume &operator = (const TBezierVolume &other)  
-  {
-    this->K1 = other.K1;
-    this->K2 = other.K2;
-    this->K3 = other.K3;
-    this->cpoints = other.cpoints;
-    this->knotsU = other.knotsU;
-    this->knotsV = other.knotsV;
-    this->knotsW = other.knotsW;
-
-    update();
-
-    return *this;
   }
 
   /** Destructor. */
@@ -170,6 +176,75 @@ public:
           }
         }
       }
+    } else if (k == 1)
+    {
+      if (onparameter == PARAMETER_U)
+      {
+        int segmentU,segmentV,segmentW;
+        std::vector<T> funcsU;
+        BezierBasisDer1(U,this->knotsU,funcsU,segmentU);
+        std::vector<T> funcsV;
+        BezierBasis(V,this->knotsV,funcsV,segmentV);
+        std::vector<T> funcsW;
+        BezierBasis(W,this->knotsW,funcsW,segmentW);
+
+        // temp
+        int numVU = numV * numU;
+        for (int i = 0; i < numW; i++)
+        {
+          for (int j = 0; j < numV; j++)
+          {
+            for (int k = 0; k < numU; k++)
+            {
+              result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
+            }
+          }
+        }
+      } else if (onparameter == PARAMETER_V)
+      {
+        int segmentU,segmentV,segmentW;
+        std::vector<T> funcsU;
+        BezierBasis(U,this->knotsU,funcsU,segmentU);
+        std::vector<T> funcsV;
+        BezierBasisDer1(V,this->knotsV,funcsV,segmentV);
+        std::vector<T> funcsW;
+        BezierBasis(W,this->knotsW,funcsW,segmentW);
+
+        // temp
+        int numVU = numV * numU;
+        for (int i = 0; i < numW; i++)
+        {
+          for (int j = 0; j < numV; j++)
+          {
+            for (int k = 0; k < numU; k++)
+            {
+              result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
+            }
+          }
+        }
+      } else if (onparameter == PARAMETER_W)
+      {
+        int segmentU,segmentV,segmentW;
+        std::vector<T> funcsU;
+        BezierBasis(U,this->knotsU,funcsU,segmentU);
+        std::vector<T> funcsV;
+        BezierBasis(V,this->knotsV,funcsV,segmentV);
+        std::vector<T> funcsW;
+        BezierBasisDer1(W,this->knotsW,funcsW,segmentW);
+
+        // temp
+        int numVU = numV * numU;
+        for (int i = 0; i < numW; i++)
+        {
+          for (int j = 0; j < numV; j++)
+          {
+            for (int k = 0; k < numU; k++)
+            {
+              result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
+            }
+          }
+        }
+      }
     }
 
     return result;
@@ -179,6 +254,69 @@ public:
   virtual void update()
   {
   }
+
+  /** C1 smooth, Bezier style. */
+  void smooth(bool Usmooth, bool Vsmooth, bool Wsmooth)
+  {
+    int numU = this->K1 + 1;
+    int numV = this->K2 + 1;
+    int numW = this->K3 + 1;
+
+    if (Usmooth)
+    {
+      for (int j = 0; j < numV; j++)
+      {
+        for (int k = 0; k < numW; k++)
+        {
+          std::vector<int> points;
+          this->getULinePoints(j,k,points);
+
+          for (int l = 3; l < points.size() - 3; l += 3)
+          {
+            straightenThreePoints(this->cpoints[points[l - 1]],this->cpoints[points[l]], 
+              this->cpoints[points[l + 1]]);
+          }
+        }
+      }
+    }
+
+    if (Vsmooth)
+    {
+      for (int j = 0; j < numU; j++)
+      {
+        for (int k = 0; k < numW; k++)
+        {
+          std::vector<int> points;
+          this->getVLinePoints(j,k,points);
+
+          for (int l = 3; l < points.size() - 3; l += 3)
+          {
+            straightenThreePoints(this->cpoints[points[l - 1]],this->cpoints[points[l]], 
+              this->cpoints[points[l + 1]]);
+          }
+        }
+      }
+    }
+
+    if (Wsmooth)
+    {
+      for (int j = 0; j < numU; j++)
+      {
+        for (int k = 0; k < numV; k++)
+        {
+          std::vector<int> points;
+          this->getWLinePoints(j,k,points);
+
+          for (int l = 3; l < points.size() - 3; l += 3)
+          {
+            straightenThreePoints(this->cpoints[points[l - 1]],this->cpoints[points[l]], 
+              this->cpoints[points[l + 1]]);
+          }
+        }
+      }
+    }
+  }
+
   
 public:
 
