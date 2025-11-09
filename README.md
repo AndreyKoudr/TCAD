@@ -110,7 +110,7 @@ Free form deformation (FFD)
 ===========================
 
 - 4.1 FFD : distort wing shape by displacement of two points
-![FFD](ffd.png)
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/FFD.png)
 
 Important parameters in main.cpp
 ================================
