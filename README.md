@@ -16,7 +16,6 @@ The plan :
 
 <B>to do</B>
 - blocks
-- FFD
 - intersections, maybe implicit
 - booleans, maybe implicit
 - 3D mesh
@@ -68,9 +67,9 @@ Some operations are n-squared (yet).
 - 1.5 Curves : compare points and Bezier curve (collection of Bezier segments)
 - 1.6 Curves : compare points and approximated b-spline
 - 1.7 Curves : compare points and approximated b-spline with less number of control points (10 here)
-- 1.8 Curves : how to smooth a curve (curve2 below) with various approximants
-- 1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)<br />
+- 1.8 Curves : how to smooth a curve (curve2 below) with various approximants<br />
 ![Curve smoothed by spline](https://github.com/AndreyKoudr/TCAD/blob/master/Curve_smoothed_by_spline.png)
+- 1.9 Curves : how to diminish effect of smoothing near curve ends (much needed when handling surface control points)
 - 1.10 Curves : how to find parameter U for a point on curve
 - 1.11 Curves : how to intersect by plane
 - 1.12 Curves : how to intersect two curves
@@ -116,7 +115,7 @@ Volumes
 Free form deformation (FFD)
 ===========================
 
-- 4.1 FFD : distort wing shape by displacement of two points<br />
+- 4.1 FFD : distort wing shape by displacement of some points<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/FFD.png)
 
 Important parameters in main.cpp
