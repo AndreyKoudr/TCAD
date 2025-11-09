@@ -87,7 +87,7 @@ Surfaces
 - 2.3 Surfaces : triangles : cut by plane
 - 2.4 Surfaces : triangles : how to find a sharpest point in intersection curve
 - 2.5 Surfaces : triangles : how to get triangulation boundary
-- 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane
+- 2.6 Surfaces : triangles : more complicated cases, load STL, check if manifold and solid, generate boundary and cut by plane<br />
 ![Wing cut by curve](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cut_curve.png)
 - 2.7 Surfaces : triangles : find intersection of one set of triangles with another
 - 2.8 Surfaces : Bezier patch
