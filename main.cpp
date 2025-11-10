@@ -35,6 +35,8 @@
         tsplinesurface.h      - B-spline surface, polynomial
       tbasevolume.h     - volumes (3 parametric dimensions), abstract class
         tbeziervolume.h       - volume on Bezier basis, uniform parameterisation
+    FFD :
+      FFD.h             - full FFD operation : distort shapes by setting point displacements
 
   Auxilliary for debugging and export
     strings.h/cpp       - strings

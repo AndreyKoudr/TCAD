@@ -45,6 +45,9 @@ Files
     - tsplinesurface.h      - B-spline surface, polynomial
 
 - tbasevolume.h  - volumes, abstract class
+    - tbeziervolume.h       - volume on Bezier basis, uniform parameterisation
+    
+- FFD.h                     - full FFD operation : distort shapes by setting point displacements
 
 Point
 =====
@@ -101,7 +104,8 @@ Surfaces
 ![Wing cylinder intersection](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cylinder.png)
 - 2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming
 - 2.14 Surfaces : create B-spline surface from any other surface
-- 2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface
+- 2.15 Surfaces : make a trimmed B-spline surface from intersections by plane. Take the cut curve, close boundary and save this trimmed surface<br />
+![Spline cut by plane and trimmed](https://github.com/AndreyKoudr/TCAD/blob/master/Spline_by_plane_trimmed.png)
 - 2.16 Surfaces : make a trimmed B-spline surface from surface-surface intersection. Take the cut curve, close boundary and save this trimmed surface
 - 2.17 Surfaces : make a hole (two loops) with trimmed B-spline surface<br />
 ![Wing cylinder trimmed](https://github.com/AndreyKoudr/TCAD/blob/master/Wing_cylinder_trimmed.png)
