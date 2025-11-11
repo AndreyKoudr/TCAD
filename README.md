@@ -11,11 +11,11 @@ The plan :
 - point (done)
 - curves (done)
 - surfaces (done)
-- volumes (<B>doing...</B>)
-- FFD (almost done)
+- volumes (done)
+- FFD (done)
+- blocks (<B>doing...</B>)
 
 <B>to do</B>
-- blocks
 - intersections, maybe implicit
 - booleans, maybe implicit
 - 3D mesh
@@ -115,6 +115,7 @@ Volumes
 =======
 
 - 3.1 Volumes : create a Bezier volume around our wing, check definition of parametric values U,V,W for inner X,Y,Z points
+- 3.2 Volumes : compare Bezier and B-spline based volume derivatives
 
 Free form deformation (FFD)
 ===========================
@@ -156,7 +157,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-FFD is here, need to complete volumes by adding a spline-based.<br /> 
+Doing blocks.<br /> 
 
 
 

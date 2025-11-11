@@ -215,22 +215,28 @@ public:
     {
       if (onparameter == PARAMETER_U)
       {
-        return Uderivative->derivative(U,V,PARAMETER_ANY,0);
+        return Uderivative->position(U,V);
       } else if (onparameter == PARAMETER_V)
       {
-        return Vderivative->derivative(U,V,PARAMETER_ANY,0);
+        return Vderivative->position(U,V);
       } else
       {
         return TPoint<T>();
       }
     } else if (k == 2)
     {
-      if (onparameter == PARAMETER_U)
+      if (onparameter == PARAMETER_UU)
       {
-        return UUderivative->derivative(U,V,PARAMETER_ANY,0);
-      } else if (onparameter == PARAMETER_V)
+        return UUderivative->position(U,V);
+      } else if (onparameter == PARAMETER_UV)
       {
-        return VVderivative->derivative(U,V,PARAMETER_ANY,0);
+        return UVderivative->position(U,V);
+      } else if (onparameter == PARAMETER_VV)
+      {
+        return VVderivative->position(U,V);
+      } else if (onparameter == PARAMETER_VU)
+      {
+        return VUderivative->position(U,V);
       } else
       {
         return TPoint<T>();
@@ -549,20 +555,12 @@ public:
     }
 
     // drop two end points in derivatives
-    Uderivative.Uknots = Uknots;
-    Uderivative.Vknots = Vknots;
-    Vderivative.Uknots = Uknots;
-    Vderivative.Vknots = Vknots;
+    // drop two end points in derivatives
+    removeFirstLast(Uknots,Uderivative.Uknots);
+    removeFirstLast(Vknots,Uderivative.Vknots);
 
-    Uderivative.Uknots.erase(Uderivative.Uknots.begin());
-    Uderivative.Vknots.erase(Uderivative.Vknots.begin());
-    Vderivative.Uknots.erase(Vderivative.Uknots.begin());
-    Vderivative.Vknots.erase(Vderivative.Vknots.begin());
-
-    Uderivative.Uknots.erase(Uderivative.Uknots.end() - 1);
-    Uderivative.Vknots.erase(Uderivative.Vknots.end() - 1);
-    Vderivative.Uknots.erase(Vderivative.Uknots.end() - 1);
-    Vderivative.Vknots.erase(Vderivative.Vknots.end() - 1);
+    Vderivative.Uknots = Uderivative.Uknots; 
+    Vderivative.Vknots = Uderivative.Vknots; 
 
     // DO NOT call update() here, cpoints are ready
   }
@@ -617,7 +615,7 @@ private:
   bool clampedendV = false;
 
   // initialised in update(); they are underinitialised, can be called for 
-  // derivative(U,0) but not ,1) or ,2).
+  // derivative(U,V,0) but not ,1) or ,2).
   TSplineSurface<T> *Uderivative = nullptr;
   TSplineSurface<T> *UUderivative = nullptr;
   TSplineSurface<T> *UVderivative = nullptr;

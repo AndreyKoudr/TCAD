@@ -498,4 +498,21 @@ private:
   TSplineCurve<T> *UUderivative = nullptr;
 };
 
+/** Make a spline curve control points from points. */
+template <class T> void makeSplineCurve(std::vector<TPoint<T>> &points, int K, int M, std::vector<TPoint<T>> &cpoints, 
+  CurveEndType start = END_FREE, CurveEndType end = END_FREE, bool interpolate = false)
+{
+  if (interpolate)
+  {
+    TSplineCurve<T> curve(points,K,M,start,end);
+    assert(points.size() == curve.controlPoints().size());
+    cpoints = curve.controlPoints();
+  } else
+  {
+    TSplineCurve<T> curve(points,M,start,end);
+    assert(points.size() == curve.controlPoints().size());
+    cpoints = curve.controlPoints();
+  }
+}
+
 }

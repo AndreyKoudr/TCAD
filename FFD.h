@@ -213,11 +213,11 @@ public:
             // compute basis functions at source point
             int segmentU,segmentV,segmentW;
             std::vector<T> funcsU;
-            BezierBasis(uvw[q].X,this->knotsU,funcsU,segmentU);
+            BezierBasis(uvw[q].X,this->Uknots,funcsU,segmentU);
             std::vector<T> funcsV;
-            BezierBasis(uvw[q].Y,this->knotsV,funcsV,segmentV);
+            BezierBasis(uvw[q].Y,this->Vknots,funcsV,segmentV);
             std::vector<T> funcsW;
-            BezierBasis(uvw[q].Z,this->knotsW,funcsW,segmentW);
+            BezierBasis(uvw[q].Z,this->Wknots,funcsW,segmentW);
 
             T f = funcsW[i] * funcsV[j] * funcsU[k];
             R[count++] = static_cast<MATRIX_FLOAT>(f);
@@ -249,11 +249,11 @@ public:
               // compute basis functions at source point
               int segmentU,segmentV,segmentW;
               std::vector<T> funcsU;
-              BezierBasis(uvw[q].X,this->knotsU,funcsU,segmentU);
+              BezierBasis(uvw[q].X,this->Uknots,funcsU,segmentU);
               std::vector<T> funcsV;
-              BezierBasis(uvw[q].Y,this->knotsV,funcsV,segmentV);
+              BezierBasis(uvw[q].Y,this->Vknots,funcsV,segmentV);
               std::vector<T> funcsW;
-              BezierBasis(uvw[q].Z,this->knotsW,funcsW,segmentW);
+              BezierBasis(uvw[q].Z,this->Wknots,funcsW,segmentW);
 
               T f = funcsW[i] * funcsV[j] * funcsU[k];
 

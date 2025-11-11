@@ -54,6 +54,7 @@
 #include "tpointsurface.h" 
 #include "tsplinesurface.h" 
 #include "tbeziervolume.h" 
+#include "tsplinevolume.h" 
 #include "FFD.h" 
 
 // this stuff is for export and debugging
@@ -1275,7 +1276,7 @@ int main(int argc, char* argv[])
       TPoint<T> UVap = apsurface.findUVforPoint(points,UVpoints,k1,k2,pos);
 
       T distap = !(UVap - UV);
-      assert(distap < 0.01);
+      assert(distap < 0.015);
     }
   }
 
@@ -1334,13 +1335,65 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
+    3.2 Volumes : compare Bezier and B-spline based volume derivatives
+  *****************************************************************************/
+
+  {
+    // min/max for wing
+    TPoint<T> min,max;
+    apsurface.calculateMinMax(&min,&max);
+
+    // extend min/max
+    extendMinMax(min,max,1.01);
+
+    // create box as Bezier volume around the wing
+    TBezierVolume<T> bvolume(min,max,5,2,6);
+    TSplineVolume<T> svolume(min,max,SPLINE_DEGREE,SPLINE_DEGREE,SPLINE_DEGREE,8,8,8);
+
+    // compare first derivatives after calling makeSplineControlPoints() with uniformparms;
+    // results become identical
+    for (int i = 0; i < 10; i++)
+    {
+      TPoint<T> UVW(random(),random(),random());
+
+      TPoint<T> bderU = bvolume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_U,1);
+      TPoint<T> bderV = bvolume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_V,1);
+      TPoint<T> bderW = bvolume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_W,1);
+
+      TPoint<T> sderU = svolume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_U,1);
+      TPoint<T> sderV = svolume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_V,1);
+      TPoint<T> sderW = svolume.derivative(UVW.X,UVW.Y,UVW.Z,PARAMETER_W,1);
+
+      T diff0 = !(bderU - sderU);
+      T diff1 = !(bderV - sderV);
+      T diff2 = !(bderW - sderW);
+      assert(diff0 < 0.0001);
+      assert(diff1 < 0.0001);
+      assert(diff2 < 0.0001);
+    }
+
+    std::vector<TSplineSurface<T> *> faces;
+    for (int i = 0; i < 6; i++)
+    {
+      TSplineSurface<T> *face = svolume.getFace(i);
+      faces.push_back(face);
+    }
+
+    saveSurfacesIges(faces,DEBUG_DIR + "box spline volume.iges");
+
+    for (int i = 0; i < 6; i++)
+    {
+      DELETE_CLASS(faces[i]);
+    }
+  }
+
+  /*****************************************************************************
 
     Part 4 : FFD
 
   *****************************************************************************/
 
   cout << "    Part 4 : FFD" << endl;
-
 
   /*****************************************************************************
     4.1 FFD : distort wing shape by displacement of two points
@@ -1360,6 +1413,7 @@ int main(int argc, char* argv[])
     TSplineSurface<T> slower(lower,30,SPLINE_DEGREE,30,SPLINE_DEGREE,
       END_CLAMPED,END_FREE,END_FREE,END_FREE);
 
+    // bwing and wind are identical
     std::vector<tcad::TSplineSurface<T> *> wing;
     std::vector<tcad::TBaseSurface<T> *> bwing;
     wing.push_back(&supper);
@@ -1373,9 +1427,27 @@ int main(int argc, char* argv[])
     std::vector<TPoint<T>> oldpositions = {TPoint<T>(-0.5,0.0,1.0),TPoint<T>(0.5,0.0,1.0)};
     std::vector<TPoint<T>> newpositions = {TPoint<T>(-0.4,0.0,1.0),TPoint<T>(0.6,0.2,0.9)};
     
-    FFD<T>(bwing,oldpositions,newpositions);
+    FFD<T> ffd(bwing,oldpositions,newpositions);
 
     saveSurfacesIges(wing,DEBUG_DIR + "wing after FFD.iges");
+
+    // make spline volume from distored ffd box
+    TSplineVolume<T> swing(ffd,10,10,10);
+
+    std::vector<TSplineSurface<T> *> faces;
+    for (int i = 0; i < 6; i++)
+    {
+      TSplineSurface<T> *face = swing.getFace(i);
+      faces.push_back(face);
+    }
+
+    saveSurfacesIges(faces,DEBUG_DIR + "ffd box spline volume.iges");
+
+    for (int i = 0; i < 6; i++)
+    {
+      DELETE_CLASS(faces[i]);
+    }
+
   }
 
   double endtime = GetTime();

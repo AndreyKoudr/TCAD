@@ -158,10 +158,10 @@ public:
         }
       } else if (k == 2)
       {
-        if (onparameter == PARAMETER_U)
+        if (onparameter == PARAMETER_UU)
         {
           r /= (DU * DU);
-        } else if (onparameter == PARAMETER_V)
+        } else if (onparameter == PARAMETER_VV)
         {
           r /= (DV * DV);
         }

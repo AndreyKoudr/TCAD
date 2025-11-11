@@ -65,9 +65,9 @@ public:
     this->K2 = other.K2;
     this->K3 = other.K3;
     this->cpoints = other.cpoints;
-    this->knotsU = other.knotsU;
-    this->knotsV = other.knotsV;
-    this->knotsW = other.knotsW;
+    this->Uknots = other.Uknots;
+    this->Vknots = other.Vknots;
+    this->Wknots = other.Wknots;
 
     update();
   }
@@ -79,9 +79,9 @@ public:
     this->K2 = other.K2;
     this->K3 = other.K3;
     this->cpoints = other.cpoints;
-    this->knotsU = other.knotsU;
-    this->knotsV = other.knotsV;
-    this->knotsW = other.knotsW;
+    this->Uknots = other.Uknots;
+    this->Vknots = other.Vknots;
+    this->Wknots = other.Wknots;
 
     update();
 
@@ -150,20 +150,63 @@ public:
     int numV = this->K2 + 1;
     int numW = this->K3 + 1;
 
-    TPoint<T> result;
+    // basis functions at point U,V,W
+    std::vector<T> funcsU,funcsV,funcsW;
 
     // only 0-th derivative done yet
     if (k == 0)
     {
-      // basis functions at point U,V,W
-      int segmentU,segmentV,segmentW;
-      std::vector<T> funcsU;
-      BezierBasis(U,this->knotsU,funcsU,segmentU);
-      std::vector<T> funcsV;
-      BezierBasis(V,this->knotsV,funcsV,segmentV);
-      std::vector<T> funcsW;
-      BezierBasis(W,this->knotsW,funcsW,segmentW);
+      getUVWfuncs(U,V,W,0,0,0,funcsU,funcsV,funcsW);
+    } else if (k == 1)
+    {
+      if (onparameter == PARAMETER_U)
+      {
+        getUVWfuncs(U,V,W,1,0,0,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_V)
+      {
+        getUVWfuncs(U,V,W,0,1,0,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_W)
+      {
+        getUVWfuncs(U,V,W,0,0,1,funcsU,funcsV,funcsW);
+      }
+    } else if (k == 2) //!!! this stuff is untested
+    {
+      if (onparameter == PARAMETER_UU)
+      {
+        getUVWfuncs(U,V,W,2,0,0,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_UV)
+      {
+        getUVWfuncs(U,V,W,1,1,0,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_UW)
+      {
+        getUVWfuncs(U,V,W,1,0,1,funcsU,funcsV,funcsW);
 
+      } else if (onparameter == PARAMETER_VU)
+      {
+        getUVWfuncs(U,V,W,1,1,0,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_VV)
+      {
+        getUVWfuncs(U,V,W,0,2,0,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_VW)
+      {
+        getUVWfuncs(U,V,W,0,1,1,funcsU,funcsV,funcsW);
+
+      } else if (onparameter == PARAMETER_WU)
+      {
+        getUVWfuncs(U,V,W,1,0,1,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_WV)
+      {
+        getUVWfuncs(U,V,W,0,1,1,funcsU,funcsV,funcsW);
+      } else if (onparameter == PARAMETER_WW)
+      {
+        getUVWfuncs(U,V,W,0,0,2,funcsU,funcsV,funcsW);
+      }
+    }
+
+    TPoint<T> result;
+
+    if (!funcsU.empty() && !funcsV.empty() && !funcsW.empty())
+    {
       // temp
       int numVU = numV * numU;
       for (int i = 0; i < numW; i++)
@@ -173,75 +216,6 @@ public:
           for (int k = 0; k < numU; k++)
           {
             result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
-          }
-        }
-      }
-    } else if (k == 1)
-    {
-      if (onparameter == PARAMETER_U)
-      {
-        int segmentU,segmentV,segmentW;
-        std::vector<T> funcsU;
-        BezierBasisDer1(U,this->knotsU,funcsU,segmentU);
-        std::vector<T> funcsV;
-        BezierBasis(V,this->knotsV,funcsV,segmentV);
-        std::vector<T> funcsW;
-        BezierBasis(W,this->knotsW,funcsW,segmentW);
-
-        // temp
-        int numVU = numV * numU;
-        for (int i = 0; i < numW; i++)
-        {
-          for (int j = 0; j < numV; j++)
-          {
-            for (int k = 0; k < numU; k++)
-            {
-              result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
-            }
-          }
-        }
-      } else if (onparameter == PARAMETER_V)
-      {
-        int segmentU,segmentV,segmentW;
-        std::vector<T> funcsU;
-        BezierBasis(U,this->knotsU,funcsU,segmentU);
-        std::vector<T> funcsV;
-        BezierBasisDer1(V,this->knotsV,funcsV,segmentV);
-        std::vector<T> funcsW;
-        BezierBasis(W,this->knotsW,funcsW,segmentW);
-
-        // temp
-        int numVU = numV * numU;
-        for (int i = 0; i < numW; i++)
-        {
-          for (int j = 0; j < numV; j++)
-          {
-            for (int k = 0; k < numU; k++)
-            {
-              result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
-            }
-          }
-        }
-      } else if (onparameter == PARAMETER_W)
-      {
-        int segmentU,segmentV,segmentW;
-        std::vector<T> funcsU;
-        BezierBasis(U,this->knotsU,funcsU,segmentU);
-        std::vector<T> funcsV;
-        BezierBasis(V,this->knotsV,funcsV,segmentV);
-        std::vector<T> funcsW;
-        BezierBasisDer1(W,this->knotsW,funcsW,segmentW);
-
-        // temp
-        int numVU = numV * numU;
-        for (int i = 0; i < numW; i++)
-        {
-          for (int j = 0; j < numV; j++)
-          {
-            for (int k = 0; k < numU; k++)
-            {
-              result = result + this->cpoints[i * numVU + j * numU + k] * (funcsW[i] * funcsV[j] * funcsU[k]);
-            }
           }
         }
       }
@@ -334,9 +308,9 @@ public:
 //
 //*/
 //
-//  std::vector<T> knotsU;     
-//  std::vector<T> knotsV;   
-//  std::vector<T> knotsW;    
+//  std::vector<T> Uknots;     
+//  std::vector<T> Vknots;   
+//  std::vector<T> Wknots;    
 //
 //  // number of columns minus 1
 //  int K1 = 0;
@@ -369,10 +343,52 @@ protected:
   void makeKnots()
   {
     // make uniformly spaced knots
-    makeUniformKnots(this->K1 + 1,this->knotsU);
-    makeUniformKnots(this->K2 + 1,this->knotsV);
-    makeUniformKnots(this->K3 + 1,this->knotsW);
+    makeUniformKnots(this->K1 + 1,this->Uknots);
+    makeUniformKnots(this->K2 + 1,this->Vknots);
+    makeUniformKnots(this->K3 + 1,this->Wknots);
   }
+
+private:
+
+  /** Create basis for derivatives. */
+  void getUVWfuncs(T U, T V, T W, int derU, int derV, int derW, 
+    std::vector<T> &funcsU, std::vector<T> &funcsV, std::vector<T> &funcsW)
+  {
+    int segmentU,segmentV,segmentW;
+    if (derU == 0)
+    {
+      BezierBasis(U,this->Uknots,funcsU,segmentU);
+    } else if (derU == 1)
+    {
+      BezierBasisDer1(U,this->Uknots,funcsU,segmentU);
+    } else if (derU == 2)
+    {
+      BezierBasisDer2(U,this->Uknots,funcsU,segmentU);
+    }
+
+    if (derV == 0)
+    {
+      BezierBasis(V,this->Vknots,funcsV,segmentV);
+    } else if (derV == 1)
+    {
+      BezierBasisDer1(V,this->Vknots,funcsV,segmentV);
+    } else if (derV == 2)
+    {
+      BezierBasisDer2(V,this->Vknots,funcsV,segmentV);
+    }
+
+    if (derW == 0)
+    {
+      BezierBasis(W,this->Wknots,funcsW,segmentW);
+    } else if (derW == 1)
+    {
+      BezierBasisDer1(W,this->Wknots,funcsW,segmentW);
+    } else if (derW == 2)
+    {
+      BezierBasisDer2(W,this->Wknots,funcsW,segmentW);
+    }
+  }
+
 };
 
 }

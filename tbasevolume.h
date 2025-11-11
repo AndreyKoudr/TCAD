@@ -328,9 +328,9 @@ W (k)
 
 */
 
-  std::vector<T> knotsU;     
-  std::vector<T> knotsV;   
-  std::vector<T> knotsW;    
+  std::vector<T> Uknots;     
+  std::vector<T> Vknots;   
+  std::vector<T> Wknots;    
 
   // number of columns minus 1
   int K1 = 0;

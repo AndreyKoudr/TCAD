@@ -161,7 +161,7 @@ public:
       }
     } else if (k == 2)
     {
-      if (onparameter == PARAMETER_U)
+      if (onparameter == PARAMETER_UU)
       {
         Uvector[0][0] = 0.0; 
         Uvector[1][0] = 0.0; 
@@ -171,7 +171,7 @@ public:
         Vvector[1][0] = V;
         Vvector[2][0] = V * V;
         Vvector[3][0] = V * V * V;
-      } else if (onparameter == PARAMETER_V)
+      } else if (onparameter == PARAMETER_VV)
       {
         Uvector[0][0] = 1.0; 
         Uvector[1][0] = U; 

@@ -1152,6 +1152,61 @@ template <class T> void BezierBasisDer1(T U, std::vector<T> &knots, std::vector<
   }
 }
 
+/** Bezier basis, second derivative. Derivatives are scaled by the whole length. */
+template <class T> void BezierBasisDer2(T U, std::vector<T> &knots, std::vector<T> &basis, 
+  int &segment) 
+{
+  assert(knots.size() > 0);
+  static const int degree = 3;
+
+  // number of knots (num segments plus 1)
+  int numKnots = static_cast<int>(knots.size());
+
+  // allocate and clear space for basis functions
+  int numPoints = (numKnots - 1) * degree + 1;
+  basis.resize(numPoints,0.0);
+
+  // tolerance
+  T tolerance = TOLERANCE(T);
+
+  // find knots interval (segment) for U by bisection
+  segment = findInterval<T>(knots,U);
+  assert(segment != -1 && "Unable to find parametric interval for parameter");
+
+  // get local parameter within segment [0..1]
+  T d = knots[segment + 1] - knots[segment];
+  assert(d > tolerance);
+
+  T u = 0;
+  if (d > tolerance)
+  {
+    u = (U - knots[segment]) / d;
+  }
+
+  // starting non-zero basis function point
+  int i0 = segment * degree;
+
+  T u1 = 1.0 - u;
+  T u2 = u * u;
+
+  // multiply by d to scale into whole length
+  basis[i0] = 6.0 * u1;
+  basis[i0 + 1] = -12.0 + 18.0 * u;
+  basis[i0 + 2] = 6.0 - 18.0 * u;
+  basis[i0 + 3] = 6.0 * u;
+
+  T d2 = d * d;
+
+  // not sure that the vector length is right
+  if (d2 > tolerance)
+  {
+    basis[i0] /= d2;
+    basis[i0 + 1] /= d2;
+    basis[i0 + 2] /= d2;
+    basis[i0 + 3] /= d2;
+  }
+}
+
 /** Location index for 2D regular mesh of points. */
 template <class T> int getIndex(int K1, int K2, int i, int j)
 {
@@ -1207,7 +1262,7 @@ template <class T> void getWLinePoints(int K1, int K2, int K3, int i, int j, std
 
 /** Get row of control points for 3D regular mesh of points. 
   cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
-template <class T> void getRow(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+template <class T> void getRow(std::vector<TPoint<T>> &cpoints, int K1, int K2, int K3, 
   int j, int k, std::vector<TPoint<T>> &points)
 {
   std::vector<int> ipoints;
@@ -1224,7 +1279,7 @@ template <class T> void getRow(std::vector<TPoint<T>> cpoints, int K1, int K2, i
 
 /** Set row of control points for 3D regular mesh of points.
   cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
-template <class T> void setRow(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+template <class T> void setRow(std::vector<TPoint<T>> &cpoints, int K1, int K2, int K3, 
   int j, int k, std::vector<TPoint<T>> &points)
 {
   assert(int(points.size()) == K1 + 1);
@@ -1240,7 +1295,7 @@ template <class T> void setRow(std::vector<TPoint<T>> cpoints, int K1, int K2, i
 
 /** Get column of control points for 3D regular mesh of points.
   cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
-template <class T> void getColumn(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+template <class T> void getColumn(std::vector<TPoint<T>> &cpoints, int K1, int K2, int K3, 
   int i, int k, std::vector<TPoint<T>> &points)
 {
   std::vector<int> ipoints;
@@ -1257,7 +1312,7 @@ template <class T> void getColumn(std::vector<TPoint<T>> cpoints, int K1, int K2
 
 /** Set column of control points for 3D regular mesh of points. 
   cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
-template <class T> void setColumn(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+template <class T> void setColumn(std::vector<TPoint<T>> &cpoints, int K1, int K2, int K3, 
   int i, int k, std::vector<TPoint<T>> &points)
 {
   assert(int(points.size()) == K2 + 1);
@@ -1273,7 +1328,7 @@ template <class T> void setColumn(std::vector<TPoint<T>> cpoints, int K1, int K2
 
 /** Get layer of control points for 3D regular mesh of points.
   cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
-template <class T> void getLayer(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+template <class T> void getLayer(std::vector<TPoint<T>> &cpoints, int K1, int K2, int K3, 
   int i, int j, std::vector<TPoint<T>> &points)
 {
   std::vector<int> ipoints;
@@ -1290,7 +1345,7 @@ template <class T> void getLayer(std::vector<TPoint<T>> cpoints, int K1, int K2,
 
 /** Set layer of control points for 3D regular mesh of points.
   cpoints have size (K1 + 1) * (K2 + 1) * (K3 + 1). */
-template <class T> void setLayer(std::vector<TPoint<T>> cpoints, int K1, int K2, int K3, 
+template <class T> void setLayer(std::vector<TPoint<T>> &cpoints, int K1, int K2, int K3, 
   int i, int j, std::vector<TPoint<T>> &points)
 {
   assert(int(points.size()) == K3 + 1);
@@ -1301,6 +1356,93 @@ template <class T> void setLayer(std::vector<TPoint<T>> cpoints, int K1, int K2,
   for (int i = 0; i < int(ipoints.size()); i++)
   {
     cpoints[ipoints[i]] = points[i];
+  }
+}
+
+/** Remove first and last element. */
+template <class T> void removeFirstLast(std::vector<T> &knots, std::vector<T> &reduced)
+{
+  reduced = knots;
+
+  reduced.erase(reduced.begin());
+  reduced.erase(reduced.end() - 1);
+}
+
+/**
+  Faces (all normals point outside) :
+              7-------------------6 
+             /|        /         /|    
+            / |      (5)->      / |     
+           /  |        |       /  |          
+          4---------<-(3)-----5   |    
+          |   |               |   |     
+          |(0)|     ^         |(1)|    
+          | | |     |         ||/ |
+          |/  3----(2)->------|---2 
+          |  /                |  / 
+    V(j)  ^ /W(k)      (4)->  | /
+  columns |/ layers    /      |/
+          0-->----------------1
+          U(i) rows
+
+  cpoints are ALL control points, (K1 + 1) * (K2 + 1) * (K3 + 1)
+*/
+
+template <class T> void getFace(std::vector<TPoint<T>> &cpoints, int faceno, 
+  int K1, int K2, int K3, std::vector<std::vector<TPoint<T>>> &points)
+{
+  points.clear();
+
+  if (faceno == 0)
+  {
+    for (int j = 0; j <= K2; j++)
+    {
+      std::vector<TPoint<T>> temp;
+      getLayer<T>(cpoints,K1,K2,K3,0,j,temp);
+      std::reverse(temp.begin(),temp.end());
+      points.push_back(temp);
+    }
+  } else if (faceno == 1)
+  {
+    for (int j = 0; j <= K2; j++)
+    {
+      std::vector<TPoint<T>> temp;
+      getLayer<T>(cpoints,K1,K2,K3,K1,j,temp);
+      points.push_back(temp);
+    }
+  } else if (faceno == 2)
+  {
+    for (int j = 0; j <= K2; j++)
+    {
+      std::vector<TPoint<T>> temp;
+      getRow<T>(cpoints,K1,K2,K3,j,0,temp);
+      points.push_back(temp);
+    }
+  } else if (faceno == 3)
+  {
+    for (int j = 0; j <= K2; j++)
+    {
+      std::vector<TPoint<T>> temp;
+      getRow<T>(cpoints,K1,K2,K3,j,K3,temp);
+      std::reverse(temp.begin(),temp.end());
+      points.push_back(temp);
+    }
+  } else if (faceno == 4)
+  {
+    for (int k = K3; k >= 0; k--)
+    {
+      std::vector<TPoint<T>> temp;
+      getRow<T>(cpoints,K1,K2,K3,0,k,temp);
+      points.push_back(temp);
+    }
+  } else if (faceno == 5)
+  {
+    for (int k = 0; k <= K3; k++)
+    {
+      std::vector<TPoint<T>> temp;
+      getRow<T>(cpoints,K1,K2,K3,K2,k,temp);
+      points.push_back(temp);
+    }
   }
 }
 

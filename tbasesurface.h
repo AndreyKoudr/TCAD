@@ -52,10 +52,22 @@ namespace tcad {
 // U or V or W for e.g. set derivatives on parameter
 enum Parameter {
   PARAMETER_U,      // for surfaces and volumes
+  PARAMETER_UU = PARAMETER_U,    
   PARAMETER_V,      // for surfaces and volumes
+  PARAMETER_VV = PARAMETER_V,    
   PARAMETER_W,      // for volumes
+  PARAMETER_WW = PARAMETER_W,    
 
-  PARAMETER_ANY
+  PARAMETER_ANY,
+                    // second cross derivatives
+  PARAMETER_UV,     
+  PARAMETER_UW,  
+   
+  PARAMETER_VU,  
+  PARAMETER_VW,   
+  
+  PARAMETER_WU, 
+  PARAMETER_WV     
 };
 
 /** Surface corner UV values. 
