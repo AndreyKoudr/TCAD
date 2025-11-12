@@ -1446,4 +1446,42 @@ template <class T> void getFace(std::vector<TPoint<T>> &cpoints, int faceno,
   }
 }
 
+/** Approximate size along U. */
+template <class T> T Usize(std::vector<std::vector<TPoint<T>>> &points)
+{
+  int K1 = int(points[0].size() - 1);
+  int K2 = int(points.size() - 1);
+
+  T len = 0.0;
+  for (int i = 0; i <= K2; i++)
+  {
+    std::vector<TPoint<T>> row;
+    getRow(points,i,row);
+    len += calculateLength(row);
+  }
+
+  len /= T(K2 + 1);
+
+  return len;
+}
+
+/** Approximate size along V. */
+template <class T> T Vsize(std::vector<std::vector<TPoint<T>>> &points)
+{
+  int K1 = int(points[0].size() - 1);
+  int K2 = int(points.size() - 1);
+
+  T len = 0.0;
+  for (int i = 0; i <= K1; i++)
+  {
+    std::vector<TPoint<T>> col;
+    getColumn(points,i,col);
+    len += calculateLength(col);
+  }
+
+  len /= T(K1 + 1);
+
+  return len;
+}
+
 }

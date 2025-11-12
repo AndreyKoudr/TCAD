@@ -300,8 +300,20 @@ public:
 
     if (interpolate)
     {
-      // clamping is done inside, do not do it twice
-      interpolatePoints(kpoints);
+      // clamping is done inside, do not do it twice; if interpolatePoints() fails
+      // it means that the points are approximated
+      if (!interpolatePoints(kpoints))
+      {
+        if (clampedstartU || clampedendU)
+        {
+          setUClamping(points,clampedstartU,clampedendU);
+        }
+  
+        if (clampedstartV || clampedendV)
+        {
+          setVClamping(points,clampedstartV,clampedendV);
+        }
+      }
     } else
     {
       approximatePoints(kpoints);
@@ -462,46 +474,343 @@ public:
   /** Calculate control points for points to interpolate them. The surface passes through 
     all specified points.  
     https://pages.mtu.edu/~shene/COURSES/cs3621/NOTES/INT-APP/SURF-INT-global.html. */
-  void interpolatePoints(std::vector<std::vector<TPoint<T>>> &points)
+  bool interpolatePoints(std::vector<std::vector<TPoint<T>>> &points, T parmtolerance = PARM_TOLERANCE, 
+    int maxinterpolationpoints = MAX_SPLINEINTERPOLATIONPOINTS)
   {
-    bool ok = true;
+#if 0 // this works fine, but control points after a correct solution are rubbish at start/end
+    if (points.size() > maxinterpolationpoints)
+    {
+      approximatePoints(points);
+      return false;
+    }
+
+    points2Dto1D(points,this->cpoints);
+
+    std::vector<T> bs(this->K1 + this->M1 + 2,0.0);
+    std::vector<T> bt(this->K2 + this->M2 + 2,0.0);
+
+#if 1
+    // banded non-symmetric matrix
+    int C = (this->K1 + 1) * (this->K2 + 1);
+
+    // calculate bandwidth, loook like it must be std::max<int>(this->K1 + 1,this->K2 + 1) * 2 + 2
+    int halfbandwidth = 0;
+
+    for (int j = 0; j <= this->K2; j++)
+    {
+      T V = T(j) / T(this->K2);
+      LIMIT(V,0.0,1.0);
+
+      splineBasis(this->M2 + 1,V,this->Vknots,bt); 
+
+      for (int i = 0; i <= this->K1; i++)
+      {
+        T U = T(i) / T(this->K1);
+        LIMIT(U,0.0,1.0);
+
+        splineBasis(M1 + 1,U,this->Uknots,bs); 
+
+        int index = j * (this->K1 + 1) + i;
+
+        for (int jj = 0; jj <= this->K2; jj++)
+        {
+          for (int ii = 0; ii <= this->K1; ii++)
+          {
+
+            T product = bs[ii] * bt[jj];
+
+            if (std::abs(product) > TOLERANCE(T))
+            {
+              int aindex = index * C + jj * (this->K1 + 1) + ii;
+
+              int ai = aindex / C;
+              int aj = aindex % C;
+              int d = std::abs(ai - aj);
+
+              halfbandwidth = std::max<int>(halfbandwidth,d);
+            }
+          }
+        }
+      }
+    }
+
+    int bandwidth = halfbandwidth * 2 + 1;
+    BandedMatrixSimple<T,TPoint<T>> Ab(C,bandwidth);
+
+    for (int j = 0; j <= this->K2; j++)
+    {
+      T V = T(j) / T(this->K2);
+      LIMIT(V,0.0,1.0);
+
+      splineBasis(this->M2 + 1,V,this->Vknots,bt); 
+
+      for (int i = 0; i <= this->K1; i++)
+      {
+        T U = T(i) / T(this->K1);
+        LIMIT(U,0.0,1.0);
+
+        splineBasis(M1 + 1,U,this->Uknots,bs); 
+
+        int index = j * (this->K1 + 1) + i;
+
+        for (int jj = 0; jj <= this->K2; jj++)
+        {
+          for (int ii = 0; ii <= this->K1; ii++)
+          {
+            int aindex = index * C + jj * (this->K1 + 1) + ii;
+
+            int ai = aindex / C;
+            int aj = aindex % C;
+
+            T product = bs[ii] * bt[jj];
+
+            if (std::abs(product) > TOLERANCE(T))
+              Ab.element(ai,aj) += product;
+          }
+        }
+      }
+    }
+
+#ifdef _DEBUG
+    // matrix
+    std::vector<T> A;
+    A.resize(C * C,0.0);
+
+    for (int j = 0; j <= this->K2; j++)
+    {
+      T V = T(j) / T(this->K2);
+      LIMIT(V,0.0,1.0);
+
+      splineBasis(this->M2 + 1,V,this->Vknots,bt); 
+
+      for (int i = 0; i <= this->K1; i++)
+      {
+        T U = T(i) / T(this->K1);
+        LIMIT(U,0.0,1.0);
+
+        splineBasis(M1 + 1,U,this->Uknots,bs); 
+
+        int index = j * (this->K1 + 1) + i;
+
+        for (int jj = 0; jj <= this->K2; jj++)
+        {
+          for (int ii = 0; ii <= this->K1; ii++)
+          {
+            int aindex = index * C + jj * (this->K1 + 1) + ii;
+
+            T product = bs[ii] * bt[jj];
+
+            if (std::abs(product) > TOLERANCE(T))
+              A[aindex] += product;
+          }
+        }
+      }
+    }
+
+    // compare
+    for (int i = 0; i < C; i++)
+    {
+      int i1 = i - halfbandwidth;
+      LIMIT_MIN(i1,0);
+      int i2 = i + halfbandwidth; 
+      LIMIT_MAX(i2,C - 1);
+
+      for (int j = i1; j <= i2; j++)
+      {
+        T e0 = Ab.element(i,j);
+        T e1 = A[C * i + j];
+        assert(e0 == e1);
+
+        Ab.element(i,j) = e1;
+      }
+    }
+#endif
+
+    T tolerance = TOLERANCE(T);
+
+    // solve system
+    bool ok = Ab.solveSystem(&this->cpoints[0],tolerance);
+
+#else
+
+    // matrix
+    std::vector<T> A;
+    int C = (this->K1 + 1) * (this->K2 + 1);
+    A.resize(C * C,0.0);
+
+    for (int j = 0; j <= this->K2; j++)
+    {
+      T V = T(j) / T(this->K2);
+      LIMIT(V,0.0,1.0);
+
+      splineBasis(this->M2 + 1,V,this->Vknots,bt); 
+
+      for (int i = 0; i <= this->K1; i++)
+      {
+        T U = T(i) / T(this->K1);
+        LIMIT(U,0.0,1.0);
+
+        splineBasis(M1 + 1,U,this->Uknots,bs); 
+
+        int index = j * (this->K1 + 1) + i;
+
+        for (int jj = 0; jj <= this->K2; jj++)
+        {
+          for (int ii = 0; ii <= this->K1; ii++)
+          {
+            int aindex = index * C + jj * (this->K1 + 1) + ii;
+
+            A[aindex] += bs[ii] * bt[jj];
+          }
+        }
+      }
+    }
+
+    T tolerance = TOLERANCE(T);
+
+    // solve system
+    bool ok = solveSystemVec<T,TPoint<T>>(C,&A[0],&this->cpoints[0],tolerance);
+#endif
+
+    if (!ok)
+    {
+      approximatePoints(points);
+      return false;
+    }
+
+#if 0
+    // calculate residuals,
+    // it is still not clear why solution becomes rubbish with N > ~1000,
+    std::vector<T> residuals(K1 + 1,0.0);
+    std::vector<TPoint<T>> vresiduals(K1 + 1,TPoint<T>());
+
+    for (int i = 0; i <= K1; i++)
+    {
+      T U = T(i) / T(K1);
+      LIMIT(U,0.0,1.0);
+
+      std::vector<T> equation(K1 + 1,0.0);
+
+      splineBasis(M1 + 1,U,Uknots,bs); 
+
+      for (int ii = 0; ii <= K1; ii++)
+      {
+        equation[ii] += bs[ii]; 
+      }
+
+      TPoint<T> sum;
+      for (int ii = 0; ii <= K1; ii++)
+      {
+        sum += this->cpoints[ii] * equation[ii];
+      }
+
+      vresiduals[i] = (points[i] - sum);
+      residuals[i] = (!(points[i] - sum));
+    }
+
+    // max value of residual
+    std::pair<T,T> minmax = calculateMinMax(residuals);
+
+    T len = calculateLength(points);
+    T ltolerance = len * parmtolerance;
+
+    // check number 1
+    if (minmax.second > ltolerance)
+    {
+      approximatePoints(points);
+      ok = false;
+    }
+
+    // check number 2
+    T dtolerance = len;
+    T diff = difference(points,this->cpoints);
+    if (diff > dtolerance)
+    {
+      approximatePoints(points);
+      ok = false;
+    }
+
+#endif
+
+    return true;
+
+#else
 
     this->cpoints.clear();
     this->cpoints.resize((this->K1 + 1) * (this->K2 + 1),TPoint<T>());
 
-    // K1 + M1 + 2 = A + 1 - #knots
-    std::vector<T> bs(this->K1 + this->M1 + 2,0.0);
-    std::vector<T> bt(this->K2 + this->M2 + 2,0.0);
+    T usize = Usize(points);
+    T vsize = Vsize(points);
 
-    // step 1 : interpolate rows from initial column control points
-    for (int i = 0; i <= this->K2; i++)
+    // interpolate along shortest size
+
+    if (usize < vsize)
     {
-      std::vector<TPoint<T>> temp;
-      temp = points[i];
-
-      // approximate them along U
-      TSplineCurve<T> curve(temp,this->M1,clampedstartU,clampedendU);
-
-      // copy curve control temp into surface control temp
-      this->setRow(i,curve.controlPoints());
-    }
-
-    // step 2 : interpolate column control points 
-    for (int i = 0; i <= this->K1; i++)
-    {
-      // get column 
-      std::vector<TPoint<T>> temp;
-      for (int k = 0; k <= this->K2; k++)
+      // interpolate rows from initial column control points
+      for (int i = 0; i <= this->K2; i++)
       {
-        temp.push_back(points[k][i]); 
+        std::vector<TPoint<T>> temp;
+        temp = points[i];
+
+        // approximate them along U
+        TSplineCurve<T> curve(temp,this->M1,clampedstartU,clampedendU);
+
+        // copy curve control temp into surface control temp
+        this->setRow(i,curve.controlPoints());
       }
 
-      // make curve approximation along V, we need control points from it
-      TSplineCurve<T> curve(temp,this->M2,clampedstartV,clampedendV);
+      // interpolate column control points 
+      for (int i = 0; i <= this->K1; i++)
+      {
+        // get column 
+        std::vector<TPoint<T>> temp;
+        for (int k = 0; k <= this->K2; k++)
+        {
+          temp.push_back(points[k][i]); 
+        }
 
-      // copy curve control points into surface control points
-      this->setColumn(i,curve.controlPoints());
+        // make curve approximation along V, we need control points from it
+        TSplineCurve<T> curve(temp,this->M2,clampedstartV,clampedendV);
+
+        // copy curve control points into surface control points
+        this->setColumn(i,curve.controlPoints());
+      }
+    } else
+    {
+      // interpolate column control points 
+      for (int i = 0; i <= this->K1; i++)
+      {
+        // get column 
+        std::vector<TPoint<T>> temp;
+        for (int k = 0; k <= this->K2; k++)
+        {
+          temp.push_back(points[k][i]); 
+        }
+
+        // make curve approximation along V, we need control points from it
+        TSplineCurve<T> curve(temp,this->M2,clampedstartV,clampedendV);
+
+        // copy curve control points into surface control points
+        this->setColumn(i,curve.controlPoints());
+      }
+
+      // interpolate rows from initial column control points
+      for (int i = 0; i <= this->K2; i++)
+      {
+        std::vector<TPoint<T>> temp;
+        temp = points[i];
+
+        // approximate them along U
+        TSplineCurve<T> curve(temp,this->M1,clampedstartU,clampedendU);
+
+        // copy curve control temp into surface control temp
+        this->setRow(i,curve.controlPoints());
+      }
     }
+
+    return true;
+
+#endif
   }
 
   /** Make knots in both directions. */

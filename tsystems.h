@@ -431,7 +431,7 @@ template <class T, class TB> class BandedMatrixSimple {
 public:
                               // matrix order
   int height = 0;
-                              // original half band width, including diagonal
+                              // total band width, including diagonal
   int bandwidth = 0;
 
   /** Constructor. */
@@ -445,7 +445,7 @@ public:
     height = n;
     bandwidth = pbandwidth;
 
-    buffer.resize(n * bandwidth);
+    buffer.resize(n,std::vector<T>(bandwidth,0.0));
   }
   
   /** Destructor */
@@ -455,40 +455,40 @@ public:
 
 	/** Get element index in buffer; i,j are positions in GLOBAL square matrix, each in the range 
     0..(height - 1) */
-	inline int elementIndex(int i, int j)
+	inline int elementIndexJ(int i, int j)
   {
     assert(i >= 0 && i < height);
     assert(j >= 0 && j < height);
 
     int halfbandwidth = (bandwidth - 1) / 2;
-    int index = i * bandwidth + j + halfbandwidth - i;
+    int indexJ = j - i + halfbandwidth;
 
-    return index;
+    return indexJ;
   }
 
   /** Set matrix element. */
   void setElement(int i, int j, T value)
   {
-    buffer[elementIndex(i,j)] = value;
+    buffer[i][elementIndexJ(i,j)] = value;
   }
 
   /** Get matrix element. */
   T getElement(int i, int j)
   {
-    return buffer[elementIndex(i,j)];
+    return buffer[i][elementIndexJ(i,j)];
   }
 
   /** Get matrix element. */
   T &element(int i, int j)
   {
-    return buffer[elementIndex(i,j)];
+    return buffer[i][elementIndexJ(i,j)];
   }
 
   /** Element number OK?. */
   bool elementOK(int i, int j)
   {
-    int index = elementIndex(i,j);
-    return (index >= 0 && index < int(buffer.size()));
+    int indexJ = elementIndexJ(i,j);
+    return (indexJ >= 0 && indexJ < bandwidth);
   }
 
   /** Solve linear system. */
@@ -503,7 +503,7 @@ public:
     for (K = 0; K < N; K++)
     {
       K1 = K + 1;
-      AKK = buffer[elementIndex(K,K)];
+      AKK = buffer[K][elementIndexJ(K,K)];
       if (fabs(AKK) < zero)
 		  {	
 			  return false;
@@ -516,14 +516,14 @@ public:
 		  Je = K1 + MB; if (Je > (N - 1)) Je = N - 1;
       for (J = K1; J <= Je; J++)
       {
-        buffer[elementIndex(K,J)] /= AKK; // *this[K,J] /= AKK
+        buffer[K][elementIndexJ(K,J)] /= AKK; // *this[K,J] /= AKK
 
 			  Ie = K1 + MB; if (Ie > (N - 1)) Ie = N - 1;
         for (I = K1; I <= Ie; I++) 
         {
-          buffer[elementIndex(I,J)] -= (buffer[elementIndex(I,K)] * (buffer[elementIndex(K,J)])); // *this[I,J] -= *this[I,K] * *this[K,J]
+          buffer[I][elementIndexJ(I,J)] -= (buffer[I][elementIndexJ(I,K)] * (buffer[K][elementIndexJ(K,J)])); // *this[I,J] -= *this[I,K] * *this[K,J]
         };
-        B[J] -= (B[K] * buffer[elementIndex(J,K)]);
+        B[J] -= (B[K] * buffer[J][elementIndexJ(J,K)]);
       }
     }
 
@@ -536,7 +536,7 @@ public:
       if (K2 > (N - 1)) K2 = N - 1;
       for (J = K1; J <= K2; J++) 
       {
-        B[K] -= (B[J] * buffer[elementIndex(K,J)]);
+        B[K] -= (B[J] * buffer[K][elementIndexJ(K,J)]);
       }
     }
 
@@ -546,9 +546,9 @@ public:
   /** Change equation to all zeroes and 1.0 at diagonal. */
   void degenerateEquation(int index)
   {
-    unsigned char *e = (unsigned char *) &buffer[bandwidth * index];
+    unsigned char *e = (unsigned char *) &buffer[index][0];
     memset(e,0,bandwidth * sizeof(T));
-    buffer[elementIndex(index,index)] = 1.0;
+    buffer[index][elementIndexJ(index,index)] = 1.0;
   }
 
   /** Max diagonal element. */
@@ -558,7 +558,7 @@ public:
 
     for (int i = 0; i < height; i++)
     {
-      T d = buffer[elementIndex(i,i)];
+      T d = buffer[i][elementIndexJ(i,i)];
       max = std::max<T>(max,d);
     }
 
@@ -567,7 +567,7 @@ public:
 
 private:
                               // memory to hold matrix
-  std::vector<T> buffer;
+  std::vector<std::vector<T>> buffer;
 };
 
 /** Find pivot, right-hand side is vectors. */

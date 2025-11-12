@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   tsplinevolume.h
 
-  Volume with B-spline basis. 
+  Volume on B-spline basis. 
 
   dimensions : 3 (U,V,W parameters)
 

@@ -46,6 +46,7 @@ Files
 
 - tbasevolume.h  - volumes, abstract class
     - tbeziervolume.h       - volume on Bezier basis, uniform parameterisation
+    - tsplinevolume.h       - volume on B-spline basis
     
 - FFD.h                     - full FFD operation : distort shapes by setting point displacements
 

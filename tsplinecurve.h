@@ -344,9 +344,32 @@ protected:
     std::vector<T> bs(K1 + M1 + 2,0.0);
 
 #if 1
+    // calculate bandwidth, just to be sure, looks like it must be (M1 - 1) * 2 + 1
+    int halfbandwidth = 0;
+
+    for (int i = 0; i <= K1; i++)
+    {
+      T U = T(i) / T(K1);
+      LIMIT(U,0.0,1.0);
+
+      splineBasis(M1 + 1,U,Uknots,bs); 
+
+      for (int ii = 0; ii <= K1; ii++)
+      {
+        if (std::abs(bs[ii]) > TOLERANCE(T))
+        {
+          int d = std::abs(i - ii);
+          halfbandwidth = std::max<int>(halfbandwidth,d);
+        }
+      }
+    }
+
+    int bandwidth = halfbandwidth * 2 + 1;
+
     // banded non-symmetric matrix
     int C = K1 + 1;
-    BandedMatrixSimple<T,TPoint<T>> Ab(C,(M1 - 1) * 2 + 1);
+    BandedMatrixSimple<T,TPoint<T>> Ab(C,bandwidth);
+//!!!    BandedMatrixSimple<T,TPoint<T>> Ab(C,(M1 - 1) * 2 + 1);
 
     for (int i = 0; i <= K1; i++)
     {
