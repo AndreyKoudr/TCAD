@@ -195,6 +195,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
 
   removeDuplicates(intrs,true,tolerance); // true is correct here
 
+  //!!!!!!
   // important : set correct orientation of intersection curve : part to the right is
   // thrown off
   if (intrs.size() == 2)
@@ -204,7 +205,8 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
     TPoint<T> d = intrs[1] - intrs[0];
     TPoint<T> cross = d ^ normal;
 
-    if (!(cross > onormal))
+    if (cross > onormal)
+//!!!    if (!(cross > onormal))
     {
       std::reverse(intrs.begin(),intrs.end());
     }

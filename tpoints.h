@@ -1307,11 +1307,11 @@ template <class T> void makeCircleXY(int numpoints, TPoint<T> centre, T R, std::
   T adegfrom = 0.0, T adegto = 360.0)
 {
   int numsegments = numpoints - 1;
-  T da = (adegfrom - adegto) / T(numsegments);
+  T da = (adegto - adegfrom) / T(numsegments);
 
   for (int i = 0; i <= numsegments; i++)
   {
-    T a = T(i) * da;
+    T a = adegfrom + T(i) * da;
     TPoint<T> p(R * cos(a * CPI),R * sin(a * CPI));
     points.push_back(centre + p);
   }

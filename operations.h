@@ -50,6 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tbeziercurve.h"
 #include "tsplinecurve.h"
 
+#include "tpointsurface.h"
+#include "tsplinesurface.h"
+
 namespace tcad {
 
 //===== Auxiliary ==============================================================
@@ -241,7 +244,7 @@ template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points
 
 /** Make NACA airfoil wing surface. */
 template <class T> void makeNACASurface(std::vector<std::vector<TPoint<T>>> &points,
-  int numspans, TPoint<T> resizecoef = TPoint<T>(1,1,1), T resizeX = 0.99, T resizeY = 0.99, T moveZ = 0.02, 
+  int numspans, TPoint<T> resizecoef = TPoint<T>(1,1,1), T resizeX = 0.99, T resizeY = 0.99, T moveZ = -0.02, 
   T dadegZ = -0.5, T dadegY = -0.5)
 {
   points.clear();
@@ -295,6 +298,57 @@ template <class T> void makeCylinder(int numsections, T Zmin, T Zmax, int numpoi
 
     points.push_back(section);
   }
+}
+
+/** Make airfoil from camber surface and thickness. Camber surface and thickness must have 
+  the same number of points in both directions, numbered first along U (chord), then along V.
+  The tickness must be zero at U = 0 and U = 1. */
+template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberpoints,
+  std::vector<std::vector<T>> &thickness, std::vector<TSplineSurface<T> *> &surfaces, 
+  int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE, 
+  CurveEndType startU = END_CLAMPED, CurveEndType endU = END_FREE,
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
+{
+  assert(camberpoints.size() == thickness.size());
+  assert(camberpoints[0].size() == thickness[0].size());
+
+  surfaces.clear();
+
+  int K1 = int(camberpoints[0].size()) - 1;
+  int K2 = int(camberpoints.size()) - 1;
+
+  // make camber surface to calculate normals, the surfaces parametrisation is by numbers
+  TPointSurface<T> cambersurface(camberpoints,true,true);
+
+  std::vector<std::vector<TPoint<T>>> upperpoints,lowerpoints;
+
+  for (int i = 0; i <= K2; i++)
+  {
+    T V = T(i) / T(K2);
+
+    upperpoints.push_back(std::vector<TPoint<T>>());
+    lowerpoints.push_back(std::vector<TPoint<T>>());
+    for (int j = 0; j <= K1; j++)
+    {
+      T U = T(j) / T(K1);
+
+      TPoint<T> pos = cambersurface.position(U,V);
+      TPoint<T> derU = cambersurface.derivative(U,V,PARAMETER_U,1);
+      TPoint<T> derV = cambersurface.derivative(U,V,PARAMETER_V,1);
+      TPoint<T> normal = (+(derU ^ derV)) * (thickness[i][j] * 0.5); //!!! half thickness
+
+      upperpoints.back().push_back(pos + normal);
+      lowerpoints.back().push_back(pos - normal);
+    }
+  }
+
+  reverseRows(lowerpoints);
+
+  TSplineSurface<T> *upper = new TSplineSurface<T>(upperpoints,M1,M2,startU,endU,startV,endV);
+  TSplineSurface<T> *lower = new TSplineSurface<T>(lowerpoints,M1,M2,startU,endU,startV,endV);
+
+  surfaces.push_back(upper);
+  surfaces.push_back(lower);
 }
 
 }

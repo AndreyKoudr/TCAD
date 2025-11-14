@@ -464,12 +464,12 @@ public:
           | | |     |         ||/ |
           |/  3----(2)->------|---2 
           |  /                |  / 
-    V(j)  ^ /W(k)      (4)->  | /
-  columns |/ layers    /      |/
+  WZk     ^ /VYj       (4)->  | /
+  layers  |/ columns   /      |/
           0-->----------------1
-          U(i) rows
+          UXi rows
 
-  cpoints are ALL control points, (K1 + 1) * (K2 + 1) * (K3 + 1).
+  cpoints are ALL control points, (K1 + 1) * (K2 + 1) * (K3 + 1)
   Knots are supposed to be standard set, uniform with no multiplicity.
 */
   TSplineSurface<T> *getFace(int faceno, CurveEndType startU = END_FREE, CurveEndType endU = END_FREE,
@@ -483,28 +483,28 @@ public:
     int m2 = 0;
     if (faceno == 0)
     {
-      m1 = this->M3; 
-      m2 = this->M2;
+      m1 = this->M2; 
+      m2 = this->M3;
     } else if (faceno == 1)
     {
-      m1 = this->M3; 
-      m2 = this->M2;
+      m1 = this->M2; 
+      m2 = this->M3;
     } else if (faceno == 2)
     {
       m1 = this->M1; 
-      m2 = this->M2;
+      m2 = this->M3;
     } else if (faceno == 3)
     {
       m1 = this->M1; 
-      m2 = this->M2;
+      m2 = this->M3;
     } else if (faceno == 4)
     {
       m1 = this->M1; 
-      m2 = this->M3;
+      m2 = this->M2;
     } else if (faceno == 5)
     {
       m1 = this->M1; 
-      m2 = this->M3;
+      m2 = this->M2;
     }
 
     TSplineSurface<T> *face = new TSplineSurface<T>(points,m1,m2,startU,endU,startV,endV);

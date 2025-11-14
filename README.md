@@ -124,6 +124,12 @@ Free form deformation (FFD)
 - 4.1 FFD : distort wing shape by displacement of some points<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/FFD.png)
 
+Blocks
+===========================
+
+- 5.1 Blocks : airfoil : preparing data to make an airfoil
+- 5.2 Blocks : airfoil : how to make an airfoil from camber surface and thickness
+
 Important parameters in main.cpp
 ================================
 

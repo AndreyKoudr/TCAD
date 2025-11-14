@@ -112,7 +112,7 @@
     <ClInclude Include="tvalues.h">
       <Filter>INFRASTRUCTURE</Filter>
     </ClInclude>
-    <ClInclude Include="operations.h">
+    <ClInclude Include="OPERATIONS.h">
       <Filter>OPERATIONS</Filter>
     </ClInclude>
     <ClInclude Include="ttriangles.h">

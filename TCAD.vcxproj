@@ -151,7 +151,7 @@
     <ClInclude Include="tlsqsegment.h" />
     <ClInclude Include="tmatrix.h" />
     <ClInclude Include="tmisc.h" />
-    <ClInclude Include="operations.h" />
+    <ClInclude Include="OPERATIONS.h" />
     <ClInclude Include="torthosegment.h" />
     <ClInclude Include="tplane.h" />
     <ClInclude Include="tpoint.h" />

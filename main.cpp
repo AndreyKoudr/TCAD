@@ -1032,7 +1032,7 @@ int main(int argc, char* argv[])
   cout << "2.13 Surfaces : intersect surface by plane, get intersection line and parametric curve for trimming" << endl;
 
   // make plane by normal and point
-  TPlane<T> plplane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,0.8));
+  TPlane<T> plplane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,-0.8));
 
   std::vector<std::vector<TPoint<T>>> plintersections; 
   std::vector<std::vector<TPoint<T>>> plboundary;
@@ -1084,7 +1084,7 @@ int main(int argc, char* argv[])
   saveSurfaceIges(&apsurface,DEBUG_DIR + "spline surface for cut by plane and trimming.iges");
 
   // make plane by normal and point
-  TPlane<T> tr1plane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,0.8));
+  TPlane<T> tr1plane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,-0.8));
 
   std::vector<std::vector<TPoint<T>>> tr1intersections; 
   std::vector<std::vector<TPoint<T>>> tr1boundary;
@@ -1106,7 +1106,7 @@ int main(int argc, char* argv[])
   // now we flip the plane normal and try again 
 
   // make plane by normal and point
-  TPlane<T> tr2plane(TPoint<T>(-0.7071,0.0,-0.7071),TPoint<T>(0.0,0.0,0.8));
+  TPlane<T> tr2plane(TPoint<T>(-0.7071,0.0,-0.7071),TPoint<T>(0.0,0.0,-0.8));
 
   std::vector<std::vector<TPoint<T>>> tr2intersections; 
   std::vector<std::vector<TPoint<T>>> tr2boundary;
@@ -1167,9 +1167,12 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> NACAsurfpointslower;
   makeNACASurface(NACAsurfpointslower,51,TPoint<T>(1.0,-1.0,1.0));
 
-  // create a point surface
+  // to make correct normal
+  reverseRows(NACAsurfpointslower);
+
+  // create a point surface : free and clamped : LE/TE swapped!
   TSplineSurface<T> apsurfacelower(NACAsurfpointslower,10,SPLINE_DEGREE,30,SPLINE_DEGREE,
-    END_CLAMPED,END_FREE,END_FREE,END_FREE);
+    END_FREE,END_CLAMPED,END_FREE,END_FREE);
 
   saveSurfaceIges(&apsurfacelower,DEBUG_DIR + "spline surface approximated (lower).iges");
 
@@ -1407,9 +1410,12 @@ int main(int argc, char* argv[])
     makeNACASurface(upper,51,TPoint<T>(1.0,+1.0,1.0),1.0,1.0,0.02,0.0,0.0); 
     makeNACASurface(lower,51,TPoint<T>(1.0,-1.0,1.0),1.0,1.0,0.02,0.0,0.0); 
 
-    // make two spline surfaces
+    // to make correct normal
+    reverseRows(upper);
+
+    // make two spline surfaces, LE/TE swapped for one surface - see FREE and CLAMPED
     TSplineSurface<T> supper(upper,30,SPLINE_DEGREE,30,SPLINE_DEGREE,
-      END_CLAMPED,END_FREE,END_FREE,END_FREE);
+      END_FREE,END_CLAMPED,END_FREE,END_FREE);
     TSplineSurface<T> slower(lower,30,SPLINE_DEGREE,30,SPLINE_DEGREE,
       END_CLAMPED,END_FREE,END_FREE,END_FREE);
 
@@ -1448,6 +1454,116 @@ int main(int argc, char* argv[])
       DELETE_CLASS(faces[i]);
     }
 
+  }
+
+  /*****************************************************************************
+
+    Part 5 : blocks, various useful geometries
+
+  *****************************************************************************/
+
+  cout << "    Part 5 : blocks, various useful geometries" << endl;
+
+  /*****************************************************************************
+    5.1 Blocks : airfoild : preparing data to make an airfoil
+  *****************************************************************************/
+
+  cout << "5.1 Blocks : airfoil : preparing data to make an airfoil" << endl;
+
+  {
+    // step 1 : camber surface, cylindrical
+
+    // first, we need to generate camber surface with thickness, they are all
+    // represented as regular nets of points
+    std::vector<std::vector<TPoint<T>>> camberpoints;
+
+    // suppose we shall make 11 (chord) x 6 (span) points for a mesh
+    int N1 = 11;
+    int N2 = 6;
+
+    // cylinder is starting geometry
+    makeCylinder(N2,0.01,0.09,N1,0.18,0.18,camberpoints,10.0,190.0);
+
+    // reverse rows to make LE to the left
+    reverseRows(camberpoints);
+
+    // to make normal point to upper surface
+    reverseColumns(camberpoints);
+
+    // create camber surface
+    TSplineSurface<T> cambersurface(camberpoints,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+    saveSurfaceIges(&cambersurface,DEBUG_DIR + "camber surface step 1.iges");
+
+    // step 2 : camber surface, distort by FFD
+    // bwing and wind are identical
+    std::vector<tcad::TSplineSurface<T> *> wing;
+    std::vector<tcad::TBaseSurface<T> *> bwing;
+    wing.push_back(&cambersurface);
+    bwing.push_back(&cambersurface);
+
+    // apply FFD : we want to distort the wing by moving these points to new positions:
+    std::vector<TPoint<T>> oldpositions = {
+      TPoint<T>(-0.177,-0.031,0.01)
+    };
+
+    std::vector<TPoint<T>> newpositions = {
+      TPoint<T>(-0.23,-0.056,-0.023)
+    };
+    
+    FFD<T> ffd(bwing,oldpositions,newpositions);
+
+    saveSurfacesIges(wing,DEBUG_DIR + "camber surface step 2.iges");
+
+    // these triangles are to save them in STL, this mesh has TE to the right
+    // 
+    TTriangles<T> tris;
+    cambersurface.createTriangles(tris,N1,N2,1.0,1.0); 
+
+    // save
+    saveTrianglesStl(tris,DEBUG_DIR + "camber surface step 2.stl");
+
+    // now the camber surface is defined by N1 x N2 mesh, let's make a thickness array
+    // remembering that U goes from left to right, U = 0 being LE, V increases with
+    // increasing Z
+    T chord = cambersurface.Usize() * 2.0;
+    std::vector<std::vector<T>> thickness = {
+      {0.0, 0.046 * chord, 0.057 * chord, 0.060 * chord, 0.058 * chord, 0.053 * chord, 0.045 * chord, 0.036 * chord, 0.025 * chord, 0.014 * chord, 0.0 * chord},
+      {0.0, 0.046 * chord, 0.057 * chord, 0.060 * chord, 0.058 * chord, 0.053 * chord, 0.045 * chord, 0.036 * chord, 0.025 * chord, 0.014 * chord, 0.0 * chord},
+      {0.0, 0.046 * chord, 0.057 * chord, 0.060 * chord, 0.058 * chord, 0.053 * chord, 0.045 * chord, 0.036 * chord, 0.025 * chord, 0.014 * chord, 0.0 * chord},
+      {0.0, 0.046 * chord, 0.057 * chord, 0.060 * chord, 0.058 * chord, 0.053 * chord, 0.045 * chord, 0.036 * chord, 0.025 * chord, 0.014 * chord, 0.0 * chord},
+      {0.0, 0.046 * chord, 0.057 * chord, 0.060 * chord, 0.058 * chord, 0.053 * chord, 0.045 * chord, 0.036 * chord, 0.025 * chord, 0.014 * chord, 0.0 * chord},
+      {0.0, 0.046 * chord, 0.057 * chord, 0.060 * chord, 0.058 * chord, 0.053 * chord, 0.045 * chord, 0.036 * chord, 0.025 * chord, 0.014 * chord, 0.0 * chord}
+    };
+
+  /*****************************************************************************
+    5.2 Blocks : airfoil : how to make an airfoil from camber surface and 
+    thickness
+  *****************************************************************************/
+
+  cout << "5.2 Blocks : airfoil : how to make an airfoil from camber surface and thickness" << endl;
+
+    // make camber points from FFD-distorted wing
+    std::vector<TPoint<T>> temp;
+    std::vector<std::vector<TPoint<T>>> newcamberpoints;
+    int k1 = 0;
+    int k2 = 0;
+    cambersurface.createPoints(temp,nullptr,&k1,&k2,N1,N2);
+    assert(k1 + 1 == N1);
+    assert(k2 + 1 == N2);
+    points1Dto2D(temp,k1,k2,newcamberpoints);
+
+    // we have all the data : camber + thickness N1 x N2 arrays, make spline surfaces
+    std::vector<TSplineSurface<T> *> surfaces;
+    makeAirfoil(newcamberpoints,thickness,surfaces); 
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "airfoil surfaces.iges");
+
+    for (int i = 0; i < int(surfaces.size()); i++)
+    {
+      DELETE_CLASS(surfaces[i]);
+    }
   }
 
   double endtime = GetTime();

@@ -630,7 +630,7 @@ template <class T> void getColumn(std::vector<std::vector<TPoint<T>>> &points, i
 template <class T> void setColumn(std::vector<std::vector<TPoint<T>>> &points, int index, 
   std::vector<TPoint<T>> &col)
 {
-  assert(index >= 0 && index < int(points[index].size()));
+  assert(index >= 0 && index < int(points[0].size()));
   assert(col.size() == points.size());
 
   for (int i = 0; i < int(points.size()); i++)
@@ -1380,10 +1380,10 @@ template <class T> void removeFirstLast(std::vector<T> &knots, std::vector<T> &r
           | | |     |         ||/ |
           |/  3----(2)->------|---2 
           |  /                |  / 
-    V(j)  ^ /W(k)      (4)->  | /
-  columns |/ layers    /      |/
+  WZk     ^ /VYj       (4)->  | /
+  layers  |/ columns   /      |/
           0-->----------------1
-          U(i) rows
+          UXi rows
 
   cpoints are ALL control points, (K1 + 1) * (K2 + 1) * (K3 + 1)
 */
@@ -1395,52 +1395,52 @@ template <class T> void getFace(std::vector<TPoint<T>> &cpoints, int faceno,
 
   if (faceno == 0)
   {
-    for (int j = 0; j <= K2; j++)
+    for (int k = 0; k <= K3; k++)
     {
       std::vector<TPoint<T>> temp;
-      getLayer<T>(cpoints,K1,K2,K3,0,j,temp);
+      getColumn<T>(cpoints,K1,K2,K3,0,k,temp);
       std::reverse(temp.begin(),temp.end());
       points.push_back(temp);
     }
   } else if (faceno == 1)
   {
-    for (int j = 0; j <= K2; j++)
+    for (int k = 0; k <= K3; k++)
     {
       std::vector<TPoint<T>> temp;
-      getLayer<T>(cpoints,K1,K2,K3,K1,j,temp);
+      getColumn<T>(cpoints,K1,K2,K3,K1,k,temp);
       points.push_back(temp);
     }
   } else if (faceno == 2)
   {
-    for (int j = 0; j <= K2; j++)
-    {
-      std::vector<TPoint<T>> temp;
-      getRow<T>(cpoints,K1,K2,K3,j,0,temp);
-      points.push_back(temp);
-    }
-  } else if (faceno == 3)
-  {
-    for (int j = 0; j <= K2; j++)
-    {
-      std::vector<TPoint<T>> temp;
-      getRow<T>(cpoints,K1,K2,K3,j,K3,temp);
-      std::reverse(temp.begin(),temp.end());
-      points.push_back(temp);
-    }
-  } else if (faceno == 4)
-  {
-    for (int k = K3; k >= 0; k--)
+    for (int k = 0; k <= K3; k++)
     {
       std::vector<TPoint<T>> temp;
       getRow<T>(cpoints,K1,K2,K3,0,k,temp);
       points.push_back(temp);
     }
-  } else if (faceno == 5)
+  } else if (faceno == 3)
   {
     for (int k = 0; k <= K3; k++)
     {
       std::vector<TPoint<T>> temp;
       getRow<T>(cpoints,K1,K2,K3,K2,k,temp);
+      std::reverse(temp.begin(),temp.end());
+      points.push_back(temp);
+    }
+  } else if (faceno == 4)
+  {
+    for (int j = K2; j >= 0; j--)
+    {
+      std::vector<TPoint<T>> temp;
+      getRow<T>(cpoints,K1,K2,K3,j,0,temp);
+      points.push_back(temp);
+    }
+  } else if (faceno == 5)
+  {
+    for (int j = 0; j <= K2; j++)
+    {
+      std::vector<TPoint<T>> temp;
+      getRow<T>(cpoints,K1,K2,K3,j,K3,temp);
       points.push_back(temp);
     }
   }
@@ -1482,6 +1482,36 @@ template <class T> T Vsize(std::vector<std::vector<TPoint<T>>> &points)
   len /= T(K1 + 1);
 
   return len;
+}
+
+/** Reverse points rows. */
+template <class T> void reverseRows(std::vector<std::vector<TPoint<T>>> &points)
+{
+  int K1 = int(points[0].size() - 1);
+  int K2 = int(points.size() - 1);
+
+  for (int i = 0; i <= K2; i++)
+  {
+    std::vector<TPoint<T>> temp;
+    getRow(points,i,temp);
+    std::reverse(temp.begin(),temp.end());
+    setRow(points,i,temp);
+  }
+}
+
+/** Reverse points columns. */
+template <class T> void reverseColumns(std::vector<std::vector<TPoint<T>>> &points)
+{
+  int K1 = int(points[0].size() - 1);
+  int K2 = int(points.size() - 1);
+
+  for (int i = 0; i <= K1; i++)
+  {
+    std::vector<TPoint<T>> temp;
+    getColumn(points,i,temp);
+    std::reverse(temp.begin(),temp.end());
+    setColumn(points,i,temp);
+  }
 }
 
 }
