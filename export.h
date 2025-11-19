@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tsplinecurve.h"
 #include "tsplinesurface.h"
 #include "ttriangles.h"
+#include "tsolid.h"
 #include "strings.h"
 
 #include <vector>
@@ -70,6 +71,25 @@ extern const char *dirline1431;
 extern const char *dirline1260parametric;
 extern const char *dirline1260;
 extern const char *dirline1261;
+
+extern const char *sdirline5020;
+extern const char *sdirline5021;
+extern const char *sdirline5140;
+extern const char *sdirline5141;
+extern const char *sdirline1260;
+extern const char *sdirline1261;
+extern const char *sdirline5040;
+extern const char *sdirline5041;
+extern const char *sdirline1280;
+extern const char *sdirline1281;
+extern const char *sdirline5080;
+extern const char *sdirline5081;
+extern const char *sdirline5100;
+extern const char *sdirline5101;
+extern const char *sdirline1860;
+extern const char *sdirline1860final;
+extern const char *sdirline1861;
+
 
 /** Make Iges directory line. */
 std::string makeIgesDirectoryLine0(const char *dirline, int parmdata, int parmcount, int *dirlineno);
@@ -209,6 +229,136 @@ template <class T> void addIges143(std::vector<std::string> &lines, int surfaceD
   {
     addIgesString(lines,to_string(curve141DEs[i]),dirline,count,igesstr);
   }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 502. */
+template <class T> void addIges502(std::vector<std::string> &lines, std::vector<TPoint<T>> &vertices, int dirline, 
+  int *count, int numdigits)
+{
+  std::string igesstr = "";
+
+  // save all info
+  addIgesString(lines,to_string(502),dirline,count,igesstr);
+  addIgesString(lines,to_string((int) vertices.size()),dirline,count,igesstr);
+
+  for (int i = 0; i < vertices.size(); i++)
+  {
+    addIgesString(lines,to_string(vertices[i].X,numdigits),dirline,count,igesstr);
+    addIgesString(lines,to_string(vertices[i].Y,numdigits),dirline,count,igesstr);
+    addIgesString(lines,to_string(vertices[i].Z,numdigits),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 504. */
+template <class T> void addIges504(std::vector<std::string> &lines, 
+  std::vector<std::array<LINT,11>> &edges, 
+  int verticesDE, std::vector<int> &boundaryDEs, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  // save all info
+  addIgesString(lines,to_string(504),dirline,count,igesstr);
+  addIgesString(lines,to_string((int) edges.size()),dirline,count,igesstr);
+
+  int count1 = 0;
+  for (auto &e : edges)
+  {
+    addIgesString(lines,to_string(boundaryDEs[count1]),dirline,count,igesstr);
+    addIgesString(lines,to_string(verticesDE),dirline,count,igesstr);
+    addIgesString(lines,to_string(e[0] + 1),dirline,count,igesstr);
+    addIgesString(lines,to_string(verticesDE),dirline,count,igesstr);
+    addIgesString(lines,to_string(e[1] + 1),dirline,count,igesstr);
+    count1++;
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 508. */
+template <class T> void addIges508(std::vector<std::string> &lines, 
+  std::vector<std::array<LINT,11>> &edges, 
+  int surface, int loop, int loopsize, int edgeDE, 
+  int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  // save all info
+  addIgesString(lines,to_string(508),dirline,count,igesstr);
+
+  // some boundary pieces can be split
+  addIgesString(lines,to_string(loopsize),dirline,count,igesstr);
+
+  // find edge numbers for this surface and this loop
+  std::vector<std::pair<int,bool>> iedges;
+  findLoopEdges<T>(edges,surface,loop,loopsize,iedges);
+  assert(!iedges.empty());
+
+  for (int i = 0; i < iedges.size(); i++)
+  {
+    int iedge = iedges[i].first;
+    bool reversed = iedges[i].second;
+
+    addIgesString(lines,to_string(0),dirline,count,igesstr);
+    addIgesString(lines,to_string(edgeDE),dirline,count,igesstr);
+
+    addIgesString(lines,to_string(iedge + 1),dirline,count,igesstr);
+    addIgesString(lines,to_string((int) (!reversed)),dirline,count,igesstr);
+
+    addIgesString(lines,to_string((int) 0),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 510. */
+template <class T> void addIges510(std::vector<std::string> &lines, int surfaceDE, 
+  std::vector<int> &loopDEs, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  addIgesString(lines,to_string(510),dirline,count,igesstr);
+  addIgesString(lines,to_string(surfaceDE),dirline,count,igesstr);
+  addIgesString(lines,to_string(int(loopDEs.size())),dirline,count,igesstr);
+  addIgesString(lines,to_string(1),dirline,count,igesstr); 
+//  addIgesString(lines,to_string(0),dirline,count,igesstr); //!!! no outer loop is identified
+  for (int i = 0; i < int(loopDEs.size()); i++)
+  {
+    addIgesString(lines,to_string(loopDEs[i]),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 514. */
+template <class T> void addIges514(std::vector<std::string> &lines, std::vector<int> &faceDEs, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  addIgesString(lines,to_string(514),dirline,count,igesstr);
+  addIgesString(lines,to_string((int) faceDEs.size()),dirline,count,igesstr);
+
+  for (int i = 0; i < faceDEs.size(); i++)
+  {
+    addIgesString(lines,to_string(faceDEs[i]),dirline,count,igesstr);
+    addIgesString(lines,to_string((int) 1),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 186. */
+template <class T> void addIges186(std::vector<std::string> &lines, int shellDE, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  addIgesString(lines,to_string(186),dirline,count,igesstr);
+  addIgesString(lines,to_string(shellDE),dirline,count,igesstr);
+  addIgesString(lines,to_string(1),dirline,count,igesstr);
+  addIgesString(lines,to_string(0),dirline,count,igesstr);
 
   finalize(lines,dirline,count,igesstr);
 }
@@ -355,7 +505,7 @@ template <class T> bool makeSurfaceLinesIges(std::vector<tcad::TSplineSurface<T>
   int glines = 11;
   int dlines = (3 + int(surfaces.size())) * 2;
 
-  // save REAL directory lines for each surface
+  // save T directory lines for each surface
   int dcount = 7;
   int dir128line = int(lines.size());
   for (int i = 0; i < int(surfaces.size()); i++)
@@ -449,7 +599,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
   int glines = 11;
   int dlines = 3;
 
-  // save REAL directory lines for each surface
+  // save T directory lines for each surface
   int dcount = 7;
   int dir128line = int(lines.size());
   for (int i = 0; i < int(surfaces.size()); i++)
@@ -634,6 +784,293 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
   return true;
 }
 
+/** Make Iges lines to save a solid. */
+template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+//surface     loop        piece       points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<std::string> &lines, T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18)
+{
+  lines.clear();
+
+  if (surfaces.empty())
+    return false;
+
+  // unique vertices
+  std::vector<TPoint<T>> vertices,middlevertices;
+
+  // edges mapping to faces and face boundaries
+  // straight list of edges, "compressed" edgemap
+  std::vector<std::array<LINT,11>> edges;
+
+  // Create non-manifold solid model
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,middlevertices,edges,tolerance))
+    return false;
+
+  // calculate size
+  double msize = 0.0;
+  for (auto &surface : surfaces)
+  {
+    double len = surface->maxSize();
+    msize = std::max<double>(msize,len);
+  }
+
+  // make header
+  std::string s;
+  for (int i = 0; i < 12; i++)
+  {
+    s = IgesHeader0[i];
+    if (i == 7)
+    {
+      s = writeHeaderLine(7,TOLERANCE(double));
+    } else if (i == 8)
+    {
+      s = writeHeaderLine(8,msize);
+    }
+    lines.push_back(s);
+  }
+
+  int slines = 1;
+  int glines = 11;
+  int dlines = 0;
+  int dcount = 1;
+
+  //===== Directory ============================================================
+
+  // save T directory lines for each surface
+  int sdirline = int(lines.size());
+
+  // for entity 502
+  s = makeIgesDirectoryLine0(sdirline5020,-1,-1,&dcount);
+  lines.push_back(s);
+  s = makeIgesDirectoryLine1(sdirline5021,-1,-1,&dcount,"");
+  lines.push_back(s);
+  dlines++;
+
+  // 126 curves
+  for (int i = 0; i < edges.size(); i++)
+  {
+    // curve C (126)
+    s = makeIgesDirectoryLine0(sdirline1260,-1,-1,&dcount);
+    lines.push_back(s);
+    s = makeIgesDirectoryLine1(sdirline1261,-1,-1,&dcount,"");
+    lines.push_back(s);
+    dlines++;
+  }
+
+  // for entity 504
+  s = makeIgesDirectoryLine0(sdirline5040,-1,-1,&dcount);
+  lines.push_back(s);
+  s = makeIgesDirectoryLine1(sdirline5041,-1,-1,&dcount,"");
+  lines.push_back(s);
+  dlines++;
+
+  // 128 curves each with 508 and 510
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    // patch name
+    char name[32] = { 0 };
+
+    // for entity 128
+    s = makeIgesDirectoryLine0(sdirline1280,-1,-1,&dcount);
+    lines.push_back(s);
+    s = makeIgesDirectoryLine1(sdirline1281,-1,-1,&dcount,name);
+    lines.push_back(s);
+    dlines++;
+
+    // 508 loops
+    for (int j = 0; j < int(boundariesUV[i].size()); j++) 
+    {
+      s = makeIgesDirectoryLine0(sdirline5080,-1,-1,&dcount);
+      lines.push_back(s);
+      s = makeIgesDirectoryLine1(sdirline5081,-1,-1,&dcount,name);
+      lines.push_back(s);
+      dlines++;
+    }
+
+    // 510
+    s = makeIgesDirectoryLine0(sdirline5100,-1,-1,&dcount);
+    lines.push_back(s);
+    s = makeIgesDirectoryLine1(sdirline5101,-1,-1,&dcount,name);
+    lines.push_back(s);
+    dlines++;
+  }
+
+  // for entity 514
+  s = makeIgesDirectoryLine0(sdirline5140,-1,-1,&dcount);
+  lines.push_back(s);
+  s = makeIgesDirectoryLine1(sdirline5141,-1,-1,&dcount,"");
+  lines.push_back(s);
+  dlines++;
+
+  // for entity 186
+  s = makeIgesDirectoryLine0(sdirline1860final,-1,-1,&dcount);
+  lines.push_back(s);
+  s = makeIgesDirectoryLine1(sdirline1861,-1,-1,&dcount,"");
+  lines.push_back(s);
+  dlines++;
+
+  //===== Directory over, implementation =======================================
+
+  // total number of directory lines
+  dlines = dlines * 2;
+
+  dcount = 1;
+  int pcount = 1;
+
+  int verticesDE = dcount;
+
+  lines[sdirline] = makeIgesDirectoryLine0(sdirline5020, pcount, -1, &dcount);
+  sdirline++;
+
+  size_t before = lines.size();
+  addIges502<T>(lines,vertices,dcount - 1,&pcount,numdigits);
+  size_t after = lines.size();
+
+  // modify directory
+  lines[sdirline] = makeIgesDirectoryLine1(sdirline5021,-1,int(after - before),&dcount,"");
+  sdirline++;
+
+  // 126
+  // directory pointers for all boundary pieces one by one
+  std::vector<int> boundaryDEs;
+  std::vector<std::vector<TPoint<T>>> boundarysegments;
+  std::vector<tcad::TSplineCurve<T>> boundarycurves;
+  std::vector<int> parmboundaryDEs;
+
+  for (auto &e : edges)
+  {
+    // prepare XYZ boundary piece
+    std::vector<TPoint<T>> points;
+    getBoundaryPartXYZ<T>(surfaces,boundariesUV,int(e[3]),int(e[4]),int(e[5]),points);
+
+    // make spline curve
+    tcad::TSplineCurve<T> C(points,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+
+    lines[sdirline] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
+    sdirline++;
+
+    // add lines
+    before = int(lines.size());
+    addIgesCurveLines(lines,&C,dcount - 1,&pcount);
+
+    boundaryDEs.push_back(dcount - 1);
+    boundarysegments.push_back(points);
+    boundarycurves.push_back(C);
+
+    after = int(lines.size());
+
+    // modify directory
+    lines[sdirline] = makeIgesDirectoryLine1(sdirline1261,-1,int(after - before),&dcount,"");
+    sdirline++;
+  }
+
+  lines[sdirline] = makeIgesDirectoryLine0(sdirline5040,pcount,-1,&dcount);
+  sdirline++;
+
+  before = lines.size();
+
+  addIges504<T>(lines,edges,verticesDE,boundaryDEs,dcount - 1,&pcount);
+
+  int edgeDE = dcount - 1;
+  after = lines.size();
+
+  // modify directory
+  lines[sdirline] = makeIgesDirectoryLine1(sdirline5041,-1,int(after - before),&dcount,"");
+  sdirline++;
+
+  // all 128 curves each with 508 and 510
+  std::vector<int> faceDEs;
+
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    // patch name
+    char name[32] = { 0 };
+
+    TSplineSurface<T> *surface = surfaces[i];
+
+    int surfaceDE = -1;
+
+    // modify directory
+    lines[sdirline] = makeIgesDirectoryLine0(sdirline1280,pcount,-1,&dcount);
+    sdirline++;
+
+    // add lines
+    int before = int(lines.size());
+    addIgesSurfaceLines(lines,surface,dcount - 1,&pcount);
+    surfaceDE = dcount - 1;
+    int after = int(lines.size());
+
+    // modify directory
+    lines[sdirline] = makeIgesDirectoryLine1(sdirline1281,-1,(after - before),&dcount,name);
+    sdirline++;
+
+    // 508
+    std::vector<int> loopDEs;
+    for (int j = 0; j < int(boundariesUV[i].size()); j++) 
+    {
+      lines[sdirline] = makeIgesDirectoryLine0(sdirline5080,pcount,-1,&dcount);
+      sdirline++;
+
+      before = int(lines.size());
+      addIges508<T>(lines,edges,i,j,int(boundariesUV[i][j].size()),edgeDE,dcount - 1,&pcount);
+      loopDEs.push_back(dcount - 1);
+      after = int(lines.size());
+
+      // modify directory
+      lines[sdirline] = makeIgesDirectoryLine1(sdirline5081,-1,(after - before),&dcount,name);
+      sdirline++;
+    }
+
+    // 510
+    lines[sdirline] = makeIgesDirectoryLine0(sdirline5100,pcount,-1,&dcount);
+    sdirline++;
+
+    before = int(lines.size());
+    addIges510<T>(lines,surfaceDE,loopDEs,dcount - 1,&pcount);
+    faceDEs.push_back(dcount - 1);
+    after = int(lines.size());
+
+    // modify directory
+    lines[sdirline] = makeIgesDirectoryLine1(sdirline5101,-1,(after - before),&dcount,name);
+    sdirline++;
+  }
+
+  lines[sdirline] = makeIgesDirectoryLine0(sdirline5140,pcount,-1,&dcount);
+  sdirline++;
+
+  before = lines.size();
+  addIges514<T>(lines,faceDEs,dcount - 1,&pcount);
+  int shellDE = dcount - 1;
+  after = lines.size();
+
+  // modify directory
+  lines[sdirline] = makeIgesDirectoryLine1(sdirline5141,-1,int(after - before),&dcount,"Shell");
+  sdirline++;
+
+  lines[sdirline] = makeIgesDirectoryLine0(sdirline1860final,pcount,-1,&dcount);
+  sdirline++;
+
+  before = lines.size();
+  addIges186<T>(lines,shellDE,dcount - 1,&pcount);
+  int solidDE = dcount - 1;
+  after = lines.size();
+
+  // modify directory
+  lines[sdirline] = makeIgesDirectoryLine1(sdirline1861,-1,int(after - before),&dcount,"Object");
+
+  int plines = pcount - 1;
+  int tlines = 1;
+
+  s = std::string("S") + to_string(slines,7) +
+    std::string("G") + to_string(glines,7) +
+    std::string("D") + to_string(dlines,7) +
+    std::string("P") + to_string(plines,7) +
+    "                                        " +
+    std::string("T") + to_string(tlines,7) + CRLF;
+  lines.push_back(s);
+
+  return true;
+}
 
 //===== Curves =================================================================
 
@@ -762,6 +1199,24 @@ template <class T> bool saveTrimmedSurfaceIges(tcad::TSplineSurface<T> *surface,
   boundariesUV.push_back(boundaryUV);
 
   return saveTrimmedSurfacesIges(surfaces,boundariesUV,filename,splinedegree);
+}
+
+/** Save trimmed surfaces as solid in IGES. All surfaces must have closed boundaries. */
+template <class T> bool saveSolidIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+//surface     loop        piece       points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, const std::string &filename,
+  T tolerance, int splinedegree = SPLINE_DEGREE)
+{
+  std::vector<std::string> lines;
+
+  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree))
+  {
+    bool ok = writeLines(lines,filename);
+    return ok;
+  } else
+  {
+    return false;
+  }
 }
 
 //===== STL ====================================================================

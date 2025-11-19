@@ -1086,28 +1086,32 @@ template <class T> int intersectByPlane(std::vector<TPoint<T>> &points, TPlane<T
 }
 
 // comparator for equality
+
+// important
+static double ptolerance = 0.0;
+
 template <class T> bool comparePoint(TPoint<T> p1, TPoint<T> p2)
 {
-  if (p1.X < p2.X)
+  if (p1.X < p2.X - T(ptolerance))
   {
     return true;
-  } else if (p1.X > p2.X)
+  } else if (p1.X > p2.X + T(ptolerance))
   {
     return false;
   } else
   {
-    if (p1.Y < p2.Y)
+    if (p1.Y < p2.Y - T(ptolerance))
     {
       return true;
-    } else if (p1.Y > p2.Y)
+    } else if (p1.Y > p2.Y + T(ptolerance))
     {
       return false;
     } else
     {
-      if (p1.Z < p2.Z)
+      if (p1.Z < p2.Z - T(ptolerance))
       {
         return true;
-      } else if (p1.Z > p2.Z)
+      } else if (p1.Z > p2.Z + T(ptolerance))
       {
         return false;
       } else
@@ -1150,8 +1154,11 @@ template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool so
   }
                               // sort points by X,Y,Z
   if (sortcoords)
+  {
+    ptolerance = TOLERANCE(T);
+//!!!!!!!    ptolerance = double(tolerance);
     std::sort(points.begin(),points.end(),comparePoint<T>);
-
+  }
                               // replacement indices for node numbering
   std::vector<LINT> rep;
   rep.resize(points.size(),-1);

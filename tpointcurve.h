@@ -262,6 +262,31 @@ public:
     }
   }
 
+  /** Reverse. */
+  void reverse()
+  {
+    std::reverse(this->cpoints.begin(),this->cpoints.end());
+    this->update();
+  }
+
+  /** Start point. */
+  TPoint<T> start()
+  {
+    return this->cpoints.front();
+  }
+
+  /** End point. */
+  TPoint<T> end()
+  {
+    return this->cpoints.back();
+  }
+
+  /** Middle point. */
+  TPoint<T> middle()
+  {
+    return this->position(0.5);
+  }
+
   /** Shift this->cpoints to end (positive shift) or to start (negative shift). 
     It amkes sense for closed curves. */
   bool shiftClosed(int shift, T tolerance = TOLERANCE(T))
@@ -299,7 +324,7 @@ public:
   /** Get max distance from other by projecting this this->cpoints on other (the other must be not shorter). 
     If exact, only exact projection (no distance to line ends) is considered. Returns -1 if
     such projection not found. */
-  T diff(TPointCurve<T> &other, T *maxdeflection, T parmtolerance)
+  T diff(TPointCurve<T> &other, T *maxdeflection = nullptr, T parmtolerance = PARM_TOLERANCE)
   {
     T maxdiff = 0.0;
 

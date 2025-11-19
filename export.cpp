@@ -182,6 +182,115 @@ const char *dirline1860final =
 
 
 
+
+/*
+ 0        1         2         3         4         5         6         7         8
+ 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+*/
+
+// "000010001D" - the first "1" from the left means "dependent and not displayed"
+
+// 128 must be shown for ccm+
+const char *sdirline1280 =
+"     128       4       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1281 =
+"     128       0       0    1167       0       0       0               0D      8\r\n";
+
+const char *sdirline1260 =
+"     126       4       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1260parametric =
+"     126       4       0       0       0       0       0       000010500D      7\r\n";
+const char *sdirline1261 =
+"     126       0       0    1167       0       0       0               0D      8\r\n";
+
+// for saving lines
+const char *sdirline1260l =
+"     126       4       0       0       2       0       0       000000000D      7\r\n";
+
+
+const char *sdirline1420 =
+"     142       4       0       0       0       0       0       000010000D      7\r\n"; // 05 is parametric
+const char *sdirline1421 =
+"     142       0      -1    1167       0       0       0               0D      8\r\n";
+
+const char *sdirline1440 =
+"     144       4       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1441 =
+"     144       0      -1    1167       0       0       0               0D      8\r\n";
+
+const char *sdirline1410 =
+"     141       4       0       0       0       0       0       000010000D      7\r\n"; // 05 is parametric
+const char *sdirline1411 =
+"     141       0      -1    1167       0       0       0               0D      8\r\n";
+
+const char *sdirline1430 =
+"     143       4       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1431 =
+"     143       0      -1    1167       0       0       0               0D      8\r\n";
+
+const char *sdirline1200 =
+"     120       4       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1201 =
+"     120       0      -1    1167       0       0       0               0D      8\r\n";
+
+const char *sdirline1100 =
+"     110       4       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1101 =
+"     110       0      -1    1167       1       0       0               0D      8\r\n"; // form number 1
+
+const char *sdirline5020 =
+"     502       1       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline5021 =
+"     502       0       0       9       1       0       0               0D      8\r\n";
+
+// must be 000010001
+const char *sdirline5040 =
+"     504       1       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline5041 =
+"     504       0       0       3       1       0       0               0D      8\r\n";
+
+const char *sdirline5080 =
+"     508       1       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline5081 =
+"     508       0       0       1       1       0       0               0D      8\r\n";
+
+const char *sdirline5100 =
+"     510       1       0       0       0       0       0       000000000D      7\r\n";
+const char *sdirline5101 =
+"     510       0       0       1       1       0       0               0D      8\r\n";
+
+const char *sdirline5140 =
+"     514       1       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline5141 =
+"     514       0       0       1       1       0       0               0D      8\r\n";
+
+// "solid" entity if addsubfigureentities (not last)
+const char *sdirline1860 =
+"     186       1       0       0       0       0       0       000010000D      7\r\n";
+// final line if not addsubfigureentities
+const char *sdirline1860final =
+"     186       1       0       0       0       0       0       000000000D      7\r\n";
+const char *sdirline1861 =
+"     186       0       0       1       0       0       0               0D      8\r\n";
+
+const char *sdirline3080 =
+"     308       1       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline3081 =
+"     308       0       0       1       0       0       0               0D      8\r\n";
+
+const char *sdirline1240 =
+"     124       1       0       0       0       0       0       000010000D      7\r\n";
+const char *sdirline1241 =
+"     124       0       0       1       0       0       0               0D      8\r\n";
+
+const char *sdirline4080 =
+"     408       1       0       0       0       0       0       000000000D      7\r\n";
+const char *sdirline4081 =
+"     408       0       0       1       0       0       0               0D      8\r\n";
+
+
+
+
 std::string writeHeaderLine(int line, double val)
 {
   std::string s = IgesHeader0[line];

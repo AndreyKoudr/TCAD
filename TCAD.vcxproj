@@ -151,13 +151,15 @@
     <ClInclude Include="tlsqsegment.h" />
     <ClInclude Include="tmatrix.h" />
     <ClInclude Include="tmisc.h" />
-    <ClInclude Include="OPERATIONS.h" />
+    <ClInclude Include="toperations.h" />
     <ClInclude Include="torthosegment.h" />
     <ClInclude Include="tplane.h" />
     <ClInclude Include="tpoint.h" />
     <ClInclude Include="tpointcurve.h" />
     <ClInclude Include="tpoints.h" />
     <ClInclude Include="tpointsurface.h" />
+    <ClInclude Include="tsolid.h" />
+    <ClInclude Include="tedge.h" />
     <ClInclude Include="tsplinecurve.h" />
     <ClInclude Include="tsplinesurface.h" />
     <ClInclude Include="tsplinevolume.h" />

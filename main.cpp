@@ -45,7 +45,7 @@
 *******************************************************************************/
 
 // you can only use high-level operations
-#include "operations.h"
+#include "toperations.h"
 
 #include "ttriangles.h"
 #include "tbasesurface.h"
@@ -382,6 +382,11 @@ int main(int argc, char* argv[])
 
   // make point curve of original points
   TPointCurve<T> curve(points);
+
+  //TPoint<T> pos1 = curve.derivative(0.53,0);
+  //curve.reverse();
+  //TPoint<T> pos2 = curve.derivative(0.47,0);
+  //T d = !(pos2 - pos1);
 
   saveCurveIges(curve,DEBUG_DIR + "NACA.iges");
 
@@ -1564,6 +1569,56 @@ int main(int argc, char* argv[])
     {
       DELETE_CLASS(surfaces[i]);
     }
+  }
+
+  /*****************************************************************************
+    5.3 Blocks : box : solid output
+  *****************************************************************************/
+
+  cout << "5.3 Blocks : box : solid output" << endl;
+
+  {
+    TPoint<T> min(0.0,0.0,0.0);
+    TPoint<T> max(1.0,1.0,1.0);
+    TSplineVolume<T> svolume(min,max,SPLINE_DEGREE,SPLINE_DEGREE,SPLINE_DEGREE,8,8,8);
+
+    std::vector<TSplineSurface<T> *> surfaces;
+    for (int i = 0; i < 6; i++)
+    {
+      TSplineSurface<T> *face = svolume.getFace(i);
+      surfaces.push_back(face);
+    }
+
+    // make boundaries
+    std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV;
+    for (int i = 0; i < int(surfaces.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> loop;
+      surfaces[i]->closeOuterBoundaryLoop(loop);
+
+      boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+      boundariesUV.back().push_back(loop);
+    }
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "solid box surfaces.iges");
+
+    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "solid box surfaces trimmed.iges");
+
+    bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "solid box.iges",NACAtolerance);
+
+    for (int i = 0; i < int(surfaces.size()); i++)
+    {
+      DELETE_CLASS(surfaces[i]);
+    }
+  }
+
+  /*****************************************************************************
+    5.4 Blocks : solid : surface of revolution with a wing
+  *****************************************************************************/
+
+  cout << "5.4 Blocks : solid : surface of revolution with a wing" << endl;
+
+  {
   }
 
   double endtime = GetTime();

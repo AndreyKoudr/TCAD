@@ -129,6 +129,7 @@ Blocks
 
 - 5.1 Blocks : airfoil : preparing data to make an airfoil
 - 5.2 Blocks : airfoil : how to make an airfoil from camber surface and thickness
+- 5.3 Blocks : box : solid output
 
 Important parameters in main.cpp
 ================================
@@ -164,7 +165,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Doing blocks.<br /> 
+Doing blocks, solids.<br /> 
 
 
 

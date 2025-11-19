@@ -739,12 +739,12 @@ public:
     this->cpoints.clear();
     this->cpoints.resize((this->K1 + 1) * (this->K2 + 1),TPoint<T>());
 
-    T usize = Usize(points);
-    T vsize = Vsize(points);
+//    T usize = Usize(points);
+//    T vsize = Vsize(points);
 
     // interpolate along shortest size
 
-    if (usize < vsize)
+    if (clampedstartU || clampedendU)
     {
       // interpolate rows from initial column control points
       for (int i = 0; i <= this->K2; i++)
