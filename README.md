@@ -2,7 +2,7 @@
 
 - (1) C++ templates
 - (2) As simple as all STLs
-- (3) All in front of you, no first-, second- or third-party libs, no millions of dlls
+- (3) All in front of you, no first-, second- or third-party libs, no millions of foreign dlls
 - (4) Interface is simple, mostly one-line code (see main.cpp with examples)
 - (5) Easy debugging, heavily commented
 - (6) Free to change
@@ -49,6 +49,9 @@ Files
     - tsplinevolume.h       - volume on B-spline basis
     
 - FFD.h                     - full FFD operation : distort shapes by setting point displacements
+
+- tedge.h                   - edges for solid model
+- tsolid.h                  - make edges and vertices for a solid model from surfaces and boundary loops
 
 Point
 =====

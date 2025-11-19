@@ -33,7 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   tsolid.h
 
   Construct edges and vertices for a solid model from spline surfaces and 
-  boundary lopps
+  boundary loops
 
 *******************************************************************************/
 

@@ -37,6 +37,9 @@
         tbeziervolume.h       - volume on Bezier basis, uniform parameterisation
     FFD :
       FFD.h             - full FFD operation : distort shapes by setting point displacements
+    SOLIDS :
+      tedge.h           - edges for solid model
+      tsolid.h          - make edges and vertices for a solid model from surfaces and boundary loops
 
   Auxilliary for debugging and export
     strings.h/cpp       - strings
