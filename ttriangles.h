@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ttransform.h"
 #include "tplane.h"
 #include "tjacobipoly.h"
+#include "tdata.h"
 // used to speedup triangle/triangle intersections by spacial partitioning
 #include "obackground.h"
 

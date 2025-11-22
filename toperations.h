@@ -115,7 +115,8 @@ template <class T> bool removeDuplicateNodes(std::vector<TPoint<T>> &points, T t
   higher than 10 as gamma function grows very quickly like factorial. You can create any curve 
   from the smoothed points. */
 template <class T> void smoothPointsByOrtho(std::vector<TPoint<T>> &points, 
-  CurveEndType start, CurveEndType end, int power = 8, int integration = GAUSSINT_8)
+  CurveEndType start, CurveEndType end, int power = 8, int integration = GAUSSINT_8, 
+  bool keependpoints = true)
 {
   // (1) prepare parameters by length to place new smoothed points to original 
   // parameteric positions
@@ -137,6 +138,12 @@ template <class T> void smoothPointsByOrtho(std::vector<TPoint<T>> &points,
   {
     TPoint<T> p = smoothed.derivative(parms[i],0);
     newpoints.push_back(p);
+  }
+
+  if (keependpoints)
+  {
+    newpoints.front() = points.front();
+    newpoints.back() = points.back();
   }
 
   // (5) return new smoothed points
@@ -170,6 +177,21 @@ template <class T> void smoothPointsByBezier(std::vector<TPoint<T>> &points,
     newpoints.push_back(p);
   }
 
+//!!!!!!!
+  //if (start == END_CLAMPED)
+  //{
+  //  TPoint<T> dir = +(startDirection(points));
+  //  T len = !(newpoints[1] - newpoints[0]);
+  //  newpoints[1] = newpoints[0] + dir * len;
+  //}
+
+  //if (end == END_CLAMPED)
+  //{
+  //  TPoint<T> dir = +(endDirection(points));
+  //  T len = !(newpoints[newpoints.size() - 1] - newpoints[newpoints.size() - 2]);
+  //  newpoints[newpoints.size() - 2] = newpoints[newpoints.size() - 1] + dir * len;
+  //}
+
   // (5) return new smoothed points
   points = newpoints;
 }
@@ -202,6 +224,21 @@ template <class T> void smoothPointsByBezierCurve(std::vector<TPoint<T>> &points
     TPoint<T> p = smoothed.derivative(parms[i],0);
     newpoints.push_back(p);
   }
+
+//!!!!!!!
+  //if (start == END_CLAMPED)
+  //{
+  //  TPoint<T> dir = +(startDirection(points));
+  //  T len = !(newpoints[1] - newpoints[0]);
+  //  newpoints[1] = newpoints[0] + dir * len;
+  //}
+
+  //if (end == END_CLAMPED)
+  //{
+  //  TPoint<T> dir = +(endDirection(points));
+  //  T len = !(newpoints[newpoints.size() - 1] - newpoints[newpoints.size() - 2]);
+  //  newpoints[newpoints.size() - 2] = newpoints[newpoints.size() - 1] + dir * len;
+  //}
 
   // (5) return new smoothed points
   points = newpoints;
@@ -240,115 +277,6 @@ template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points
 
   // (5) return new smoothed points
   points = newpoints;
-}
-
-/** Make NACA airfoil wing surface. */
-template <class T> void makeNACASurface(std::vector<std::vector<TPoint<T>>> &points,
-  int numspans, TPoint<T> resizecoef = TPoint<T>(1,1,1), T resizeX = 0.99, T resizeY = 0.99, T moveZ = -0.02, 
-  T dadegZ = -0.5, T dadegY = -0.5)
-{
-  points.clear();
-
-  // rescale to -0.5, +0.5]
-  std::vector<TPoint<T>> airfoil;
-  for (auto p : NACA0012xy<T>)
-  {
-    TPoint<T> pos(p.first - 0.5,p.second);
-    pos.X *= resizecoef.X;
-    pos.Y *= resizecoef.Y;
-    pos.Z *= resizecoef.Z;
-
-    airfoil.push_back(pos);
-  }
-
-  points.push_back(airfoil);
-
-  for (int i = 0; i < numspans - 1; i++)
-  {
-    TTransform<T> t;
-    t.Resize(TPoint<T>(resizeX,resizeY,1.0));
-    t.Rotate(TPoint<T>(0.0,0.0,1.0),dadegZ * CPI);
-    t.Translate(TPoint<T>(0.0,0.0,moveZ));
-    t.Rotate(TPoint<T>(0.0,1.0,0.0),dadegY * CPI);
-
-    for (int j = 0; j < int(airfoil.size()); j++)
-    {
-      airfoil[j] = t.applyTransform(airfoil[j]);
-    }
-
-    points.push_back(airfoil);
-  }
-}
-
-/** Make cylinder points with elliptical cross-sections in XY plane with axis along Z. */
-template <class T> void makeCylinder(int numsections, T Zmin, T Zmax, int numpoints, T a, T b, 
-  std::vector<std::vector<TPoint<T>>> &points, T adegfrom = 0.0, T adegto = 180.0)
-{
-  T dZ = (Zmax - Zmin) / T(numsections - 1);
-  for (int i = 0; i < numsections; i++)
-  {
-    T Z = Zmin + dZ * T(i);
-
-    std::vector<TPoint<T>> section;
-    makeEllipseXY(numpoints,TPoint<T>(),a,b,section,adegfrom,adegto);
-
-    TTransform<T> t;
-    t.Translate(TPoint<T>(0.0,0.0,Z));
-    makeTransform(section,&t);
-
-    points.push_back(section);
-  }
-}
-
-/** Make airfoil from camber surface and thickness. Camber surface and thickness must have 
-  the same number of points in both directions, numbered first along U (chord), then along V.
-  The tickness must be zero at U = 0 and U = 1. */
-template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberpoints,
-  std::vector<std::vector<T>> &thickness, std::vector<TSplineSurface<T> *> &surfaces, 
-  int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE, 
-  CurveEndType startU = END_CLAMPED, CurveEndType endU = END_FREE,
-  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
-{
-  assert(camberpoints.size() == thickness.size());
-  assert(camberpoints[0].size() == thickness[0].size());
-
-  surfaces.clear();
-
-  int K1 = int(camberpoints[0].size()) - 1;
-  int K2 = int(camberpoints.size()) - 1;
-
-  // make camber surface to calculate normals, the surfaces parametrisation is by numbers
-  TPointSurface<T> cambersurface(camberpoints,true,true);
-
-  std::vector<std::vector<TPoint<T>>> upperpoints,lowerpoints;
-
-  for (int i = 0; i <= K2; i++)
-  {
-    T V = T(i) / T(K2);
-
-    upperpoints.push_back(std::vector<TPoint<T>>());
-    lowerpoints.push_back(std::vector<TPoint<T>>());
-    for (int j = 0; j <= K1; j++)
-    {
-      T U = T(j) / T(K1);
-
-      TPoint<T> pos = cambersurface.position(U,V);
-      TPoint<T> derU = cambersurface.derivative(U,V,PARAMETER_U,1);
-      TPoint<T> derV = cambersurface.derivative(U,V,PARAMETER_V,1);
-      TPoint<T> normal = (+(derU ^ derV)) * (thickness[i][j] * 0.5); //!!! half thickness
-
-      upperpoints.back().push_back(pos + normal);
-      lowerpoints.back().push_back(pos - normal);
-    }
-  }
-
-  reverseRows(lowerpoints);
-
-  TSplineSurface<T> *upper = new TSplineSurface<T>(upperpoints,M1,M2,startU,endU,startV,endV);
-  TSplineSurface<T> *lower = new TSplineSurface<T>(lowerpoints,M1,M2,startU,endU,startV,endV);
-
-  surfaces.push_back(upper);
-  surfaces.push_back(lower);
 }
 
 }

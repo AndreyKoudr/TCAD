@@ -145,6 +145,8 @@
     <ClInclude Include="tbeziercurve.h" />
     <ClInclude Include="tbeziersurface.h" />
     <ClInclude Include="tbeziervolume.h" />
+    <ClInclude Include="tblocks.h" />
+    <ClInclude Include="tdata.h" />
     <ClInclude Include="tgaussint.h" />
     <ClInclude Include="tjacobipoly.h" />
     <ClInclude Include="tlsqfitting.h" />

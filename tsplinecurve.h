@@ -204,12 +204,14 @@ public:
       approximatePoints(kpoints);
     }
 
-    if (clampedstart)
+    T len = calculateLength<T>(points);
+
+    if (clampedstart && len > TOLERANCE(T))
     {
       setClampedStart(points);
     }
 
-    if (clampedend)
+    if (clampedend && len > TOLERANCE(T))
     {
       setClampedEnd(points);
     }

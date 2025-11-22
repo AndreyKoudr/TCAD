@@ -30,6 +30,9 @@
     <Filter Include="VOLUMES">
       <UniqueIdentifier>{b7e7c482-8f8b-46e7-aa95-001702a9b9bb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="BLOCKS">
+      <UniqueIdentifier>{717b16f6-7a39-4b38-88ba-104762539878}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -152,9 +155,15 @@
       <Filter>VOLUMES</Filter>
     </ClInclude>
     <ClInclude Include="tsolid.h">
-      <Filter>OPERATIONS</Filter>
+      <Filter>BLOCKS</Filter>
     </ClInclude>
     <ClInclude Include="tedge.h">
+      <Filter>BLOCKS</Filter>
+    </ClInclude>
+    <ClInclude Include="tblocks.h">
+      <Filter>BLOCKS</Filter>
+    </ClInclude>
+    <ClInclude Include="tdata.h">
       <Filter>OPERATIONS</Filter>
     </ClInclude>
   </ItemGroup>

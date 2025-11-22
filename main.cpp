@@ -49,6 +49,7 @@
 
 // you can only use high-level operations
 #include "toperations.h"
+#include "tblocks.h"
 
 #include "ttriangles.h"
 #include "tbasesurface.h"
@@ -58,6 +59,7 @@
 #include "tsplinesurface.h" 
 #include "tbeziervolume.h" 
 #include "tsplinevolume.h" 
+#include "tdata.h" 
 #include "FFD.h" 
 
 // this stuff is for export and debugging
@@ -1470,7 +1472,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 5 : blocks, various useful geometries" << endl;
+  cout << "    Part 5 : BLOCKS" << endl;
 
   /*****************************************************************************
     5.1 Blocks : airfoild : preparing data to make an airfoil
@@ -1616,12 +1618,31 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.4 Blocks : solid : surface of revolution with a wing
+    5.4 Blocks : blade
   *****************************************************************************/
 
-  cout << "5.4 Blocks : solid : surface of revolution with a wing" << endl;
+  cout << "5.4 Blocks : blade" << endl;
 
   {
+    T subL = 74.0;
+    T tolerance = subL * PARM_TOLERANCE;
+
+    std::vector<TPoint<T>> upperlower; 
+    std::pair<T,T> res = makeAirfoilPointsXY<T>(E178<T>,true,false,50,upperlower);
+
+    std::vector<std::vector<TPoint<T>>> camberpoints; 
+    std::vector<std::vector<T>> thickness;
+    makeBladeCamberThickness<T>(upperlower,KiloBlade<T>,50,20,camberpoints,thickness,tolerance); 
+
+    std::vector<TSplineSurface<T> *> surfaces;
+    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE); 
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo propeller surfaces.iges");
+
+    for (int i = 0; i < int(surfaces.size()); i++)
+    {
+      DELETE_CLASS(surfaces[i]);
+    }
   }
 
   double endtime = GetTime();

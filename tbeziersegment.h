@@ -201,8 +201,22 @@ public:
   /** LSQ constructor over points. */
   TBezierSegment(std::vector<TPoint<T>> &points, CurveEndType start, CurveEndType end, 
     bool orthogonalLSQ = true) : 
-  TBezierSegment(points,(start == END_FIXED),(end == END_FIXED),orthogonalLSQ)
+  TBezierSegment(points,(start == END_FIXED || start == END_CLAMPED),
+    (end == END_FIXED || end == END_CLAMPED),orthogonalLSQ)
   {
+    if (start == END_CLAMPED)
+    {
+      TPoint<T> dir = +(startDirection(points));
+      T len = !(this->cpoints[1] - this->cpoints[0]);
+      this->cpoints[1] = this->cpoints[0] + dir * len;
+    }
+
+    if (end == END_CLAMPED)
+    {
+      TPoint<T> dir = +(endDirection(points));
+      T len = !(this->cpoints[3] - this->cpoints[2]);
+      this->cpoints[2] = this->cpoints[3] + dir * len;
+    }
   }
 
   /** Constructor : cut part from another segment. */
@@ -261,7 +275,7 @@ public:
   /** Constructor : cut part from two points and two directions. len is segment length, 
     dirs are normalized. */
   TBezierSegment(TPoint<T> p0, TPoint<T> p1, TPoint<T> dir0, TPoint<T> dir1, T len) :
-    TBaseCurve()
+    TBaseCurve<T>()
   {
     this->cpoints.resize(4);
 

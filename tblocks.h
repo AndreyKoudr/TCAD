@@ -1,0 +1,522 @@
+/**
+BSD 2-Clause License
+
+Copyright (c) 2025, Andrey Kudryavtsev (andrewkoudr@hotmail.com)
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/*******************************************************************************
+
+  Templated CAD
+
+  tblocks.h
+
+  Making (solid) blocks like a surface of revolution, airfoil etc.
+
+*******************************************************************************/
+
+#pragma once
+
+#include "tpoints.h"
+#include "tmisc.h"
+#include "tjacobipoly.h"
+#include "tsplinesurface.h"
+#include "toperations.h"
+
+
+#define DEBUG_BLOCKS
+#ifdef NDEBUG
+  #undef DEBUG_BLOCKS
+#endif
+
+#ifdef DEBUG_BLOCKS
+  #include "export.h"
+#endif
+
+namespace tcad {
+
+/** Make NACA airfoil wing surface. */
+template <class T> void makeNACASurface(std::vector<std::vector<TPoint<T>>> &points,
+  int numspans, TPoint<T> resizecoef = TPoint<T>(1,1,1), T resizeX = 0.99, T resizeY = 0.99, T moveZ = -0.02, 
+  T dadegZ = -0.5, T dadegY = -0.5)
+{
+  points.clear();
+
+  // rescale to -0.5, +0.5]
+  std::vector<TPoint<T>> airfoil;
+  for (auto p : NACA0012xy<T>)
+  {
+    TPoint<T> pos(p.first - 0.5,p.second);
+    pos.X *= resizecoef.X;
+    pos.Y *= resizecoef.Y;
+    pos.Z *= resizecoef.Z;
+
+    airfoil.push_back(pos);
+  }
+
+  points.push_back(airfoil);
+
+  for (int i = 0; i < numspans - 1; i++)
+  {
+    TTransform<T> t;
+    t.Resize(TPoint<T>(resizeX,resizeY,1.0));
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),dadegZ * CPI);
+    t.Translate(TPoint<T>(0.0,0.0,moveZ));
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),dadegY * CPI);
+
+    for (int j = 0; j < int(airfoil.size()); j++)
+    {
+      airfoil[j] = t.applyTransform(airfoil[j]);
+    }
+
+    points.push_back(airfoil);
+  }
+}
+
+/** Make cylinder points with elliptical cross-sections in XY plane with axis along Z. */
+template <class T> void makeCylinder(int numsections, T Zmin, T Zmax, int numpoints, T a, T b, 
+  std::vector<std::vector<TPoint<T>>> &points, T adegfrom = 0.0, T adegto = 180.0)
+{
+  T dZ = (Zmax - Zmin) / T(numsections - 1);
+  for (int i = 0; i < numsections; i++)
+  {
+    T Z = Zmin + dZ * T(i);
+
+    std::vector<TPoint<T>> section;
+    makeEllipseXY(numpoints,TPoint<T>(),a,b,section,adegfrom,adegto);
+
+    TTransform<T> t;
+    t.Translate(TPoint<T>(0.0,0.0,Z));
+    makeTransform(section,&t);
+
+    points.push_back(section);
+  }
+}
+
+/** Make 3D airfoil (blade) from camber surface and thickness. Camber surface and thickness must have 
+  the same number of points in both directions, numbered first along U (chord), then along V.
+  The tickness must be zero at U = 0 and U = 1. */
+template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberpoints,
+  std::vector<std::vector<T>> &thickness, std::vector<TSplineSurface<T> *> &surfaces, 
+  int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE, 
+  CurveEndType startU = END_CLAMPED, CurveEndType endU = END_FREE,
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
+{
+  assert(camberpoints.size() == thickness.size());
+  assert(camberpoints[0].size() == thickness[0].size());
+
+  surfaces.clear();
+
+  int K1 = int(camberpoints[0].size()) - 1;
+  int K2 = int(camberpoints.size()) - 1;
+
+  // make camber surface to calculate normals, the surfaces parametrisation is by numbers
+  TPointSurface<T> cambersurface(camberpoints,true,true);
+
+  std::vector<std::vector<TPoint<T>>> upperpoints,lowerpoints;
+
+  for (int i = 0; i <= K2; i++)
+  {
+    T V = T(i) / T(K2);
+
+    upperpoints.push_back(std::vector<TPoint<T>>());
+    lowerpoints.push_back(std::vector<TPoint<T>>());
+    for (int j = 0; j <= K1; j++)
+    {
+      T U = T(j) / T(K1);
+
+      TPoint<T> pos = cambersurface.position(U,V);
+      TPoint<T> derU = cambersurface.derivative(U,V,PARAMETER_U,1);
+      TPoint<T> derV = cambersurface.derivative(U,V,PARAMETER_V,1);
+      TPoint<T> normal = (+(derU ^ derV)) * (thickness[i][j] * 0.5); //!!! half thickness
+
+      upperpoints.back().push_back(pos + normal);
+      lowerpoints.back().push_back(pos - normal);
+    }
+  }
+
+  reverseRows(lowerpoints);
+
+  // approximate
+#if 0
+  TSplineSurface<T> *upper = new TSplineSurface<T>(upperpoints,M1,M2,startU,endU,startV,endV);
+  TSplineSurface<T> *lower = new TSplineSurface<T>(lowerpoints,M1,M2,startU,endU,startV,endV);
+#else
+  TSplineSurface<T> *upper = new TSplineSurface<T>(upperpoints,K1,M1,K2,M2,startU,endU,startV,endV);
+  TSplineSurface<T> *lower = new TSplineSurface<T>(lowerpoints,K1,M1,K2,M2,endU,startU,startV,endV); // it was reversed
+#endif
+
+  surfaces.push_back(upper);
+  surfaces.push_back(lower);
+}
+
+/** Make airfoil from upper and lower surface coordinates. Points must be numbered from 
+  TE along upper surface, around LE, then along the lower surface back to TE, like in
+  http://airfoiltools.com/airfoil/details?airfoil=naca1410-il.
+  TE is supposed to have max X coordinate, LE - min X coordinate.
+  Output is single upperlower numpoints array with X from LE to TE contained as 
+  X of every point, Y as upper Y coordinate and Z(!) as lower(!) Y coordinate. 
+  Points near edges can be refined by setting endrefinementcoef < 1.0.
+  Only X,Y point components are valid. 
+  Points are approximated with orthogonal polynomials in x,y, not periodic, with
+  alpha,beta to treat infinite derivatives at edges.
+  Return is approximation accuracy for upper and lower surfaces. */
+template <class T> std::pair<T,T> makeAirfoilPointsXY(std::vector<TPoint<T>> &points,
+  bool roundLE, bool roundTE, int numpoints, std::vector<TPoint<T>> &upperlower,
+  int degree = 5, int integration = OTHER_INTEGRATION, T endrefinementcoef = 0.5)
+{
+  // divide points into two parts
+  TPoint<T> min,max,imin,imax;
+
+  if (!calculateMinMax<T>(points,&min,&max,&imin,&imax))
+  {
+    return std::pair<T,T>(-1.0,-1.0);
+  }
+
+  int LEindex = ROUND(imin.X);
+  T xmin = min.X;
+  T xmax = max.X;
+  T dx = xmax - xmin;
+
+  std::vector<TPoint<T>> tempupper,templower;
+
+  for (int i = LEindex; i >= 0; i--)
+  {
+    tempupper.push_back(points[i]);
+  }
+
+  for (int i = LEindex; i < int(points.size()); i++)
+  {
+    templower.push_back(points[i]);
+
+    // lower surface has negative Y, Jacoby poly does not like negative values
+    templower.back().Y *= -1.0;
+  }
+
+  // approximate both surfaces with ortho poly
+  TJacobiPoly<T> fu(roundTE ? 0.5 : 0.0,roundLE ? 0.5 : 0.0);
+
+  std::vector<T> x,y,z;
+  splitXYZ<T>(tempupper,x,y,z);
+
+  bool ok = fu.fit(degree,x,y,integration);
+  if (!ok)
+  {
+    return std::pair<T,T>(-1.0,-1.0);
+  }
+
+  T uaccuracy = fu.accuracy(x,y);
+
+  // now the lower surface
+  TJacobiPoly<T> fl(roundTE ? 0.5 : 0.0,roundLE ? 0.5 : 0.0);
+
+  splitXYZ<T>(templower,x,y,z);
+
+  ok = fl.fit(degree,x,y,integration);
+  if (!ok)
+  {
+    return std::pair<T,T>(-1.0,-1.0);
+  }
+
+  T laccuracy = fl.accuracy(x,y);
+
+  // now make actual points
+  for (int i = 0; i < numpoints; i++)
+  {
+    T U = T(i) / T(numpoints - 1);
+    T u = U * 2.0 - 1.0;
+    T un = pow(std::abs(u),endrefinementcoef) * sign(u);
+    U = (un + 1.0) * 0.5;
+
+    // this is X
+    T x = xmin + dx * U;
+
+    // y for upper and lower
+    T yu = fu.getValue(un);
+    T yl = fl.getValue(un);
+
+    // lower surface has negative Y, Jacoby poly does not like negative values
+    upperlower.push_back(TPoint<T>(x,yu,-yl));
+  }
+
+  // correct start/end just in case
+  upperlower.front() = TPoint<T>(points[LEindex].X,points[LEindex].Y,points[LEindex].Y);
+  upperlower.back() = TPoint<T>(points[0].X,points[0].Y,points[0].Y);
+
+  return std::pair<T,T>(uaccuracy,laccuracy);
+}
+
+/** Generate regular net in X,Y,Z (Z - span) of camber/thickness points for use in makeAirfoil(). 
+  The upperlower points can be generated by makeAirfoilPointsXY(). Every upperlower point contains 
+  X in X coordinate, upper Y in Y coordinate and lower Y in Z coordinate. The points go from LE 
+  (left, min X) to TE (max X). 
+  Middle line of contour of propeller blade in metres. Every point contains :
+  X - Z along span
+  Y - X(Z) of middle line 
+  Z - blade HALF-width from middle line
+  W - twist angle around middle curve in degrees. */
+template <class T> void makeBladeCamberThickness(std::vector<TPoint<T>> &upperlower, 
+  std::vector<TPoint<T>> &blade, int numchordpoints, int numspanpoints,
+  std::vector<std::vector<TPoint<T>>> &camberpoints, std::vector<std::vector<T>> &thickness,
+  T tolerance, bool smoothcontour = true)
+{
+  camberpoints.clear();
+  thickness.clear();
+
+  // blade tip is rounded
+  bool roundtip = (std::abs(blade.back().Z) < tolerance);
+
+  // middle points for middle line
+  std::vector<TPoint<T>> middlepoints;
+  // width on Z
+  std::vector<TPoint<T>> width;
+  // twist on Z
+  std::vector<TPoint<T>> twist;
+  for (auto &p : blade)
+  {
+    middlepoints.push_back(TPoint<T>(p.Y,0.0,p.X));
+    width.push_back(TPoint<T>(p.Z,0.0,p.X)); // half-width on Z
+    twist.push_back(TPoint<T>(p.W,0.0,p.X)); // twist on Z
+  }
+
+  // smooth 
+  if (smoothcontour)
+  {
+#if 1 //!!!!!!!
+    smoothPointsBySplineCurve(middlepoints,5,END_FIXED,END_FREE);
+    smoothPointsBySplineCurve(width,5,END_FIXED,END_FREE);
+    smoothPointsBySplineCurve(twist,5,END_FIXED,END_FREE);
+#else
+    smoothPointsByBezier(middlepoints,END_FIXED,END_FREE);
+    smoothPointsByBezier(width,END_FIXED,END_FREE);
+    smoothPointsByBezier(twist,END_FIXED,END_FREE);
+#endif
+  }
+
+#ifdef DEBUG_BLOCKS
+  {
+    std::vector<std::vector<TPoint<T>>> cpoints;
+    cpoints.push_back(middlepoints);
+    cpoints.push_back(width);
+    cpoints.push_back(twist);
+  
+    saveLinesIges(cpoints,"twist.iges");
+  }
+#endif
+
+  // now make camber and thickness
+  TSplineCurve<T> middlespline(middlepoints,SPLINE_DEGREE);
+  TSplineCurve<T> widthspline(width,SPLINE_DEGREE);
+  TSplineCurve<T> twistspline(twist,SPLINE_DEGREE);
+
+  // airfoil coordinates
+  std::vector<TPoint<T>> upper,lower;
+  for (auto &p : upperlower)
+  {
+    upper.push_back(TPoint<T>(p.X,p.Y));
+    lower.push_back(TPoint<T>(p.X,p.Z));
+  }
+
+  // we need dx to rescale
+  TPoint<T> umin,umax;
+  calculateMinMax<T>(upper,&umin,&umax);
+  TPoint<T> lmin,lmax;
+  calculateMinMax<T>(lower,&lmin,&lmax);
+  TPoint<T> min = pointMin<T>(umin,lmin);
+  TPoint<T> max = pointMax<T>(umax,lmax);
+
+  TPoint<T> centre = (min + max) * 0.5;
+  T dx = max.X - min.X;
+  T DW = 1.0 / T(numspanpoints - 1);
+
+  for (int k = 0; k < numspanpoints; k++)
+  {
+    if (roundtip && k == numspanpoints - 1)
+    {
+      // get actual contours from camber surface
+      std::vector<TPoint<T>> LE,TE;
+      getColumn<T>(camberpoints,0,LE);
+      getColumn<T>(camberpoints,int(camberpoints[0].size()) - 1,TE);
+
+      TPoint<T> dir0 = -(+(endDirection(LE)));
+      TPoint<T> dir1 = +(endDirection(TE));
+      TPoint<T> p0 = LE.back();
+      TPoint<T> p1 = TE.back();
+      T len = !(p1 - p0) * 1.5; //!!!!!!!
+
+      TBezierSegment<T> segment(p0,p1,dir0,dir1,len); 
+
+      std::vector<TPoint<T>> lpoints;
+
+      T margin = 0.01;
+      T Umin = margin;
+      T Umax = 1.0 - margin;
+      int numpoints = 10;
+      T DU = (Umax - Umin) / T(numpoints - 1);
+      for (int j = 0; j < numpoints; j++)
+      {
+        T U = Umin + T(j) * DU;
+        lpoints.push_back(segment.position(U));
+      }
+
+#ifdef DEBUG_BLOCKS
+      {
+        std::vector<std::vector<TPoint<T>>> cpoints;
+        cpoints.push_back(lpoints);
+  
+        saveLinesIges(cpoints,std::string("roundtip.iges"));
+      }
+#endif
+
+
+      TPointCurve<T> pupper(lpoints); 
+      TPointCurve<T> plower(lpoints);
+
+      camberpoints.push_back(std::vector<TPoint<T>>());
+      thickness.push_back(std::vector<T>());
+
+      for (int i = 0; i < numchordpoints; i++)
+      {
+        T U = T(i) / T(numchordpoints - 1);
+        TPoint<T> pu = pupper.position(U);
+        TPoint<T> pl = plower.position(U);
+
+        TPoint<T> p = (pu + pl) * 0.5;
+        camberpoints.back().push_back(p);
+        thickness.back().push_back(0.0);
+      }
+    } else
+    {
+      T W = T(k) / T(numspanpoints - 1);
+
+      // left and right LE/TE points
+      TPoint<T> p0,p1,dp;
+
+      // middle line direction
+      TPoint<T> mdir = +(middlespline.derivative(W,1));
+      // centre
+      TPoint<T> mc = middlespline.position(W);
+      // width in X
+      T halfwidth = widthspline.position(W).X;
+      // twist in X
+      T twistdeg = twistspline.position(W).X;
+
+      if (k == 0)
+      {
+        p0 = mc - TPoint<T>(halfwidth);
+        p1 = mc + TPoint<T>(halfwidth);
+        dp = p1 - p0;
+        // direction of middle line
+        mdir = +(dp ^ TPoint<T>(0.0,1.0,0.0));
+      } else
+      {
+        TPoint<T> move = +(mdir ^ TPoint<T>(0.0,1.0,0.0)) * halfwidth;
+        p0 = mc - move;
+        p1 = mc + move;
+        dp = p1 - p0;
+      }
+
+      // centre between lines
+      TPoint<T> c = (p0 + p1) * 0.5;
+      // rescale coefficient
+      T len = !dp;
+      T rescalecoef = len / dx;
+
+      // we now need to stretch upperlower points between p0 and p1
+      std::vector<TPoint<T>> tempupper = upper;
+      std::vector<TPoint<T>> templower = lower;
+
+      // apply transform to airfoil XY points
+      TTransform<T> t;
+      t.Translate(-centre);
+      t.Resize(TPoint<T>(rescalecoef,rescalecoef,rescalecoef));
+
+      // rotate ~around Z
+
+      // current normal in XY plane
+      TPoint<T> normal(0.0,0.0,1.0);
+
+      TPoint<T> rotaxisZ = +(normal ^ mdir);
+      T rotangleZ = normal < mdir;
+      t.Rotate(rotaxisZ,rotangleZ); 
+
+      makeTransform<T>(tempupper,&t);
+      makeTransform<T>(templower,&t);
+
+      // rotate ~around middle line by twist angle
+      t.LoadIdentity();
+      t.Rotate(mdir,twistdeg * CPI);
+
+      t.Translate(c);
+
+      makeTransform<T>(tempupper,&t);
+      makeTransform<T>(templower,&t);
+
+      TPointCurve<T> pupper(tempupper); 
+      TPointCurve<T> plower(templower);
+
+#ifdef DEBUG_BLOCKS
+      {
+        std::vector<std::vector<TPoint<T>>> cpoints;
+        cpoints.push_back(tempupper);
+        cpoints.push_back(templower);
+  
+        saveLinesIges(cpoints,std::string("tempupperlower") + to_string(k) + ".iges");
+      }
+#endif
+
+      camberpoints.push_back(std::vector<TPoint<T>>());
+      thickness.push_back(std::vector<T>());
+
+      if (numchordpoints == int(tempupper.size()))
+      {
+        for (int i = 0; i < numchordpoints; i++)
+        {
+          TPoint<T> pu = tempupper[i];
+          TPoint<T> pl = templower[i];
+
+          TPoint<T> p = (pu + pl) * 0.5;
+          T d = !(pu - pl);
+          camberpoints.back().push_back(p);
+          thickness.back().push_back(d);
+        }
+      } else
+      {
+        for (int i = 0; i < numchordpoints; i++)
+        {
+          T U = T(i) / T(numchordpoints - 1);
+          TPoint<T> pu = pupper.position(U);
+          TPoint<T> pl = plower.position(U);
+
+          TPoint<T> p = (pu + pl) * 0.5;
+          T d = !(pu - pl);
+          camberpoints.back().push_back(p);
+          thickness.back().push_back(d);
+        }
+      }
+    }
+  }
+}
+
+}

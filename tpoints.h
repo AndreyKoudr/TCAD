@@ -94,6 +94,17 @@ template <class T> std::vector<TPoint<T>> operator * (const std::vector<TPoint<T
   return points;
 }
 
+template <class T> std::vector<TPoint<T>> operator * (const std::vector<TPoint<T>> &points0, const T coef)
+{
+  std::vector<TPoint<T>> points;
+  for (int i = 0; i < int(points0.size()); i++)
+  {
+    points.push_back(points0[i] * coef);
+  }
+
+  return points;
+}
+
 /** Normalisation. */
 template <class T> std::vector<TPoint<T>> operator + (std::vector<TPoint<T>> &points0)
 {
