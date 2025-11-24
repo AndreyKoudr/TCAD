@@ -53,8 +53,12 @@ Files
 - tedge.h                   - edges for solid model
 - tsolid.h                  - make edges and vertices for a solid model from surfaces and boundary loops
 
+"How to" examples in main.cpp :
+===============================
+
 Point
 =====
+
   tpoint.h                  - 3-dimensional vector (0 parametric dimensions) point with ariphmetic operations
 
 Curves
