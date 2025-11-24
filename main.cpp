@@ -1093,7 +1093,7 @@ int main(int argc, char* argv[])
 
   saveSurfaceIges(&apsurface,DEBUG_DIR + "spline surface for cut by plane and trimming.iges");
 
-  // make plane by normal and point
+  // make plane by normal and point, the cut part is gonna be a triangle
   TPlane<T> tr1plane(TPoint<T>(0.7071,0.0,0.7071),TPoint<T>(0.0,0.0,-0.8));
 
   std::vector<std::vector<TPoint<T>>> tr1intersections; 
@@ -1105,13 +1105,32 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
 
   std::vector<std::vector<std::vector<TPoint<T>>>> tr1closedboundary;
-  std::vector<std::vector<TPoint<T>>> tr1loop;
-  bool tr1ok1 = apsurface.closeBoundaryLoop(tr1boundary,tr1loop,NACAtolerance);
-  tr1closedboundary.push_back(tr1loop);
+  bool tr1ok1 = apsurface.closeBoundaryLoop(tr1boundary,tr1closedboundary,NACAtolerance);
 
   assert(tr1ok1);
 
   saveTrimmedSurfaceIges(&apsurface,tr1closedboundary,DEBUG_DIR + "spline surface cut by plane 1 and trimmed.iges");
+
+  // similar more complicated case for loop construction
+  {
+    // make plane by normal and point, the cut part is gonna be a triangle
+    TPlane<T> tr1plane(TPoint<T>(0.7071,0.0,-0.7071),TPoint<T>(0.0,0.0,-0.2));
+
+    std::vector<std::vector<TPoint<T>>> tr1intersections; 
+    std::vector<std::vector<TPoint<T>>> tr1boundary;
+
+    // intersect is here
+    bool tr1ok = apsurface.intersectByPlane(tr1plane,tr1intersections,tr1boundary,
+      NACAtolerance,PARM_TOLERANCE,
+      MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
+
+    std::vector<std::vector<std::vector<TPoint<T>>>> tr1closedboundary;
+    bool tr1ok1 = apsurface.closeBoundaryLoop(tr1boundary,tr1closedboundary,NACAtolerance);
+
+    assert(tr1ok1);
+
+    saveTrimmedSurfaceIges(&apsurface,tr1closedboundary,DEBUG_DIR + "spline surface cut by plane 1a and trimmed.iges");
+  }
 
   // now we flip the plane normal and try again 
 
@@ -1127,9 +1146,7 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
 
   std::vector<std::vector<std::vector<TPoint<T>>>> tr2closedboundary;
-  std::vector<std::vector<TPoint<T>>> tr2loop;
-  bool tr2ok1 = apsurface.closeBoundaryLoop(tr2boundary,tr2loop,NACAtolerance);
-  tr2closedboundary.push_back(tr2loop);
+  bool tr2ok1 = apsurface.closeBoundaryLoop(tr2boundary,tr2closedboundary,NACAtolerance);
 
   assert(tr2ok1);
 
@@ -1159,9 +1176,7 @@ int main(int argc, char* argv[])
 
   // close boundary on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr3closedboundary0;
-  std::vector<std::vector<TPoint<T>>> tr3loop;
-  bool tr3ok1 = apsurface.closeBoundaryLoop(tr3boundary0,tr3loop,NACAtolerance);
-  tr3closedboundary0.push_back(tr3loop);
+  bool tr3ok1 = apsurface.closeBoundaryLoop(tr3boundary0,tr3closedboundary0,NACAtolerance);
 
   assert(tr3ok1);
 
@@ -1202,9 +1217,7 @@ int main(int argc, char* argv[])
 
   // close boundary on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr4closedboundary0;
-  std::vector<std::vector<TPoint<T>>> tr4loop;
-  bool tr4ok1 = apsurface.closeBoundaryLoop(tr4boundary0,tr4loop,NACAtolerance);
-  tr4closedboundary0.push_back(tr4loop);
+  bool tr4ok1 = apsurface.closeBoundaryLoop(tr4boundary0,tr4closedboundary0,NACAtolerance);
 
   assert(tr4ok1);
 
@@ -1222,9 +1235,7 @@ int main(int argc, char* argv[])
 
   // close boundary on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr5closedboundary0;
-  std::vector<std::vector<TPoint<T>>> tr5loop;
-  bool tr5ok1 = apsurfacelower.closeBoundaryLoop(tr5boundary0,tr5loop,NACAtolerance);
-  tr5closedboundary0.push_back(tr5loop);
+  bool tr5ok1 = apsurfacelower.closeBoundaryLoop(tr5boundary0,tr5closedboundary0,NACAtolerance);
 
   assert(tr5ok1);
 
@@ -1252,18 +1263,12 @@ int main(int argc, char* argv[])
 
   // close boundary (hole) on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr6closedboundary0;
-  std::vector<std::vector<TPoint<T>>> tr6loop;
-  bool tr6ok1 = cylsurface.closeBoundaryLoop(tr6boundary0,tr6loop,NACAtolerance);
-
-  tr6closedboundary0.push_back(tr6loop);
+  bool tr6ok1 = cylsurface.closeBoundaryLoop(tr6boundary0,tr6closedboundary0,NACAtolerance);
 
   assert(tr6ok1);
 
   // add outer boundary
   std::vector<std::vector<TPoint<T>>> tr6outerloop;
-
-  cylsurface.closeOuterBoundaryLoop(tr6outerloop);
-  tr6closedboundary0.push_back(tr6outerloop);
 
   saveTrimmedSurfaceIges(&cylsurface,tr6closedboundary0,DEBUG_DIR + "cylindrical surface cut by two airfoil parts and trimmed.iges");
 
@@ -1570,10 +1575,7 @@ int main(int argc, char* argv[])
 
     saveSurfacesIges(surfaces,DEBUG_DIR + "airfoil surfaces.iges");
 
-    for (int i = 0; i < int(surfaces.size()); i++)
-    {
-      DELETE_CLASS(surfaces[i]);
-    }
+    deleteSurfaces(surfaces);
   }
 
   /*****************************************************************************
@@ -1611,10 +1613,7 @@ int main(int argc, char* argv[])
 
     bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "solid box.iges",NACAtolerance);
 
-    for (int i = 0; i < int(surfaces.size()); i++)
-    {
-      DELETE_CLASS(surfaces[i]);
-    }
+    deleteSurfaces(surfaces);
   }
 
   /*****************************************************************************
@@ -1635,14 +1634,55 @@ int main(int argc, char* argv[])
     makeBladeCamberThickness<T>(upperlower,KiloBlade<T>,50,20,camberpoints,thickness,tolerance); 
 
     std::vector<TSplineSurface<T> *> surfaces;
-    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE); 
+    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE);
+
+    // rotate around Z
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),-90.0 * CPI); 
+    makeTransform<T>(surfaces,&t);
 
     saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo propeller surfaces.iges");
 
+    deleteSurfaces(surfaces);
+
+  /*****************************************************************************
+    5.5 Blocks : surfaces of revolution : propeller hub
+  *****************************************************************************/
+
+    cout << "5.5 Blocks : surfaces of revolution : propeller hub" << endl;
+
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(0.0,0.0,0.3)); 
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),+90.0 * CPI); 
+    makeTransform<T>(surfaces,&t);
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo propeller hub surfaces.iges");
+
+  /*****************************************************************************
+    5.6 Blocks : surfaces of revolution : propeller hub solid
+  *****************************************************************************/
+
+    cout << "5.6 Blocks : surfaces of revolution : propeller hub solid" << endl;
+
+    // make boundaries
+    std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV;
     for (int i = 0; i < int(surfaces.size()); i++)
     {
-      DELETE_CLASS(surfaces[i]);
+      std::vector<std::vector<TPoint<T>>> loop;
+      surfaces[i]->closeOuterBoundaryLoop(loop);
+
+      boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+      boundariesUV.back().push_back(loop);
     }
+
+    bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller hub solid.iges",tolerance);
+
+    deleteSurfaces(surfaces);
   }
 
   double endtime = GetTime();

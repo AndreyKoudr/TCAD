@@ -1341,13 +1341,82 @@ template <class T> void makeEllipseXY(int numpoints, TPoint<T> centre, T a, T b,
 {
   makeCircleXY(numpoints,TPoint<T>(0,0,0),a,points,adegfrom,adegto);
 
-  TTransform<T> t0;
-  t0.Resize(TPoint<T>(1.0,b / a,1.0));
-  makeTransform(points,&t0);
+  if (a > TOLERANCE(T))
+  {
+    TTransform<T> t0;
+    t0.Resize(TPoint<T>(1.0,b / a,1.0));
+    makeTransform(points,&t0);
+  }
 
   TTransform<T> t1;
   t1.Translate(centre);
   makeTransform(points,&t1);
+}
+
+/** Cut out piece of points from 0 to 1. Last possible seg1 must be points.size() - 2. */
+template <class T> void cutOut(std::vector<TPoint<T>> &points, int seg0, T U0, int seg1, T U1,
+  std::vector<TPoint<T>> &newpoints)
+{
+  if (seg1 == points.size() - 1)
+  {
+    seg1 = int(points.size()) - 2;
+    U1 = 1.0;
+  }
+
+  for (int i = seg0; i <= seg1; i++)
+  {
+    TPoint<T> p0 = points[i];
+    TPoint<T> p1 = points[i + 1];
+    TPoint<T> dp = p1 - p0;
+    TPoint<T> p = p0;
+
+    if (i == seg0)
+    {
+      p = p0 + dp * U0;
+    }
+
+    if (i == seg1)
+    {
+      p = p0 + dp * U1;
+    }
+
+    newpoints.push_back(p);
+  }
+}
+
+/** Divide points into pieces by duplicates. */
+template <class T> void divideByDuplicates(std::vector<TPoint<T>> &points,
+  std::vector<std::vector<TPoint<T>>> &loop, T tolerance)
+{
+  int start = 0; 
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    TPoint<T> p = points[i];
+
+    if (i < int(points.size()) - 1)
+    {
+      TPoint<T> p1 = points[i + 1];
+      T d = !(p1 - p);
+
+      if (d < tolerance)
+      {
+        std::vector<TPoint<T>> piece(points.begin() + start,points.begin() + i + 1);
+        if (!piece.empty())
+        {
+          loop.push_back(piece);
+        }
+
+        start = i + 1;
+      }
+    } else
+    {
+      std::vector<TPoint<T>> piece(points.begin() + start,points.end());
+      if (!piece.empty())
+      {
+        loop.push_back(piece);
+      }
+    }
+  } 
 }
 
 }

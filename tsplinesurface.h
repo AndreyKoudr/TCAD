@@ -386,7 +386,7 @@ public:
       this->getRow(i,temp);
 
       // approximate them along U
-      TSplineCurve<T> curve(temp,this->M1,start,end);
+      TSplineCurve<T> curve(temp,this->M1,start,end); //!!! exact
 
       if (start)
         curve.setClampedStart(der0);

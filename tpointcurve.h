@@ -530,6 +530,12 @@ public:
     return index;
   }
 
+  /** Length. */
+  T length()
+  {
+    return len;
+  }
+
 public:
 
   // parameterisation by numbers or by length

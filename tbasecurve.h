@@ -232,7 +232,7 @@ public:
   } 
 
   /** Find all intersections with another curve. */
-  template <class T> int findIntersections(TBaseCurve<T> &other,  std::vector<TPoint<T>> &UV, 
+  template <class T> int findIntersections(TBaseCurve<T> &other, std::vector<TPoint<T>> &UV, 
     T tolerance, T parmtolerance = PARM_TOLERANCE, int numpoints = MANY_POINTS)
   {
     std::vector<TPoint<T>> points,otherpoints;

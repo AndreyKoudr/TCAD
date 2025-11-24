@@ -279,4 +279,24 @@ template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points
   points = newpoints;
 }
 
+/** Transform list of surfaces. */
+template <class T> void makeTransform(std::vector<TSplineSurface<T> *> &surfaces, TTransform<T> *t)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    surfaces[i]->makeTransform(t);
+  }
+}
+
+/** Delete surfaces. */
+template <class T> void deleteSurfaces(std::vector<TSplineSurface<T> *> &surfaces)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    DELETE_CLASS(surfaces[i]);
+  }
+
+  surfaces.clear();
+}
+
 }

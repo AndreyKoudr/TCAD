@@ -242,4 +242,26 @@ template <class T> std::vector<TPoint<T>> KiloBlade = {
   TPoint<T>(1.57,  0.33,    0.0,    -0.375)
 };
 
+/** Kilo propeller hub in Z-X coordinates. */
+template <class T> std::vector<TPoint<T>> KiloPropHub = {
+  TPoint<T>(0.0,    0.0,    -1.1),
+  TPoint<T>(0.13,   0.0,    -1.0),
+  TPoint<T>(0.178,  0.0,    -0.9),
+  TPoint<T>(0.205,  0.0,    -0.8),
+  TPoint<T>(0.222,  0.0,    -0.7),
+  TPoint<T>(0.236,  0.0,    -0.6),
+  TPoint<T>(0.24,   0.0,    -0.5),
+  TPoint<T>(0.24,   0.0,    -0.4),
+  TPoint<T>(0.24,   0.0,    -0.3),
+  TPoint<T>(0.24,   0.0,    -0.2),
+  TPoint<T>(0.24,   0.0,    -0.1),
+  TPoint<T>(0.24,   0.0,     0.0)
+};
+
+/** Kilo propeller hub end in Z-X coordinates. */
+template <class T> std::vector<TPoint<T>> KiloPropHubEnd = {
+  TPoint<T>(0.24,   0.0,     0.0),
+  TPoint<T>(0.0,    0.0,     0.0)
+};
+
 }

@@ -45,7 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "toperations.h"
 
 
-#define DEBUG_BLOCKS
+//#define DEBUG_BLOCKS
 #ifdef NDEBUG
   #undef DEBUG_BLOCKS
 #endif
@@ -518,5 +518,74 @@ template <class T> void makeBladeCamberThickness(std::vector<TPoint<T>> &upperlo
     }
   }
 }
+
+/** Make surface of revolution points with elliptical cross-sections in XY plane 
+  with axis along Z. The contour must be defined in Z-X coordinates, normally
+  with decreasing Z. numpoints is that along circumference. 
+  U is along circumference from adegfrom to adegto, V along axis of symmetry Z. */
+template <class T> void makeSurfaceOfRevolution(std::vector<TPoint<T>> &contour, 
+  int numpoints, T adegfrom, T adegto, std::vector<std::vector<TPoint<T>>> &points)
+{
+  int numsections = int(contour.size());
+
+  for (int i = 0; i < numsections; i++)
+  {
+    T r = contour[i].X;
+
+    std::vector<TPoint<T>> section;
+    makeEllipseXY(numpoints,TPoint<T>(),r,r,section,adegfrom,adegto);
+
+    TTransform<T> t;
+    t.Translate(TPoint<T>(0.0,0.0,contour[i].Z));
+    makeTransform(section,&t);
+
+    points.push_back(section);
+  }
+}
+
+/** Make surface of revolution around Z (single face). 
+  The contour must be defined in Z-X coordinates,
+  normally with decreasing Z. numpoints is that along circumference. 
+  U is circumferential, V - along Z axis. */
+template <class T> TSplineSurface<T> *makeSurfaceOfRevolution(std::vector<TPoint<T>> &contour,
+  int numpoints, T adegfrom, T adegto, int K1, int K2, 
+  int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
+  CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
+{
+  std::vector<std::vector<TPoint<T>>> points;
+  makeSurfaceOfRevolution(contour,numpoints,adegfrom,adegto,points);
+
+  // create cylindrical surface
+  TSplineSurface<T> *surface = new TSplineSurface<T>(points,K1,M1,K2,M2,
+    startU,endU,startV,endV);
+
+  return surface;
+}
+
+/** Make surfaces of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
+  The contour must be defined in Z-X coordinates,
+  normally with decreasing Z. numfaces is that along circumference. 
+  U is circumferential, V - along Z axis. */
+template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour,
+  int numfaces, int pointsperface, int K1, int K2, 
+  std::vector<TSplineSurface<T> *> &surfaces, 
+  int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
+  CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
+{
+  T da = 360.0 / T(numfaces);
+  for (int i = 0; i < numfaces; i++)
+  {
+    T a0 = T(i) * da;
+    T a1 = T(i + 1) * da;
+
+    TSplineSurface<T> *surface = makeSurfaceOfRevolution(contour,
+      pointsperface,a1,a0,K1,K2,M1,M2,startU,endU,startV,endV);
+
+    surfaces.push_back(surface);
+  }
+}
+
 
 }

@@ -128,6 +128,12 @@ template <typename T> bool intersectSegmentsXY(T X1, T Y1, T X2, T Y2, T X3, T Y
 template <class T> bool intersectSegments(TPoint<T> p0, TPoint<T> p1, TPoint<T> v0, TPoint<T> v1,
   T &l, T &m, T &dist, TPoint<T> *ip = nullptr, TPoint<T> *iv = nullptr)
 {
+  TPoint<T> dp = p1 - p0;
+  TPoint<T> dv = v1 - v0;
+
+  if (!dp < TOLERANCE(T) || !dv < TOLERANCE(T))
+    return false;
+
   l = m = dist = 0.0;
 
   TPoint<T> a = p0;

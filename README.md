@@ -135,6 +135,9 @@ Blocks
 - 5.3 Blocks : box : solid output
 - 5.4 Blocks : blade<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Blade.png)
+- 5.5 Blocks : surfaces of revolution : propeller hub
+- 5.6 Blocks : surfaces of revolution : propeller hub solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hub_solid.png)
 
 Important parameters in main.cpp
 ================================

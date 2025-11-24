@@ -323,7 +323,7 @@ template <class T> void addIges510(std::vector<std::string> &lines, int surfaceD
   addIgesString(lines,to_string(510),dirline,count,igesstr);
   addIgesString(lines,to_string(surfaceDE),dirline,count,igesstr);
   addIgesString(lines,to_string(int(loopDEs.size())),dirline,count,igesstr);
-  addIgesString(lines,to_string(1),dirline,count,igesstr); 
+  addIgesString(lines,to_string(1),dirline,count,igesstr); // the first loop is the outer
 //  addIgesString(lines,to_string(0),dirline,count,igesstr); //!!! no outer loop is identified
   for (int i = 0; i < int(loopDEs.size()); i++)
   {

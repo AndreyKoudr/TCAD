@@ -125,8 +125,11 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
         vertices.push_back(e);
         middlevertices.push_back(m);
 
-        edges.push_back(std::array<LINT,3>{(LINT) vertices.size() - 2,(LINT) vertices.size() - 1,(LINT) middlevertices.size() - 1});
-        edgelocations.push_back(std::array<LINT,4>{i,j,k,0});
+        if (curve.length() > tolerance)
+        {
+          edges.push_back(std::array<LINT,3>{(LINT) vertices.size() - 2,(LINT) vertices.size() - 1,(LINT) middlevertices.size() - 1});
+          edgelocations.push_back(std::array<LINT,4>{i,j,k,0});
+        }
       } // boundary part (curve)
     } // loops
   } // surfaces
