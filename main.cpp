@@ -1417,7 +1417,7 @@ int main(int argc, char* argv[])
     4.1 FFD : distort wing shape by displacement of two points
   *****************************************************************************/
 
-  cout << "FFD : distort wing shape by displacement of two points" << endl;
+  cout << "4.1 FFD : distort wing shape by displacement of two points" << endl;
 
   {
     // make a upper/lower airfoil surfaces
@@ -1681,6 +1681,104 @@ int main(int argc, char* argv[])
     }
 
     bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller hub solid.iges",tolerance);
+
+    deleteSurfaces(surfaces);
+  }
+
+  /*****************************************************************************
+    5.7 Blocks : propeller, trimmed and solid
+  *****************************************************************************/
+
+  cout << "5.7 Blocks : propeller, trimmed and solid" << endl;
+
+  {
+    T propR = 1.3;
+    T tolerance = propR * PARM_TOLERANCE;
+
+    // blade
+
+    std::vector<TPoint<T>> upperlower; 
+    std::pair<T,T> res = makeAirfoilPointsXY<T>(E178<T>,true,false,50,upperlower);
+
+    std::vector<std::vector<TPoint<T>>> camberpoints; 
+    std::vector<std::vector<T>> thickness;
+    makeBladeCamberThickness<T>(upperlower,KiloBlade<T>,50,20,camberpoints,thickness,tolerance); 
+
+    std::vector<TSplineSurface<T> *> surfaces;
+    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE);
+
+    // rotate around Z
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),-90.0 * CPI); 
+    makeTransform<T>(surfaces,&t);
+
+    int numblades = 7;
+    T da = 360.0 / T(numblades);
+
+    for (int i = 1; i < numblades; i++)
+    {
+      TSplineSurface<T> *blade0 = new TSplineSurface<T>(*surfaces[0]);
+      TSplineSurface<T> *blade1 = new TSplineSurface<T>(*surfaces[1]);
+
+      T a = T(i) * da;
+
+      TTransform<T> t;
+      t.Rotate(TPoint<T>(1.0,0.0,0.0),a * CPI); 
+      blade0->makeTransform(&t);
+      blade1->makeTransform(&t);
+
+      surfaces.push_back(blade0);
+      surfaces.push_back(blade1);
+    }
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo propeller surfaces 1.iges");
+
+    std::vector<TSplineSurface<T> *> hsurfaces;
+
+    // + hub
+#if 0 //!!!!!!!
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+#else
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+#endif
+
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(0.0,0.0,0.3)); 
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),+90.0 * CPI); 
+    makeTransform<T>(hsurfaces,&t);
+
+    saveSurfacesIges(hsurfaces,DEBUG_DIR + "Kilo propeller surfaces 2.iges");
+
+    // make boundaries
+    std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV;
+    std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV1;
+
+    // mutual intersections between faces, in peocess, estimate big tolerance as max
+    // difference between boundaty curves
+    T bigtolerance = 0.0;
+    makeSolid(surfaces,hsurfaces,boundariesUV,boundariesUV1,tolerance,bigtolerance);
+
+    saveTrimmedSurfaceIges(surfaces[1],boundariesUV[1],DEBUG_DIR + "Kilo propeller surface 1 trimmed.iges");
+
+    surfaces.insert(surfaces.end(),hsurfaces.begin(),hsurfaces.end());
+    boundariesUV.insert(boundariesUV.end(),boundariesUV1.begin(),boundariesUV1.end());
+
+    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces trimmed.iges");
+
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller solid.iges",
+      bigtolerance * 10.0,SPLINE_DEGREE,18,&badedges); //!!!!!!!
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
 
     deleteSurfaces(surfaces);
   }

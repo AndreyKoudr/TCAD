@@ -142,6 +142,8 @@ Blocks
 - 5.5 Blocks : surfaces of revolution : propeller hub
 - 5.6 Blocks : surfaces of revolution : propeller hub solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hub_solid.png)
+- 5.7 Blocks : propeller, trimmed and solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_propeller_solid.png)
 
 Important parameters in main.cpp
 ================================
@@ -177,7 +179,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Doing blocks, solids.<br /> 
+Doing blocks, improving solid construction.<br /> 
 
 
 

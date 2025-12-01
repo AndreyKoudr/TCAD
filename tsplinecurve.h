@@ -248,7 +248,7 @@ public:
     T tk1 = Uknots[k] - Uknots[1];
     TPoint<T> p1p0 = (+dir) * (tk1 / k1);
     this->cpoints[1] = this->cpoints[0] + p1p0 * len;
-//!!!!!!!    this->cpoints[1] = this->cpoints[0] + p1p0;
+//!!!!!!    this->cpoints[1] = this->cpoints[0] + p1p0;
   }
 
   /** Set first derivative at curve starting end from points. It moves control point 1. 
@@ -275,7 +275,7 @@ public:
     T tk1 = Uknots[K1 + k - 1] - Uknots[K1];
     TPoint<T> pnpn1 = (+dir) * (tk1 / k1); 
     this->cpoints[n1] = this->cpoints[n0] + pnpn1 * len;
-//!!!!!!!    this->cpoints[n1] = this->cpoints[n0] + pnpn1;
+//!!!!!!    this->cpoints[n1] = this->cpoints[n0] + pnpn1;
   }
 
   /** Set first derivative at curve end from points. It moves control point cpoints.size() - 2. */

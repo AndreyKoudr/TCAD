@@ -60,6 +60,8 @@ public:
   {
     this->K1 = other.K1;
     this->K2 = other.K2;
+    this->M1 = other.M1;
+    this->M2 = other.M2;
     this->cpoints = other.cpoints;
 
     interpolate = other.interpolate;
@@ -78,6 +80,8 @@ public:
   {
     this->K1 = other.K1;
     this->K2 = other.K2;
+    this->M1 = other.M1;
+    this->M2 = other.M2;
     this->cpoints = other.cpoints;
 
     interpolate = other.interpolate;

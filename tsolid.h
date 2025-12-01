@@ -91,7 +91,7 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, 
   std::map<std::array<LINT,3>,std::vector<std::array<LINT,4>>,TEdgeCompare<T>> &edgemap,
-  T tolerance)
+  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   // step 1 : make vertices and middlevertices
   vertices.clear();
@@ -117,16 +117,16 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
 
         TPointCurve<T> curve(points);
 
-        TPoint<T> s = curve.start();
-        TPoint<T> e = curve.end();
-        TPoint<T> m = curve.middle();
-
-        vertices.push_back(s);
-        vertices.push_back(e);
-        middlevertices.push_back(m);
-
         if (curve.length() > tolerance)
         {
+          TPoint<T> s = curve.start();
+          TPoint<T> e = curve.end();
+          TPoint<T> m = curve.middle();
+
+          vertices.push_back(s);
+          vertices.push_back(e);
+          middlevertices.push_back(m);
+
           edges.push_back(std::array<LINT,3>{(LINT) vertices.size() - 2,(LINT) vertices.size() - 1,(LINT) middlevertices.size() - 1});
           edgelocations.push_back(std::array<LINT,4>{i,j,k,0});
         }
@@ -192,6 +192,19 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
 
   int n = findBadEdges(edgemap,badedges);
 
+  if (n && pbadedges != nullptr)
+  {
+    for (int k = 0; k < int(badedges.size()); k++)
+    {
+      std::vector<TPoint<T>> points;
+      points.push_back(vertices[badedges[k][0]]);
+      points.push_back(middlevertices[badedges[k][2]]);
+      points.push_back(vertices[badedges[k][1]]);
+      
+      pbadedges->push_back(points);
+    }
+  }
+
   return (n == 0);
 }
 
@@ -219,13 +232,13 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, 
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance)
+  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   edges.clear();
 
   std::map<std::array<LINT,3>,std::vector<std::array<LINT,4>>,TEdgeCompare<T>> edgemap;
 
-  if (!createSolidEdges<T>(surfaces,boundariesUV,vertices,middlevertices,edgemap,tolerance))
+  if (!createSolidEdges<T>(surfaces,boundariesUV,vertices,middlevertices,edgemap,tolerance,pbadedges))
     return false;
 
   // only two faces per edge are allowed here

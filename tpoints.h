@@ -1133,6 +1133,192 @@ template <class T> bool comparePoint(TPoint<T> p1, TPoint<T> p2)
   }
 }
 
+/** Sort two long integers. */
+static int TwoIntSort(const void *E0, const void *E1)
+{
+  LINT *i0 = (LINT *) E0;
+  LINT *i1 = (LINT *) E1;
+
+  if (*i0 > *i1) 
+  {
+    return +1; 
+  } else if (*i0 < *i1)
+  {
+    return -1; 
+  } else 
+  {
+    return 0;
+  }
+}
+
+/** Exclude duplicates from 3D array (fast and reliable) */
+template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points, 
+  std::vector<LINT> &replacement, T tolerance)
+{
+                              // list is empty
+  if (points.size() < 1) 
+    return true;
+                              // just one vector
+  if (points.size() == 1)
+  {
+    replacement.push_back(0);
+    return true;
+  }
+                              // grid step
+  T gridstep = tolerance * T(2.0);
+                              // max possible coordinate value
+  T maxcoord = 0.0;
+
+  TPoint<T> *v = &points[0];
+  for (size_t i = 0; i < points.size(); i++) 
+  {
+    if (fabs(v->X) > maxcoord) maxcoord = fabs(v->X);
+    if (fabs(v->Y) > maxcoord) maxcoord = fabs(v->Y);
+    if (fabs(v->Z) > maxcoord) maxcoord = fabs(v->Z);
+    v++;
+  }
+                              // get max integer value we need
+  T numcellsneeded = maxcoord / gridstep;
+  T numcellsavailable = static_cast<T>(std::numeric_limits<LINT>::max( ));
+  if (numcellsavailable < numcellsneeded)
+  {
+                              // increase tolerance
+    tolerance = maxcoord / numcellsavailable;
+    gridstep = tolerance * T(2.0);
+  }
+                              // array will hold integer coordinate + vertex
+                              // number and will be sorted by coordinate
+  size_t numvectors = points.size();
+  LINT knsize = sizeof(LINT) * numvectors * 2;
+  LINT *cnumber = (LINT *) malloc(knsize);
+  if (cnumber == nullptr) return false;
+                              // zero out
+  memset(cnumber,0,knsize);
+  replacement.resize(points.size(),0);
+                              // loop over all 8 possible positions of the 
+                              // 2*tolerance cube
+  static T incs[8][3] =
+  {
+    -0.5,-0.5,-0.5,
+    +0.5,-0.5,-0.5,
+    +0.5,+0.5,-0.5,
+    -0.5,+0.5,-0.5,
+    -0.5,-0.5,+0.5,
+    +0.5,-0.5,+0.5,
+    +0.5,+0.5,+0.5,
+    -0.5,+0.5,+0.5
+  };
+
+  for (int pos = 0; pos < 8; pos ++) {
+
+    T dx = tolerance * incs[pos][0];
+    T dy = tolerance * incs[pos][1];
+    T dz = tolerance * incs[pos][2];
+                              // set up sort array
+    LINT numtosort = 0;
+    for (size_t i = 0; i < numvectors; i++) 
+    {
+      if (replacement[i] == 0) 
+      {
+        cnumber[numtosort * 2] = static_cast<LINT>((points[i].X + dx) / gridstep);
+        cnumber[numtosort * 2 + 1] = i;
+        numtosort++;
+      }
+    }
+                              // sort then match x
+    qsort(cnumber,numtosort,sizeof(LINT) * 2,TwoIntSort);
+
+    LINT xmin = cnumber[0];
+    for (LINT i = 0; i < numtosort; ) 
+    {
+      LINT j = i;
+      while (j < numtosort && (cnumber[j * 2] == xmin)) 
+      {
+                              // replace with y
+        cnumber[j * 2] = static_cast<LINT>((points[cnumber[j * 2 + 1]].Y + dy) / gridstep);
+        j++;
+      }
+                              // sort then match y
+      if ((j - i) > 1) 
+      {
+        qsort(cnumber + i * 2,j - i,sizeof(LINT) * 2,TwoIntSort);
+
+        LINT ymin = cnumber[2 * i];
+        for (LINT k = i; k < j; ) 
+        {
+          LINT l = k;
+          while (l < j && (cnumber[l * 2] == ymin)) 
+          {
+                              // replace with z
+            cnumber[l * 2] = static_cast<LINT>((points[cnumber[l * 2 + 1]].Z + dz) / gridstep);
+            l++;
+          }
+                              // sort then match z
+          if ((l - k) > 1) 
+          {
+            qsort(cnumber + k * 2,l - k,sizeof(LINT) * 2,TwoIntSort);
+
+            LINT zmin = cnumber[k * 2];
+            for (LINT m = k; m < l; ) 
+            {
+              LINT p = cnumber[m * 2 + 1];
+              LINT n = m;
+              while (n < l && (cnumber[n * 2] == zmin)) 
+              {
+                if (n > m) 
+                {
+                              // point at first node in matches; do not move if 
+                              // face indices not specified
+                  LINT index = cnumber[n * 2 + 1];
+                  replacement[index] = -1 - p;
+                }
+                              // increment
+                n++;
+              }
+                              // mark node as paired
+              if ((n - m) > 1) replacement[p] = 1;
+
+              m = n; 
+              if (m < l) zmin = cnumber[m * 2];
+            }
+          }
+          k = l; 
+          if (k < j) ymin = cnumber[k * 2];
+        }
+      }
+      i = j; 
+      if (i < numtosort) xmin = cnumber[i * 2];
+    }
+  } // 8 positions
+                              // eliminate nodes from the points array and 
+                              // complete replacement
+  LINT k = 0;
+
+  for (size_t i = 0; i < numvectors; i++) 
+  {
+    if (replacement[i] >= 0) 
+    {
+      replacement[i] = k;
+
+      points[k] = points[i];
+      k++;
+    }
+  }
+
+  for(int i = 0; i < numvectors; i++) 
+  {
+    if (replacement[i] < 0) {
+      replacement[i] = replacement[-1 - replacement[i]];
+    }
+  }
+
+  points.resize(k);
+
+  free(cnumber);
+
+  return true;
+}
+
 /** Exclude duplicates between points. 
 
   sortcoords = false for exclusion of node duplicates among close point neighbours (use it for
@@ -1148,6 +1334,16 @@ template <class T> bool comparePoint(TPoint<T> p1, TPoint<T> p2)
 template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool sortcoords, 
   T tolerance, std::vector<LINT> *replacement = nullptr)
 {
+  // use a more reliable way
+  if (sortcoords)
+  {
+    std::vector<LINT> rep;
+    bool ok = removeDupNodes(points,rep,tolerance);
+    if (replacement)
+      *replacement = rep;
+
+    return ok;
+  }
                               // list is empty
   if (points.size() < 2) 
     return true;
@@ -1166,8 +1362,8 @@ template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool so
                               // sort points by X,Y,Z
   if (sortcoords)
   {
-    ptolerance = TOLERANCE(T);
-//!!!!!!!    ptolerance = double(tolerance);
+//!!!!!!    ptolerance = TOLERANCE(T);
+    ptolerance = double(tolerance);
     std::sort(points.begin(),points.end(),comparePoint<T>);
   }
                               // replacement indices for node numbering

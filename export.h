@@ -788,7 +788,8 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
 template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
-  std::vector<std::string> &lines, T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18)
+  std::vector<std::string> &lines, T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   lines.clear();
 
@@ -803,7 +804,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   std::vector<std::array<LINT,11>> edges;
 
   // Create non-manifold solid model
-  if (!createSolidEdges(surfaces,boundariesUV,vertices,middlevertices,edges,tolerance))
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,middlevertices,edges,tolerance,pbadedges))
     return false;
 
   // calculate size
@@ -944,7 +945,16 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     getBoundaryPartXYZ<T>(surfaces,boundariesUV,int(e[3]),int(e[4]),int(e[5]),points);
 
     // make spline curve
-    tcad::TSplineCurve<T> C(points,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+    tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
+
+//!!!!!!
+//    tcad::TSplineCurve<T> C(points,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+//TPoint<T> err(0.05154532527962163,0.3257354690456166,1.2693589534566567);
+//T d = !(C.controlPoints()[2] - err);
+//if (d < 0.00001)
+//{
+//  d *= 1.0;
+//}
 
     lines[sdirline] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
     sdirline++;
@@ -1205,11 +1215,11 @@ template <class T> bool saveTrimmedSurfaceIges(tcad::TSplineSurface<T> *surface,
 template <class T> bool saveSolidIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, const std::string &filename,
-  T tolerance, int splinedegree = SPLINE_DEGREE)
+  T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   std::vector<std::string> lines;
 
-  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree))
+  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree,numdigits,pbadedges))
   {
     bool ok = writeLines(lines,filename);
     return ok;

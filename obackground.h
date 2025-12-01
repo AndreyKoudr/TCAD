@@ -82,6 +82,22 @@ public:
   /** Number of cells. */
   LINT numBackgroundCells();
 
+  /** Cell size. */
+  LINT intCellSize(const int level);
+
+  /** Cell level, must be 0 for background. */
+  int level(const IPosition &position);
+
+  /** Integer coordinates of 8 cell nodes. */
+  std::array<IPosition,8> cell8Coordinates(const IPosition &ocentre);
+
+  /** Real coordinates of 8 cell nodes. cellpos is cell position incells along X,Y,Z,
+    not normal octree IPosition.  */
+  std::array<TPoint<T>,8> cell8RealCoordinates(const IPosition &cellpos);
+
+  /** Convert integer to real coordinates. */
+  TPoint<T> intToRealCoord(const IPosition &coord);
+
   /** Num background cells in I,J,K directions. */
   IPosition IJKnumCells = IPosition(0,0,0);
 
@@ -197,6 +213,7 @@ template <typename T> IPosition OBackground<T>::backCellIndexToPosition(const LI
   LINT z = rest;
 
   return IPosition(x,y,z);
+ // return IPosition(x << (maxLevel - 1),y << (maxLevel - 1),z << (maxLevel - 1));
 }
 
 template <typename T> LINT OBackground<T>::findCell(TPoint<T> position)
@@ -232,3 +249,156 @@ template <typename T> LINT OBackground<T>::numBackgroundCells()
 {
   return IJKnumCells.X * IJKnumCells.Y * IJKnumCells.Z;
 }
+
+/**
+  Conforming cell node numeration :
+
+                           7-------18--------6 
+                          /|                /|    
+                        19 |     25       17 |     
+                        /  |              /  |          
+                       4--------16-------5   14   
+       K               |  15      23     |   |     
+                       |   |             | 22|    
+       |    J          |24 |    21       |   |
+       |              12   3------10----13---2 
+       |  /            |  /              |  / 
+       | /             | 11      20      | 9
+       |/              |/                |/
+       *------ I       0--------8--------1
+
+
+  Quadratic hex cell node numeration :
+
+         (7)----------18-----------(6)
+         /|                        /|    
+        / |                       / |    
+      19  |                      17 |     
+      /   |                     /   |          
+     /   15                    /    14         
+   (4)-----------16----------(5)    |    
+    |     |     W ^ V         |     |     
+    |     |       |/          |     |    
+    |     |       O-> U       |     |
+    |    (3)----------10------|----(2)
+   12    /                    13   / 
+    |   /                     |   / 
+    |  11                     |  9
+    | /                       | /
+    |/                        |/
+   (0)-----------8-----------(1)
+
+                                          
+*/
+/** Offsets from the centre. */
+template <class T> const std::array<IPosition,27> cellCentreOffsets = {
+  IPosition(-1,-1,-1),
+  IPosition(+1,-1,-1),
+  IPosition(+1,+1,-1),
+  IPosition(-1,+1,-1),
+  IPosition(-1,-1,+1),
+  IPosition(+1,-1,+1),
+  IPosition(+1,+1,+1),
+  IPosition(-1,+1,+1),
+
+  IPosition( 0,-1,-1),
+  IPosition(+1, 0,-1),
+  IPosition( 0,+1,-1),
+  IPosition(-1, 0,-1),
+
+  IPosition(-1,-1, 0),
+  IPosition(+1,-1, 0),
+  IPosition(+1,+1, 0),
+  IPosition(-1,+1, 0),
+
+  IPosition( 0,-1,+1),
+  IPosition(+1, 0,+1),
+  IPosition( 0,+1,+1),
+  IPosition(-1, 0,+1),
+
+  IPosition( 0, 0,-1),
+  IPosition( 0,-1, 0),
+  IPosition(+1, 0, 0),
+  IPosition( 0,+1, 0),
+  IPosition(-1, 0, 0),
+  IPosition( 0, 0,+1),
+
+  IPosition( 0, 0, 0)
+};
+
+template <class T> LINT OBackground<T>::intCellSize(const int level)
+{
+  assert(level >= 0 && level < maxLevel);
+
+  LINT shift = maxLevel - level - 1;
+  LINT is = 2 << shift;
+  return is;
+}
+
+template <class T> int OBackground<T>::level(const IPosition &position)
+{
+  unsigned long index = 0;
+  bool ok = _BitScanForward64(&index,position.XYZ[0]);
+  assert(ok);
+
+  if (!ok)
+    return -1;
+
+  int l = maxLevel - index - 1;
+  assert(l <= maxLevel); //??? maybe <
+
+  return l;
+}
+
+template <class T> std::array<IPosition,8> OBackground<T>::cell8Coordinates(const IPosition &ocentre)
+{
+  std::array<IPosition,8> coord;
+
+  LINT size = intCellSize(level(ocentre));
+  assert(size > 1);
+  assert(size % 2 == 0);
+
+  assert(ocentre.XYZ[0] % 2 == 0);
+  assert(ocentre.XYZ[1] % 2 == 0);
+  assert(ocentre.XYZ[2] % 2 == 0);
+
+  LINT halfSize = size / 2;
+
+  std::transform(cellCentreOffsets<T>.begin(),cellCentreOffsets<T>.begin() + 8,coord.begin(),
+    [&ocentre,&halfSize](auto v) { return ocentre + v * halfSize; });
+
+  return coord;
+}
+
+template <class T> std::array<TPoint<T>,8> OBackground<T>::cell8RealCoordinates(const IPosition &cellpos)
+{
+  std::array<TPoint<T>,8> corners;
+
+  corners[0].XYZ[0] = boxMin.XYZ[0] + cellSize.X * T(cellpos.XYZ[0]);
+  corners[0].XYZ[1] = boxMin.XYZ[1] + cellSize.Y * T(cellpos.XYZ[1]);
+  corners[0].XYZ[2] = boxMin.XYZ[2] + cellSize.Z * T(cellpos.XYZ[2]);
+
+  corners[1] = corners[0] + TPoint<T>(cellSize.X,0,0);
+  corners[2] = corners[0] + TPoint<T>(cellSize.X,cellSize.Y,0);
+  corners[3] = corners[0] + TPoint<T>(0,cellSize.Y,0);
+
+  corners[4] = corners[0] + TPoint<T>(0,0,cellSize.Z);
+
+  corners[5] = corners[4] + TPoint<T>(cellSize.X,0,0);
+  corners[6] = corners[4] + TPoint<T>(cellSize.X,cellSize.Y,0);
+  corners[7] = corners[4] + TPoint<T>(0,cellSize.Y,0);
+
+  return corners;
+}
+
+template <class T> TPoint<T> OBackground<T>::intToRealCoord(const IPosition &coord)
+{
+  TPoint<T> res;
+
+  res.XYZ[0] = boxMin.XYZ[0] + coord.XYZ[0] * intUnitSizes.XYZ[0];
+  res.XYZ[1] = boxMin.XYZ[1] + coord.XYZ[1] * intUnitSizes.XYZ[1];
+  res.XYZ[2] = boxMin.XYZ[2] + coord.XYZ[2] * intUnitSizes.XYZ[2];
+
+  return res;
+}
+

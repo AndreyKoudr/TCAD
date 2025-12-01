@@ -329,6 +329,12 @@ public:
   /** Get tri corners. */
   std::array<TPoint<T>,3> threeCorners(LINT faceNo) const;
 
+  /** Get face min/max. */
+  void faceMinMax(LINT faceNo, TPoint<T> &min, TPoint<T> &max) const;
+
+  /** Make face box. */
+  void faceBox(LINT faceNo, std::array<TPoint<T>,8> &box) const;
+
   /** Apply Laplace smooth to nodes; coef = 0 - old nodes;
     0.5 - mean; 1.0 - pure Laplace (dangerous, may produce degenarate
     tris). */
@@ -344,6 +350,13 @@ public:
 
   /** Save triangles into OBJ file. */
   bool saveOBJ(const std::string filename, const std::string partname) const;
+
+  /** Save a face as STL file. */
+  bool saveFaceSTL(int faceNo, const std::string filename, const std::string partname, bool binary) const;
+
+  /** Save box as STL. */
+  bool saveBoxSTL(std::array<TPoint<T>,8> &box, const std::string filename, 
+    const std::string partname, bool binary) const;
 
   /** Generate points from triangle surfaces. pointsPerTri - 
     number of points per traingle (approximate). Points may be duplicate. */
@@ -439,6 +452,9 @@ public:
 
   /** Get edge min/max. */
   bool getEdgeMinMax(T &min, T &max);
+
+  /** Get edge min/max for XYZ components. */
+  bool getEdgeMinMax(TPoint<T> &dmin, TPoint<T> &dmax);
 
   /** Connect edges into a closed curve. */
   bool edgesIntoCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
@@ -746,6 +762,43 @@ template<class T> bool TTriangles<T>::saveSTL(const std::string filename, const 
   fclose(fp);
 
   return res;
+}
+
+template<class T> bool TTriangles<T>::saveFaceSTL(int faceNo, const std::string filename, const std::string partname, 
+  bool binary) const
+{
+  TTriangles<T> tris;
+  
+  std::array<TPoint<T>,3> corners = threeCorners(faceNo);
+  tris.addTri(corners[0],corners[1],corners[2],0.0);
+
+  return tris.saveSTL(filename,partname,binary);
+}
+
+template<class T> bool TTriangles<T>::saveBoxSTL(std::array<TPoint<T>,8> &box, const std::string filename, 
+  const std::string partname, bool binary) const
+{
+  TTriangles<T> tris;
+  
+  tris.addTri(box[0],box[1],box[4],0.0);
+  tris.addTri(box[4],box[1],box[5],0.0);
+
+  tris.addTri(box[1],box[2],box[5],0.0);
+  tris.addTri(box[5],box[2],box[6],0.0);
+
+  tris.addTri(box[2],box[3],box[6],0.0);
+  tris.addTri(box[6],box[3],box[7],0.0);
+
+  tris.addTri(box[3],box[0],box[4],0.0);
+  tris.addTri(box[4],box[7],box[3],0.0);
+
+  tris.addTri(box[1],box[0],box[3],0.0);
+  tris.addTri(box[3],box[2],box[1],0.0);
+
+  tris.addTri(box[4],box[5],box[6],0.0);
+  tris.addTri(box[6],box[7],box[4],0.0);
+
+  return tris.saveSTL(filename,partname,binary);
 }
 
 template<class T> bool TTriangles<T>::saveOBJ(FILE *fp, const std::string partname) const
@@ -1354,6 +1407,22 @@ template <class T> std::array<TPoint<T>,3> TTriangles<T>::threeCorners(LINT face
   LINT i1 = corners[faceNo * 3 + 1];
   LINT i2 = corners[faceNo * 3 + 2];
   return std::array<TPoint<T>,3>({coords[i0],coords[i1],coords[i2]});
+}
+
+template <class T> void TTriangles<T>::faceMinMax(LINT faceNo, TPoint<T> &min, TPoint<T> &max) const
+{
+  std::array<TPoint<T>,3> corners = threeCorners(faceNo);
+
+  min = pointMin<T>(corners[0],pointMin<T>(corners[1],corners[2]));
+  max = pointMax<T>(corners[0],pointMax<T>(corners[1],corners[2]));
+}
+
+template <class T> void TTriangles<T>::faceBox(LINT faceNo, std::array<TPoint<T>,8> &box) const
+{
+  TPoint<T> min,max;
+  faceMinMax(faceNo,min,max);
+
+  makeBox<T>(min,max,box);
 }
 
 template <class T> bool TTriangles<T>::segIntersect(const TPoint<T> &point0, const TPoint<T> &point1, 
@@ -2062,7 +2131,8 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
     {
       // already considered
       EnterCriticalSection(isection);
-      bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end());
+      bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end() ||
+        intersected->find(std::pair<LINT,LINT>(index1,index0)) != intersected->end());
       LeaveCriticalSection(isection);
       if (done)
         continue;
@@ -2082,6 +2152,9 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
       {
         if (intrs.size() == 2)
         {
+
+// outputDebugString(to_string(int(index0)) + " " + to_string(int(index1)));
+
           TPoint<T> coord0 = barycentricCoord(corners,intrs[0]);
           TPoint<T> coord1 = barycentricCoord(corners,intrs[1]);
           TPoint<T> ocoord0 = barycentricCoord(ocorners,intrs[0]);
@@ -2158,7 +2231,8 @@ template <class T> void intersectCellsNoUV(TTriangles<T> *tris, TTriangles<T> *o
     {
       // already considered
       EnterCriticalSection(isection);
-      bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end());
+      bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end() ||
+        intersected->find(std::pair<LINT,LINT>(index1,index0)) != intersected->end());
       LeaveCriticalSection(isection);
       if (done)
         continue;
@@ -2254,8 +2328,12 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   other.getEdgeMinMax(ominedge,omaxedge);
 
   //!!!!!!
-  maxedge = std::max(maxedge,omaxedge) * 2.0;
+  maxedge = std::max(maxedge,omaxedge) * 1.1;
   TPoint<T> dmm = max - min;
+
+  // no intersection possible
+  if (dmm.X < tolerance || dmm.Y < tolerance || dmm.Z < tolerance)
+    return false;
 
   // cells big enough for spacial partitioning to identify if two triangles
   // may intersect, they can if they have a node in the same cell only
@@ -2269,10 +2347,22 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   for (LINT i = 0; i < numFaces(); i++)
   {
     std::array<TPoint<T>,3> corners = threeCorners(i);
-    
+   
     for (int j = 0; j < 3; j++)
     {
       LINT index = cells.findCell(corners[j]);
+      assert(index >= 0);
+
+      celltris[index].insert(i);
+    }
+
+    // important, do not remove
+    std::array<TPoint<T>,8> box;
+    faceBox(i,box);
+
+    for (int j = 0; j < 8; j++)
+    {
+      LINT index = cells.findCell(box[j]);
       assert(index >= 0);
 
       celltris[index].insert(i);
@@ -2291,6 +2381,18 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
 
       ocelltris[index].insert(i);
     }
+
+    // important, do not remove
+    std::array<TPoint<T>,8> box;
+    other.faceBox(i,box);
+
+    for (int j = 0; j < 8; j++)
+    {
+      LINT index = cells.findCell(box[j]);
+      assert(index >= 0);
+
+      ocelltris[index].insert(i);
+    }
   }
 
   // now distinguish cells which are (1) not empty (2) contain triangles from
@@ -2304,6 +2406,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     }
   }
   int numactive = int(activecells.size());
+
 
   // we do not want to intersect same pair twice
   std::set<std::pair<LINT,LINT>> intersected;
@@ -2321,6 +2424,10 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   if (numactive < numthreads)
     numthreads = numactive;
   LIMIT_MIN(numthreads,1);
+
+#ifdef _DEBUG
+  outputDebugString(std::string("num threads = ") + to_string(numthreads));
+#endif
 
   if (numthreads <= 1 || numactive < numthreads)
   {
@@ -2466,7 +2573,35 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
 
   std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
 
-  bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true); 
+  // this tolerance must be big
+  T bigtolerance = maxedge * 0.1;
+  bool ok = makeUpCurves(edges,alledges,bigtolerance,lines,bigtolerance,true); 
+//!!!!!!!  bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true); 
+
+#if 0
+  bool print = false;
+
+  if (print)
+  {
+    other.saveFaceSTL(19388,"19388.STL","TDCAD",false);
+    saveFaceSTL(824,"824.STL","TDCAD",false);
+    saveFaceSTL(826,"826.STL","TDCAD",false);
+    saveFaceSTL(827,"827.STL","TDCAD",false);
+    saveFaceSTL(828,"828.STL","TDCAD",false);
+    saveFaceSTL(829,"829.STL","TDCAD",false);
+    saveFaceSTL(834,"834.STL","TDCAD",false);
+
+    for (int i = 0; i < int(activecells.size()); i++)
+    {
+      int cellindex = int(activecells[i]);
+
+      IPosition ipos = cells.backCellIndexToPosition(cellindex);
+      std::array<TPoint<T>,8> cellcorners = cells.cell8RealCoordinates(ipos);
+
+      saveBoxSTL(cellcorners,"cell" + to_string(cellindex) + ".STL","TDCAD",false);
+    }
+  }
+#endif
 
   if (makeboundaries)
   {
@@ -2788,6 +2923,30 @@ template <class T> bool TTriangles<T>::getEdgeMinMax(T &min, T &max)
 
     min = std::min<T>(min,std::min<T>(e0,std::min<T>(e1,e2)));
     max = std::max<T>(max,std::max<T>(e0,std::max<T>(e1,e2)));
+  }
+
+  return true;
+}
+
+template <class T> bool TTriangles<T>::getEdgeMinMax(TPoint<T> &dmin, TPoint<T> &dmax)
+{
+  if (numFaces() < 1)
+    return false;
+
+  dmin.X = dmin.Y = dmin.Z = std::numeric_limits<T>::max();
+  dmax.X = dmax.Y = dmax.Z = -std::numeric_limits<T>::max();
+  for (int i = 0; i < numFaces(); i++)
+  {
+    std::array<TPoint<T>,3> c = threeCorners(i);
+
+    TPoint<T> c01min = pointMin<T>(c[0],c[1]);
+    TPoint<T> c01max = pointMax<T>(c[0],c[1]);
+    TPoint<T> mmin = pointMin<T>(c01min,c[2]);
+    TPoint<T> mmax = pointMax<T>(c01max,c[2]);
+    TPoint<T> d = mmax - mmin;
+
+    dmin = pointMin<T>(dmin,d);
+    dmax = pointMax<T>(dmax,d);
   }
 
   return true;

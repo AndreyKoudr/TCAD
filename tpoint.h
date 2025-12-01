@@ -373,15 +373,48 @@ template <class T> TPoint<T> operator*(const double scalar, const TPoint<T> v)
 }
 
 /** Get min from components. */
-template <typename T> TPoint<T> pointMin(TPoint<T> &first, TPoint<T> &second)
+template <typename T> TPoint<T> pointMin(const TPoint<T> &first, const TPoint<T> &second)
 {
   return TPoint<T>(std::min<T>(first.X,second.X),std::min<T>(first.Y,second.Y),std::min<T>(first.Z,second.Z));
 }
 
 /** Get max from components. */
-template <typename T> TPoint<T> pointMax(TPoint<T> &first, TPoint<T> &second)
+template <typename T> TPoint<T> pointMax(const TPoint<T> &first, const TPoint<T> &second)
 {
   return TPoint<T>(std::max<T>(first.X,second.X),std::max<T>(first.Y,second.Y),std::max<T>(first.Z,second.Z));
+}
+
+/** Make box from point. */
+template <typename T> void makeBox(TPoint<T> &centre, T edgesize, std::array<TPoint<T>,8> &box)
+{
+  T size = edgesize * 0.5;
+  box[0] = centre + TPoint<T>(-size,-size,-size);
+  box[1] = centre + TPoint<T>(+size,-size,-size);
+  box[2] = centre + TPoint<T>(+size,+size,-size);
+  box[3] = centre + TPoint<T>(-size,+size,-size);
+
+  box[4] = centre + TPoint<T>(-size,-size,+size);
+  box[5] = centre + TPoint<T>(+size,-size,+size);
+  box[6] = centre + TPoint<T>(+size,+size,+size);
+  box[7] = centre + TPoint<T>(-size,+size,+size);
+}
+
+/** Make box from min/max. */
+template <typename T> void makeBox(TPoint<T> min, TPoint<T> max, std::array<TPoint<T>,8> &box)
+{
+  assert(max.X >= min.X);
+  assert(max.Y >= min.Y);
+  assert(max.Z >= min.Z);
+
+  box[0] = TPoint<T>(min.X,min.Y,min.Z);
+  box[1] = TPoint<T>(max.X,min.Y,min.Z);
+  box[2] = TPoint<T>(max.X,max.Y,min.Z);
+  box[3] = TPoint<T>(min.X,max.Y,min.Z);
+
+  box[4] = TPoint<T>(min.X,min.Y,max.Z);
+  box[5] = TPoint<T>(max.X,min.Y,max.Z);
+  box[6] = TPoint<T>(max.X,max.Y,max.Z);
+  box[7] = TPoint<T>(min.X,max.Y,max.Z);
 }
 
 

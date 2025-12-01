@@ -126,7 +126,7 @@ template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberp
   assert(camberpoints.size() == thickness.size());
   assert(camberpoints[0].size() == thickness[0].size());
 
-  surfaces.clear();
+//!!!!!!  surfaces.clear();
 
   int K1 = int(camberpoints[0].size()) - 1;
   int K2 = int(camberpoints.size()) - 1;
@@ -581,11 +581,166 @@ template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour
     T a1 = T(i + 1) * da;
 
     TSplineSurface<T> *surface = makeSurfaceOfRevolution(contour,
-      pointsperface,a1,a0,K1,K2,M1,M2,startU,endU,startV,endV);
+      pointsperface,a0,a1,K1,K2,M1,M2,startU,endU,startV,endV);
 
     surfaces.push_back(surface);
   }
 }
 
+/** Intersect surfaces to make a solid. */
+template <class T> void makeSolid(
+  std::vector<TSplineSurface<T> *> &surfaces0,
+  std::vector<TSplineSurface<T> *> &surfaces1,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV0,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV1,
+  T tolerance, T &bigtolerance, T parmtolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+{
+  boundariesUV0.clear();
+  boundariesUV1.clear();
+
+  // step 1 : make outer boundaries
+  for (int i = 0; i < int(surfaces0.size()); i++)
+  {
+    std::vector<std::vector<TPoint<T>>> loop;
+    surfaces0[i]->closeOuterBoundaryLoop(loop,manypoints);
+
+    boundariesUV0.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+    boundariesUV0.back().push_back(loop);
+  }
+  for (int i = 0; i < int(surfaces1.size()); i++)
+  {
+    std::vector<std::vector<TPoint<T>>> loop;
+    surfaces1[i]->closeOuterBoundaryLoop(loop,manypoints);
+
+    boundariesUV1.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+    boundariesUV1.back().push_back(loop);
+  }
+
+  // "delayed" boundary pieces
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> boundaries0(surfaces0.size());
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> boundaries1(surfaces1.size());
+
+  // estmate big tolerance as max difference between boundary lines to be used in making
+  // soldi downstream
+  bigtolerance = 0.0;
+  T maxseglen = 0.0;
+
+  // step 2 : intersect with other surfaces
+  for (int i = 0; i < int(surfaces0.size()); i++)
+  {
+    for (int j = 0; j < int(surfaces1.size()); j++)
+    {
+      std::vector<std::vector<TPoint<T>>> intersections; 
+      std::vector<std::vector<TPoint<T>>> boundary0,boundary1;
+
+// outputDebugString("================================================");
+
+      bool ok = surfaces0[i]->intersect(*surfaces1[j],intersections,boundary0,boundary1,
+        tolerance,parmtolerance,
+        manypoints,manypoints,1.0,1.0,1.0,1.0, 
+#ifdef _DEBUG
+        manypoints,manypoints,1.0,1.0,1.0,1.0,false);
+//!!!!!!        manypoints,manypoints,1.0,1.0,1.0,1.0,true);
+#else
+        manypoints,manypoints,1.0,1.0,1.0,1.0,false);
+#endif
+
+      if (ok)
+      {
+        // calculate difference in boundary lines
+        T maxdiff = 0.0;
+
+        for (int k = 0; k < boundary0.size(); k++)
+        {
+          std::vector<TPoint<T>> intr0,intr1;
+          for (int l = 0; l < int(boundary0[k].size()); l++)
+          {
+            TPoint<T> p0 = surfaces0[i]->position(boundary0[k][l].X,boundary0[k][l].Y);
+            TPoint<T> p1 = surfaces1[j]->position(boundary1[k][l].X,boundary1[k][l].Y);
+            intr0.push_back(p0);
+            intr1.push_back(p1);
+
+            T d = !(p1 - p0);
+            maxdiff = std::max<T>(maxdiff,d);
+          }
+
+          T segmin = 0.0;
+          T segmax = 0.0;
+          segmentLenMinMax<T>(boundary0[k],segmin,segmax);
+
+          maxseglen = std::max(maxseglen,segmax);
+        }
+
+        bigtolerance = std::max<T>(bigtolerance,maxdiff);
+
+#ifdef _DEBUG
+        outputDebugString(std::string("maxdiff = ") + to_string(maxdiff) + 
+          std::string(" bigtolerance = ") + to_string(bigtolerance) +
+          std::string(" maxseglen = ") + to_string(maxseglen));
+#endif
+      }
+
+      for (auto &b : boundary1)
+      {
+        std::reverse(b.begin(),b.end());
+      }
+      std::reverse(boundary1.begin(),boundary1.end());
+
+      if (ok)
+      {
+        // close boundary on first surface
+        bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],tolerance,
+          maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+        if (!ok0)
+        {
+          boundaries0[i].push_back(boundary0);
+        }
+        bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],tolerance,
+          maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+        if (!ok1)
+        {
+          boundaries1[j].push_back(boundary1);
+        }
+      }
+    }
+  }
+
+  // combine delayed boundaries
+  for (int i = 0; i < int(surfaces0.size()); i++)
+  {
+    if (!boundaries0[i].empty())
+    {
+      std::vector<std::vector<TPoint<T>>> boundary;
+      for (int j = 0; j < int(boundaries0[i].size()); j++)
+      {
+        for (int k = 0; k < int(boundaries0[i][j].size()); k++)
+        {
+          boundary.push_back(boundaries0[i][j][k]);
+        }
+      }
+
+      bool ok = surfaces0[i]->closeBoundaryLoop(boundary,boundariesUV0[i],tolerance,
+        maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+    }
+  }
+
+  for (int i = 0; i < int(surfaces1.size()); i++)
+  {
+    if (!boundaries1[i].empty())
+    {
+      std::vector<std::vector<TPoint<T>>> boundary;
+      for (int j = 0; j < int(boundaries1[i].size()); j++)
+      {
+        for (int k = 0; k < int(boundaries1[i][j].size()); k++)
+        {
+          boundary.push_back(boundaries1[i][j][k]);
+        }
+      }
+
+      bool ok = surfaces1[i]->closeBoundaryLoop(boundary,boundariesUV1[i],tolerance,
+        maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+    }
+  }
+}
 
 }

@@ -177,7 +177,7 @@ template <class T> void smoothPointsByBezier(std::vector<TPoint<T>> &points,
     newpoints.push_back(p);
   }
 
-//!!!!!!!
+//!!!!!!
   //if (start == END_CLAMPED)
   //{
   //  TPoint<T> dir = +(startDirection(points));
@@ -225,7 +225,7 @@ template <class T> void smoothPointsByBezierCurve(std::vector<TPoint<T>> &points
     newpoints.push_back(p);
   }
 
-//!!!!!!!
+//!!!!!!
   //if (start == END_CLAMPED)
   //{
   //  TPoint<T> dir = +(startDirection(points));

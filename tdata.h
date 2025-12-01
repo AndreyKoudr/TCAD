@@ -105,7 +105,7 @@ template <class T> const std::vector<std::pair<T,T>> NACA0012xy = {
   {0.997261, 0.001644},
   {0.999315, 0.001356},
   {1.000000, 0.0}
-//!!!!!!!  {1.000000, 0.001260}
+//!!!!!!  {1.000000, 0.001260}
 };
 
 /** E178 points, these points start from TE, go around LE along 

@@ -497,7 +497,8 @@ public:
     T refinestartV0 = 1.0, T refineendV0 = 1.0,
     int numpointsU1 = MANY_POINTS2D, int numpointsV1 = MANY_POINTS2D,
     T refinestartU1 = 1.0, T refineendU1 = 1.0, 
-    T refinestartV1 = 1.0, T refineendV1 = 1.0)
+    T refinestartV1 = 1.0, T refineendV1 = 1.0,
+    bool debug = false)
   {
     TTriangles<T> tris,othertris;
 
@@ -506,6 +507,14 @@ public:
       other.createTriangles(othertris,numpointsU1,numpointsV1,
       refinestartU1,refineendU1,refinestartV1,refineendV1))
     {
+#ifdef _DEBUG
+      if (debug)
+      {
+        tris.tcad::TTriangles<T>::saveSTL("intersection0.stl","TCAD",true);
+        othertris.tcad::TTriangles<T>::saveSTL("intersection1.stl","TCAD",true);
+      }
+#endif
+
       if (tris.intersect(othertris,intersections,tolerance,parmtolerance,&boundary0,&boundary1))
       {
         return int(intersections.size());
@@ -562,12 +571,242 @@ public:
     }
   }
 
-#if 1
+  /** Is it a boundary point? */
+  template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
+  {
+    return (
+      std::abs(p.X - 0.0) < parmtolerance ||
+      std::abs(p.X - 1.0) < parmtolerance ||
+      std::abs(p.Y - 0.0) < parmtolerance ||
+      std::abs(p.Y - 1.0) < parmtolerance);
+  }
+
+  /** Find a cut piece (except busy) close to p. p is "tail", cut front is "head" to be
+    connected to tail. */
+  template <class T> int findClosest(std::vector<std::vector<TPoint<T>>> &cut,
+    std::vector<bool> &busy, TPoint<T> p, T tolerance)
+  {
+    // find closest piece to the current loop end among not busy
+    int closest = -1;
+
+    T mindist = std::numeric_limits<T>::max();
+    for (int i = 0; i < int(cut.size()); i++)
+    {
+      if (busy[i])
+        continue;
+
+      T dist = !(p - cut[i].front());
+      if (dist < tolerance && dist < mindist)
+      {
+        mindist = dist;
+        closest = i;
+      }
+    }
+
+    return closest;
+  }
+
+  /** Order cuts from starting piece. Pieces all have a correct orientation. */
+  template <class T> bool orderCuts(int starting, std::vector<std::vector<TPoint<T>>> &cut, 
+    std::vector<std::vector<TPoint<T>>> &ordered, T tolerance, T parmtolerance = PARM_TOLERANCE)
+  {
+    std::vector<bool> busy(cut.size(),false);
+
+    ordered.push_back(cut[starting]);
+    busy[starting] = true;
+
+    // all pieces must have a correct direction set during intersection
+    while (!allBusy(busy))
+    {
+      // find closest piece to the current ordered end among not busy
+      int closest = findClosest(cut,busy,ordered.back().back(),tolerance);
+
+      if (closest < 0)
+      {
+        return false;
+      }
+
+      // attach next piece
+      ordered.push_back(cut[closest]);
+      busy[closest] = true;
+
+      // success : delete this ordered piece from cuts
+      if (boundaryPoint(ordered.back().back(),parmtolerance))
+      {
+        // cleanup cut
+        for (int i = int(busy.size()) - 1; i >= 0; i--)
+        {
+          if (busy[i])
+            cut.erase(cut.begin() + i);
+        }
+
+        return true;
+      }
+    }
+
+    if (!ordered.empty() && boundaryPoint(ordered.back().back(),parmtolerance))
+    {
+      // cleanup cut
+      for (int i = int(busy.size()) - 1; i >= 0; i--)
+      {
+        if (busy[i])
+          cut.erase(cut.begin() + i);
+      }
+
+      return true;
+    } else
+    {
+      return false;
+    }
+  }
+
+  /** Cut contains U,V in X,Y. We need to start from a boundaryPoint() and end with a 
+    boundaryPoint(), keeping the same direction with no reversals. Normally there are
+    no more than 2 pieces in the cut. tolerance is used to compare piece ends when connecting,
+    it may be much bigger than parmtolerance used for boundary identification. */
+  template <class T> int orderCutPieces(std::vector<std::vector<TPoint<T>>> &cut, 
+    std::vector<std::vector<std::vector<TPoint<T>>>> &allordered, T tolerance, T parmtolerance = PARM_TOLERANCE)
+  {
+    allordered.clear();
+
+    // trivial
+    if (cut.size() == 0)
+      return 0;
+
+    int count = 0;
+    bool found = false;
+    do {
+
+      found = false;
+      // find starting piece
+      int starting = -1;
+      for (int i = 0; i < int(cut.size()); i++)
+      {
+        if (boundaryPoint(cut[i].front(),parmtolerance))
+        {
+          starting = i;
+          break;
+        }
+      }
+
+      if (starting < 0)
+        break;
+
+      // order pieces from starting
+      std::vector<std::vector<TPoint<T>>> ordered;
+      // cut is modified
+      if (orderCuts(starting,cut,ordered,tolerance,parmtolerance))
+      {
+        allordered.push_back(ordered);
+        count++;
+        found = true;
+      }
+    } while (found);
+
+    return count;
+  }
+
+  /** Cut contains U,V in X,Y. Extract a closed loop if exists. cut is modified, 
+    may not be empty at exit. All pieces are supposed to have a correct direction set
+    during intersections. */
+  template <class T> bool extractLoop(int starting, std::vector<std::vector<TPoint<T>>> &cut, 
+    std::vector<std::vector<TPoint<T>>> &loop, T tolerance, T parmtolerance = PARM_TOLERANCE)
+  {
+    std::vector<bool> busy(cut.size(),false);
+
+    loop.push_back(cut[starting]);
+    busy[starting] = true;
+
+    if (boundaryPoint(loop.front().front(),parmtolerance) ||
+      boundaryPoint(loop.back().back(),parmtolerance))
+    {
+      return false;
+    }
+
+    // contour closed?
+    T dist = !(loop.front().front() - loop.back().back());
+    if (dist < tolerance)
+    {
+      // cleanup cut
+      for (int i = int(busy.size()) - 1; i >= 0; i--)
+      {
+        if (busy[i])
+          cut.erase(cut.begin() + i);
+      }
+
+      return true;
+    }
+
+    // all pieces must have a correct direction set during intersection
+    while (!allBusy(busy))
+    {
+      // find closest piece to the current ordered end among not busy
+      int closest = findClosest(cut,busy,loop.back().back(),tolerance);
+
+      if (closest < 0)
+      {
+        return false;
+      }
+
+      // attach next piece
+      loop.push_back(cut[closest]);
+      busy[closest] = true;
+
+      if (boundaryPoint(loop.front().front(),parmtolerance) ||
+        boundaryPoint(loop.back().back(),parmtolerance))
+      {
+        return false;
+      }
+
+      // contour closed?
+      T dist = !(loop.front().front() - loop.back().back());
+      if (dist < tolerance)
+      {
+        // cleanup cut
+        for (int i = int(busy.size()) - 1; i >= 0; i--)
+        {
+          if (busy[i])
+            cut.erase(cut.begin() + i);
+        }
+
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Cut contains U,V in X,Y. Extract all closed loops. cut is modified, 
+    may not be empty at exit. All pieces are supposed to have a correct direction set
+    during intersections. */
+  template <class T> int extractLoops(std::vector<std::vector<TPoint<T>>> &cut, 
+    std::vector<std::vector<std::vector<TPoint<T>>>> &loops, T tolerance, T parmtolerance = PARM_TOLERANCE)
+  {
+    int count = 0;
+
+    bool found = false;
+    do {
+      found = false;
+      for (int i = 0; i < int(cut.size()); i++)
+      {
+        std::vector<std::vector<TPoint<T>>> loop;
+        if (extractLoop(i,cut,loop,tolerance,parmtolerance))
+        {
+          loops.push_back(loop);
+          found = true;
+          count++;
+          break;
+        }
+      }
+    } while (found);
+
+    return count;
+  }
 
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
     std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
-    T tolerance, T bigtolerance = 0.1, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
+    T tolerance, T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
   {
     if (cutUV.empty())
       return false;
@@ -584,227 +823,107 @@ public:
     }
 
     // step 2 : combine cut pieces into a single line
-    std::vector<TPoint<T>> cut;
-    if (cutUV.size() == 1)
-    {
-      // all done
-      cut = cutUV[0];
-    } else
-    {
-      // this may be a number of intersection parts, combine them into one
-      // (some segments may be missing due to coincident triangle edges)
-      std::vector<std::vector<TPoint<T>>> lines;
-      if (!curvesFromPieces(cutUV,lines,bigtolerance))
-        return false;
+    std::vector<std::vector<TPoint<T>>> cut = cutUV;
 
-      if (lines.size() == 1)
-      {
-        cut = lines[0];
-      } else
-      {
-        // not continuous cut
-        return false;
-      }
+    // extract all closed loops
+    int n = extractLoops(cut,loops,bigtolerance,parmtolerance);
+
+    if (n && cut.empty())
+    {
+      return true;
     }
 
-    // step 3 : this cut, if closed, maybe a hole (whole loop) inside face;
-    // identify with high tolerance and force closed
-    T closetolerance = calculateLength(cut) * 0.01;
-    if (closed(cut,closetolerance))
+    // cut not empty
+
+    std::vector<std::vector<std::vector<TPoint<T>>>> allordered;
+    if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
     {
-      // force closed
-      if (!closed(cut,tolerance))
-      {
-        cut.push_back(cut.front());
-      }
-
-      // add closed loop and exit
-      std::vector<std::vector<TPoint<T>>> loop;
-      loop.push_back(cut);
-
-      loops.push_back(loop);
-
-      return true;
+      return false;
     }
 
     // step 4 : embed cut into existing outer loop;
     // outerloop contains parts; cut is a single curve
 
-    // make a single continuous curve from outer loop with marking sharp corners :
-    // they mark every START of new curve piece
-    std::vector<TPoint<T>> allpoints;
-    int count = 0;
-    for (int i = 0; i < int(outerloop.size()); i++)
+    for (int i = 0; i < int(allordered.size()); i++)
     {
-      for (int j = 0; j < int(outerloop[i].size()); j++) // points may be duplicate, they mark new part
+      std::vector<std::vector<TPoint<T>>> cut = allordered[i];
+
+      // make a single continuous curve from outer loop with marking sharp corners :
+      // they mark every START of new curve piece
+      std::vector<TPoint<T>> allpoints;
+      int count = 0;
+      for (int i = 0; i < int(outerloop.size()); i++)
       {
-        TPoint<T> p = outerloop[i][j];
-        p.W = T(count++);
-        allpoints.push_back(p);
+        for (int j = 0; j < int(outerloop[i].size()); j++) // points may be duplicate, they mark new part
+        {
+          TPoint<T> p = outerloop[i][j];
+          p.W = T(count++);
+          allpoints.push_back(p);
+        }
       }
-    }
 
-    // set W for cut
-    for (int i = 0; i < int(cut.size()); i++)
-    {
-      cut[i].W = T(i);
-    }
-
-    // find intersections, construct new points
-    std::vector<TPoint<T>> newpoints;
-    std::vector<TPoint<T>> UV;
-
-    // cut curve specifies a correct direction of the loop, it must go first here
-    int numintrs = findIntersections(cut,allpoints,UV,tolerance); 
-
-    if (numintrs == 2)
-    {
-      // all points
-      int Useg0 = int(UV[0].X);
-      T U0 = UV[0].X - T(Useg0);
-      int Useg1 = int(UV[1].X);
-      T U1 = UV[1].X - T(Useg1);
-
-      // now go all cut points
-      int Vseg0 = int(UV[0].Y);
-      T V0 = UV[0].Y - T(Vseg0);
-      int Vseg1 = int(UV[1].Y);
-      T V1 = UV[1].Y - T(Vseg1);
-
-      // take all cut points
-      cutOut(cut,Useg0,U0,Useg1,U1,newpoints);
-
-      // take all points from cut end to second intersection point
-      // if passes through (0,0)
-      if (Vseg0 < Vseg1)
+      // set W for cut
+      std::vector<TPoint<T>> cutpoints;
+      count = 0;
+      for (int i = 0; i < int(cut.size()); i++)
       {
-        cutOut(allpoints,Vseg1,V1,int(allpoints.size()) - 2,1.0,newpoints);
-        cutOut(allpoints,0,0.0,Vseg0,V0,newpoints);
+        for (int j = 0; j < int(cut[i].size()); j++)
+        {
+          TPoint<T> p = cut[i][j];
+          p.W = T(count++);
+          cutpoints.push_back(p);
+        }
+      }
+
+      // find intersections, construct new points
+      std::vector<TPoint<T>> newpoints;
+      std::vector<TPoint<T>> UV;
+
+      // cut curve specifies a correct direction of the loop, it must go first here
+      int numintrs = findIntersections(cutpoints,allpoints,UV,tolerance); 
+
+      if (numintrs == 2)
+      {
+        // all points
+        int Useg0 = int(UV[0].X);
+        T U0 = UV[0].X - T(Useg0);
+        int Useg1 = int(UV[1].X);
+        T U1 = UV[1].X - T(Useg1);
+
+        // now go all cut points
+        int Vseg0 = int(UV[0].Y);
+        T V0 = UV[0].Y - T(Vseg0);
+        int Vseg1 = int(UV[1].Y);
+        T V1 = UV[1].Y - T(Vseg1);
+
+        // take all cut points
+        cutOut(cutpoints,Useg0,U0,Useg1,U1,newpoints);
+
+        // take all points from cut end to second intersection point
+        // if passes through (0,0)
+        if (Vseg0 < Vseg1)
+        {
+          cutOut(allpoints,Vseg1,V1,int(allpoints.size()) - 2,1.0,newpoints);
+          cutOut(allpoints,0,0.0,Vseg0,V0,newpoints);
+        } else
+        {
+          cutOut(allpoints,Vseg1,V1,Vseg0,V0,newpoints);
+        }
       } else
       {
-        cutOut(allpoints,Vseg1,V1,Vseg0,V0,newpoints);
+        return false;
       }
-    } else
-    {
-      return false;
+
+      // divide outer loop back into parts
+      std::vector<std::vector<TPoint<T>>> newouterloop; 
+      divideByDuplicates<T>(newpoints,newouterloop,parmtolerance);
+
+      // update the changed outer loop
+      loops[0] = outerloop = newouterloop;
     }
-
-    // divide outer loop back into parts
-    std::vector<std::vector<TPoint<T>>> newouterloop; 
-    divideByDuplicates<T>(newpoints,newouterloop,tolerance);
-
-    // update the changed outer loop
-    loops[0] = newouterloop;
 
     return true;
   }
-
-#else
-
-  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
-  template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
-    std::vector<std::vector<TPoint<T>>> &closedboundary, 
-    T tolerance, T bigtolerance = 0.1, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
-  {
-    if (cutUV.empty())
-      return false;
-
-    // step 1 : combine cut pieces into a single line
-    std::vector<TPoint<T>> cut;
-    if (cutUV.size() == 1)
-    {
-      // all done
-      cut = cutUV[0];
-    } else
-    {
-      // this may be a number of intersection parts, combine them into one
-      // with high tolerance (some segments may be missing due to coincident
-      // triangle edges)
-      //T bigtolerance = tolerance;
-      //for (int i = 0; i < int(cutUV.size()); i++)
-      //{
-      //  T min,max;
-      //  if (tcad::segmentLenMinMax(cutUV[i],min,max))
-      //  {
-      //    bigtolerance = std::max<T>(bigtolerance,max);
-      //  }
-      //}
-      //bigtolerance *= 1.1;
-      
-      std::vector<std::vector<TPoint<T>>> lines;
-      if (!curvesFromPieces(cutUV,lines,bigtolerance))
-        return false;
-
-      if (lines.size() == 1)
-      {
-        cut = lines[0];
-      } else
-      {
-        // not continuous cut
-        return false;
-      }
-    }
-
-    closedboundary.push_back(cut);
-
-    // e.g. a hole inside face
-    T closetolerance = calculateLength(closedboundary[0]) * 0.01;
-    if (closed(closedboundary[0],closetolerance))
-    {
-      if (!closed(closedboundary[0],tolerance))
-      {
-        closedboundary[0].push_back(closedboundary[0].front());
-      }
-      return true;
-    }
-
-    // step 2 : check if both cut ends lay on one of four surface boundaries
-    T parm0 = 0.0;
-    T parm1 = 0.0;
-    if (!UVToBoundaryParm(cut.front().X,cut.front().Y,parm0,parmtolerance))
-      return false;
-    if (!UVToBoundaryParm(cut.back().X,cut.back().Y,parm1,parmtolerance))
-      return false;
-
-    // cut curve already must be correctly oriented to leave the 
-    // remaining surface to the left
-
-    // step 3 : starting from the curve end go along boundary to close it
-    T startparm = parm1;
-    T endparm = parm0;
-    T parm = startparm;
-    T nextparm = parm;
-
-    while (nextBoundaryParm(parm,endparm,nextparm,parmtolerance))
-    {
-      assert(std::abs(nextparm - parm) > parmtolerance);
-
-      TPoint<T> UV = boundaryParmToUV(parm);
-      TPoint<T> nextUV = boundaryParmToUV(nextparm);
-
-      // make parametric straight line between UV and nextUV
-      T d = !(nextUV - UV);
-
-      if (d > parmtolerance)
-      {
-        int numdivs = int(T(numdivisions) * d);
-        LIMIT_MIN(numdivs,8);
-        TPointCurve<T> line(UV,nextUV,numdivs);
-
-        closedboundary.push_back(line.controlPoints());
-      }
-
-      parm = nextparm;
-    }
-
-    T dist = !(closedboundary.front().front() - closedboundary.back().back());
-    bool ok = (dist < parmtolerance);
-    assert(ok);
-
-    return ok;
-  }
-
-#endif
 
   /** Close outer UV boundary by 4 pieces. */
   template <class T> void closeOuterBoundaryLoop(std::vector<std::vector<TPoint<T>>> &closedboundary, 
