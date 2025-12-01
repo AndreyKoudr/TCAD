@@ -458,7 +458,6 @@ public:
 
   /** Connect edges into a closed curve. */
   bool edgesIntoCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
-    std::vector<std::pair<TPoint<T>,TPoint<T>>> &alledges,
     std::vector<std::vector<TPoint<T>>> &line, T tolerance);
 
   /** Get boundary from free edges, maybe not a single close line. */
@@ -2407,7 +2406,6 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   }
   int numactive = int(activecells.size());
 
-
   // we do not want to intersect same pair twice
   std::set<std::pair<LINT,LINT>> intersected;
 
@@ -2571,12 +2569,9 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
 
 #endif
 
-  std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
-
   // this tolerance must be big
-  T bigtolerance = maxedge * 0.1;
-  bool ok = makeUpCurves(edges,alledges,bigtolerance,lines,bigtolerance,true); 
-//!!!!!!!  bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true); 
+  T bigtolerance = maxedge * 0.1; //!!!!!!
+  bool ok = makeUpCurves(edges,bigtolerance,lines,true); 
 
 #if 0
   bool print = false;
@@ -2608,17 +2603,10 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     for (int i = 0; i < int(lines.size()); i++)
     {
       boundary0->push_back(std::vector<TPoint<T>>());
-      for (int j = 0; j < int(lines[i].size()); j++)
-      {
-        boundary0->back().push_back(TPoint<T>(UVintrs[ROUND(lines[i][j].W)].X,UVintrs[ROUND(lines[i][j].W)].Y));
-      }
-    }
-
-    for (int i = 0; i < int(lines.size()); i++)
-    {
       boundary1->push_back(std::vector<TPoint<T>>());
       for (int j = 0; j < int(lines[i].size()); j++)
       {
+        boundary0->back().push_back(TPoint<T>(UVintrs[ROUND(lines[i][j].W)].X,UVintrs[ROUND(lines[i][j].W)].Y));
         boundary1->back().push_back(TPoint<T>(UVintrs[ROUND(lines[i][j].W)].Z,UVintrs[ROUND(lines[i][j].W)].W));
       }
     }
@@ -2864,13 +2852,12 @@ template <class T> bool TTriangles<T>::checkSliver(bool fix)
 
 /** Connect two-point pieces into a closed line. */
 template <class T> bool TTriangles<T>::edgesIntoCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
-  std::vector<std::pair<TPoint<T>,TPoint<T>>> &alledges,
   std::vector<std::vector<TPoint<T>>> &lines, T tolerance)
 {
   if (edges.empty())
     return false;
 
-  bool ok = makeUpCurves(edges,alledges,tolerance,lines,tolerance,true);
+  bool ok = makeUpCurves(edges,tolerance,lines,true);
 
   return ok;
 }
@@ -2972,7 +2959,6 @@ template <class T> bool TTriangles<T>::getBoundary(std::vector<std::vector<TPoin
 
   // free edges
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
-  std::vector<std::pair<TPoint<T>,TPoint<T>>> alledges;
   for (auto &e : edgeTris)
   {
     std::vector<TPoint<T>> edge;
@@ -2985,7 +2971,7 @@ template <class T> bool TTriangles<T>::getBoundary(std::vector<std::vector<TPoin
     }
   }
 
-  ok = edgesIntoCurves(edges,alledges,boundary,tolerance);
+  ok = edgesIntoCurves(edges,boundary,tolerance);
 
   return ok;
 }

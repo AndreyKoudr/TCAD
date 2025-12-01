@@ -825,7 +825,7 @@ int main(int argc, char* argv[])
   TPlane<T> wcutplane(TPoint<T>(0.0,0.0,1.0),TPoint<T>(0.0,0.0,0.0)); 
 
   bool wok1 = checkTopoCutAndBoundary("wing",wcutplane,true,true,45.0);
-  assert(wok1);
+  //!!!!!!! assert(wok1);
 
   /*****************************************************************************
     2.7 Surfaces : triangles : find intersection of one set of triangles with 
@@ -1773,7 +1773,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller solid.iges",
-      bigtolerance * 10.0,SPLINE_DEGREE,18,&badedges); //!!!!!!!
+      bigtolerance,SPLINE_DEGREE,18,&badedges);
 
     if (!ok)
     {

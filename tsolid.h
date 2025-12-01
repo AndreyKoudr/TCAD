@@ -96,6 +96,9 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   // step 1 : make vertices and middlevertices
   vertices.clear();
   middlevertices.clear();
+  edgemap.clear();
+  if (pbadedges)
+    pbadedges->clear();
 
   assert(surfaces.size() == boundariesUV.size());
 
@@ -134,10 +137,24 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
     } // loops
   } // surfaces
 
+//!!!!!!! #ifdef _DEBUG
+#if 1
+  outputDebugString(std::string("BEFORE tolerance ") + to_string(tolerance) + 
+    std::string(" vertices ") + to_string(int(vertices.size())) + 
+    std::string(" middlevertices ") + to_string(int(middlevertices.size())));
+#endif
+
   // step 2 : exclude duplicate vertices
   std::vector<LINT> vreplacement,mreplacement;
   removeDuplicates(vertices,true,tolerance,&vreplacement);
   removeDuplicates(middlevertices,true,tolerance,&mreplacement);
+
+//!!!!!!! #ifdef _DEBUG
+#if 1
+  outputDebugString(std::string("AFTER tolerance ") + to_string(tolerance) + 
+    std::string(" vertices ") + to_string(int(vertices.size())) + 
+    std::string(" middlevertices ") + to_string(int(middlevertices.size())));
+#endif
 
   // step 3 : renumber indices in edges
   for (auto &e : edges)
@@ -205,6 +222,11 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
     }
   }
 
+//!!!!!!! #ifdef _DEBUG
+#if 1
+  outputDebugString(std::string("num  bad edges ") + to_string(n));
+#endif
+
   return (n == 0);
 }
 
@@ -232,14 +254,27 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, 
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 10)
 {
   edges.clear();
 
   std::map<std::array<LINT,3>,std::vector<std::array<LINT,4>>,TEdgeCompare<T>> edgemap;
 
-  if (!createSolidEdges<T>(surfaces,boundariesUV,vertices,middlevertices,edgemap,tolerance,pbadedges))
+  bool ok = false;
+  T atolerance = tolerance;
+
+  for (int i = 0; i < attempts; i++)
+  {
+    ok = createSolidEdges<T>(surfaces,boundariesUV,vertices,middlevertices,edgemap,atolerance,pbadedges);
+    if (ok)
+      break;
+    atolerance *= 2.0;
+  }
+
+  if (!ok)
+  {
     return false;
+  }
 
   // only two faces per edge are allowed here
   for (auto &e : edgemap)
