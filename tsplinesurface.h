@@ -911,7 +911,7 @@ private:
 
   //// number of columns minus 1
   //int K1 = 0;
-  //// number of rows munus 1
+  //// number of rows minus 1
   //int K2 = 0;
 
   //// (K1 + 1) * (K2 + 1) control points, call update() after every change
