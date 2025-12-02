@@ -46,6 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ttransform.h"
 #include "tbasecurve.h"
 #include "ttriangles.h"
+#include "tsystems.h"
 
 namespace tcad {
 
@@ -780,7 +781,8 @@ public:
     may not be empty at exit. All pieces are supposed to have a correct direction set
     during intersections. */
   template <class T> int extractLoops(std::vector<std::vector<TPoint<T>>> &cut, 
-    std::vector<std::vector<std::vector<TPoint<T>>>> &loops, T tolerance, T parmtolerance = PARM_TOLERANCE)
+    std::vector<std::vector<std::vector<TPoint<T>>>> &loops, T tolerance, 
+    T parmtolerance = PARM_TOLERANCE, bool reverse = false)
   {
     int count = 0;
 
@@ -792,6 +794,14 @@ public:
         std::vector<std::vector<TPoint<T>>> loop;
         if (extractLoop(i,cut,loop,tolerance,parmtolerance))
         {
+          if (reverse)
+          {
+            std::reverse(loop.begin(),loop.end());
+            for (auto &l : loop)
+            {
+              std::reverse(l.begin(),l.end());
+            }
+          }
           loops.push_back(loop);
           found = true;
           count++;
@@ -986,5 +996,415 @@ template <class T> bool calculateMinMax(std::vector<TBaseSurface<T> *> &surfaces
 
   return ok;
 }
+
+/** Is parameter on edge? This stuff is for improvement of surface intersections. */
+template <class T> bool parmOnEdge(T u, T v, bool onedge[4], T t[4], T tolerance = PARM_TOLERANCE)
+{
+                              // on any edge?
+  bool result = false;
+
+                              // zero all
+  for (int i = 0; i < 4; i++)
+  {
+    onedge[i] = false;
+    t[i] = -1;
+  }
+
+                              // close to edges?
+  bool u0 = (std::abs(u) < tolerance);
+  bool u1 = (std::abs(u - 1) < tolerance);
+  bool v0 = (std::abs(v) < tolerance);
+  bool v1 = (std::abs(v - 1) < tolerance);
+
+  if (u0)
+  {
+    onedge[3] = true;
+    t[3] = v;
+    result = true;
+  } else if (u1)
+  {
+    onedge[1] = true;
+    t[1] = v;
+    result = true;
+  } 
+
+  if (v0)
+  {
+    onedge[0] = true;
+    t[0] = u;
+    result = true;
+  } else if (v1)
+  {
+    onedge[2] = true;
+    t[2] = u;
+    result = true;
+  }
+
+#if 0
+DebugOutput(CString("u ") + CString(u,10) + " v " +CString(v,10) + " res = " + 
+  CString((int) result));
+#endif
+
+  return result;
+}
+
+//        U
+//    3--->------2----------2
+//    |                     |
+//    3                     |
+//    |                     1
+//  V ^                     ^ V
+//    |                     |
+//    0--->------0----------1
+//        U
+
+/** Is parameter on edge? This stuff is for improvement of surface intersections. */
+template <class T> bool parmOnEdge(T u, T v, bool onedge[4], T t[4], bool oncorner[4], T tolerance = PARM_TOLERANCE)
+{
+                              // on any edge?
+  bool result = parmOnEdge(u,v,onedge,t,tolerance);
+
+  oncorner[0] = onedge[3] && onedge[0];
+  oncorner[1] = onedge[0] && onedge[1];
+  oncorner[2] = onedge[1] && onedge[2];
+  oncorner[3] = onedge[2] && onedge[3];
+
+  return result;
+}
+
+/** This stuff is for improvement of surface intersections. */
+template <class T> bool solveSystemOneParmFixed(TBaseSurface<T> *F, TBaseSurface<T> *G, TPoint<T> &parms, 
+  T A[16], T B[4], int type, T relaxcoef)
+{
+  TPoint<T> F0 = F->position(parms.X,parms.Y);
+  TPoint<T> G0 = G->position(parms.Z,parms.W);
+  TPoint<T> Fu = F->derivative(parms.X,parms.Y,PARAMETER_U,1);
+  TPoint<T> Fv = F->derivative(parms.X,parms.Y,PARAMETER_V,1);
+  TPoint<T> Gs = G->derivative(parms.Z,parms.W,PARAMETER_U,1);
+  TPoint<T> Gt = G->derivative(parms.Z,parms.W,PARAMETER_V,1);
+
+  makeSystemOneParmFixed(F0,G0,Fu,Fv,Gs,Gt,A,B);
+  makeSystemOneParmFixedLastEquation(type,A,B);
+
+  bool ok = solveSystem4x4<T>(A,B,DBL_MIN * 10.0);
+
+  if (ok)
+  {
+    parms.X += B[0] * relaxcoef;
+    parms.Y += B[1] * relaxcoef;
+    parms.Z += B[2] * relaxcoef;
+    parms.W += B[3] * relaxcoef;
+
+    LIMIT(parms.X,0,1);
+    LIMIT(parms.Y,0,1);
+    LIMIT(parms.Z,0,1);
+    LIMIT(parms.W,0,1);
+  }
+
+  return ok;
+}
+
+//        U
+//    3--->------2----------2
+//    |                     |
+//    3                     |
+//    |                     1
+//  V ^                     ^ V
+//    |                     |
+//    0--->------0----------1
+//        U
+
+/** This stuff is for improvement of surface intersections. */
+template <class T> bool solveSystemBoundary(TBaseSurface<T> *F, TBaseSurface<T> *G, TPoint<T> &parms, 
+  T A[9], T B[3], int edge, T relaxcoef)
+{
+                              // force G boundary coordinates
+  switch (edge) {
+    case 0 : parms.W = 0; break;
+    case 1 : parms.Z = 1; break;
+    case 2 : parms.W = 1; break;
+    case 3 : parms.Z = 0; break;
+    default : assert(false); break;
+  }
+
+  TPoint<T> F0 = F->position(parms.X,parms.Y);
+  TPoint<T> G0 = G->position(parms.Z,parms.W);
+  TPoint<T> Fu = F->derivative(parms.X,parms.Y,PARAMETER_U,1);
+  TPoint<T> Fv = F->derivative(parms.X,parms.Y,PARAMETER_V,1);
+  TPoint<T> Gs = G->derivative(parms.Z,parms.W,PARAMETER_U,1);
+  TPoint<T> Gt = G->derivative(parms.Z,parms.W,PARAMETER_V,1);
+
+  makeSystemBoundary(F0,G0,Fu,Fv,Gs,Gt,A,B,(edge == 0 || edge == 2));
+
+  bool ok = solveSystemWithPivoting<T,int>(3,A,B,DBL_MIN * 10.0);
+
+  if (ok)
+  {
+    parms.X += B[0] * relaxcoef;
+    parms.Y += B[1] * relaxcoef;
+
+    switch (edge) {
+      case 0 : case 2 : parms.Z += B[2] * relaxcoef; break;
+      case 1 : case 3 : parms.W += B[2] * relaxcoef; break;
+      default : assert(false); break;
+    }
+
+    LIMIT(parms.X,0,1);
+    LIMIT(parms.Y,0,1);
+    LIMIT(parms.Z,0,1);
+    LIMIT(parms.W,0,1);
+  }
+
+  return ok;
+}
+
+/** This stuff is for improvement of surface intersections. */
+template <class T> void makeSystemAllCases(TBaseSurface<T> *F, TBaseSurface<T> *G, TPoint<T> &parms,  
+  T A[16], T B[4], TPoint<T> &inc)
+{
+                              // get derivatives
+  TPoint<T> F0 = F->position(parms.X,parms.Y);
+  TPoint<T> G0 = G->position(parms.Z,parms.W);
+  TPoint<T> Fu = F->derivative(parms.X,parms.Y,PARAMETER_U,1);
+  TPoint<T> Fv = F->derivative(parms.X,parms.Y,PARAMETER_V,1);
+  TPoint<T> Gs = G->derivative(parms.Z,parms.W,PARAMETER_U,1);
+  TPoint<T> Gt = G->derivative(parms.Z,parms.W,PARAMETER_V,1);
+
+                              // first three equations
+                              // they may be linearly dependent, e.g. for
+                              // two coplanar surfaces, but leave it for now
+  makeSystemOneParmFixed(F0,G0,Fu,Fv,Gs,Gt,A,B);
+
+                              // fouth equation is relationship between 
+                              // parameter increments
+  A[3 * 4 + 0] = inc.X;
+  A[3 * 4 + 1] = inc.Y;
+  A[3 * 4 + 2] = inc.Z;
+  A[3 * 4 + 3] = inc.W;
+  B[3] = 0;
+}
+
+/** This stuff is for improvement of surface intersections. */
+template <class T> bool improveIntersection(TBaseSurface<T> *F, TBaseSurface<T> *G, TPoint<T> &parms, 
+  int maxiter = 100, T relaxcoef = 0.5, T tolerance = PARM_TOLERANCE)
+{
+  TPoint<T> bestparms;
+  TPoint<T> initparms = parms;
+
+#ifdef _DEBUG
+  T AA[16] = {0};
+#endif
+
+                              // original values
+  parms = initparms;
+  bestparms = parms;
+  T bestdist = !(F->position(parms.X,parms.Y) - G->position(parms.Z,parms.W));
+
+  for (int i = 0; i < maxiter; i++)
+  {
+                              // form a system to get new parameters
+    TPoint<T> F0 = F->position(parms.X,parms.Y);
+    TPoint<T> G0 = G->position(parms.Z,parms.W);
+    TPoint<T> Fu = F->derivative(parms.X,parms.Y,PARAMETER_U,1);
+    TPoint<T> Fv = F->derivative(parms.X,parms.Y,PARAMETER_V,1);
+    TPoint<T> Gs = G->derivative(parms.Z,parms.W,PARAMETER_U,1);
+    TPoint<T> Gt = G->derivative(parms.Z,parms.W,PARAMETER_V,1);
+
+                              // right-hand size and solution
+    T B[4] = {0};
+    bool systemsolved = true;
+
+                              // which system to solve?
+    bool onedge1[4]; T t1[4]; 
+    bool onedge2[4]; T t2[4];
+    bool edge1 = parmOnEdge(parms.X,parms.Y,onedge1,t1,tolerance);
+    bool edge2 = parmOnEdge(parms.Z,parms.W,onedge2,t2,tolerance);
+    if (edge1 || edge2)
+    {
+                               // matrix 4 x 4
+      T A[16] = {0};
+      makeSystemOneParmFixed(F0,G0,Fu,Fv,Gs,Gt,A,B);
+
+      if (edge1)
+      {
+        if (onedge1[0])
+        {
+                              // dv = 0
+          A[3 * 4 + 1] = 1;
+        } 
+        if (onedge1[1])
+        {
+                              // du = 0
+          A[3 * 4 + 0] = 1;
+        } 
+        if (onedge1[2])
+        {
+                              // dv = 0
+          A[3 * 4 + 1] = 1;
+        } 
+        if (onedge1[3])
+        {
+                              // du = 0
+          A[3 * 4 + 0] = 1;
+        }
+      }
+
+      if (edge2)
+      {
+        if (onedge2[0])
+        {
+                              // dt = 0
+          A[3 * 4 + 3] = 1;
+        } 
+        if (onedge2[1])
+        {
+                              // ds = 0
+          A[3 * 4 + 2] = 1;
+        } 
+        if (onedge2[2])
+        {
+                              // dt = 0
+          A[3 * 4 + 3] = 1;
+        } 
+        if (onedge2[3])
+        {
+                              // ds = 0
+          A[3 * 4 + 2] = 1;
+        }
+      }
+      B[3] = 0;
+
+  #ifdef _DEBUG
+      memmove(AA,A,sizeof(A));
+  #endif
+
+      if (!solveSystem4x4<T>(A,B,DBL_MIN * 10.0))
+      {
+        parms = bestparms;
+        systemsolved = false;
+      }
+    } else
+    {
+                              // matrix 3 x 4
+      T A[16] = {0};
+
+                              // try to solve the system with one parameter fixed
+                              // in all four directions
+      bool ok4 = solveSystemOneParmFixed(F,G,parms,A,B,0,relaxcoef) &&
+        solveSystemOneParmFixed(F,G,parms,A,B,1,relaxcoef) &&
+        solveSystemOneParmFixed(F,G,parms,A,B,2,relaxcoef) &&
+        solveSystemOneParmFixed(F,G,parms,A,B,3,relaxcoef);
+
+      if (!ok4)
+      {
+        parms = bestparms;
+
+        if (!solveSystemUnderdetermined3x4(F0,G0,Fu,Fv,Gs,Gt,A,B))
+        {
+          parms = bestparms;
+          systemsolved = false;
+        }
+      }
+    }
+
+    if (systemsolved)
+    {
+      parms.X += B[0] * relaxcoef;
+      parms.Y += B[1] * relaxcoef;
+      parms.Z += B[2] * relaxcoef;
+      parms.W += B[3] * relaxcoef;
+
+      LIMIT(parms.X,0,1);
+      LIMIT(parms.Y,0,1);
+      LIMIT(parms.Z,0,1);
+      LIMIT(parms.W,0,1);
+    }
+
+    T dist = !(F->position(parms.X,parms.Y) - G->position(parms.Z,parms.W));
+    if (dist < tolerance)
+    {
+      return true;
+    }
+
+    if (dist < bestdist)
+    {
+      bestparms = parms;
+      bestdist = dist;
+    }
+  }
+  
+  parms = bestparms;
+  return false;
+} 
+
+/** This stuff is for improvement of surface intersections. */
+template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurface<T> *G, TPoint<T> &parms, 
+  TPoint<T> &inc, int maxiter = 100, T relaxcoef = 0.5, T tolerance = PARM_TOLERANCE)
+{
+  TPoint<T> bestparms;
+  TPoint<T> initparms = parms;
+
+#ifdef _DEBUG
+  T AA[16] = {0};
+#endif
+
+                              // original values
+  parms = initparms;
+  bestparms = parms;
+  T bestdist = !(F->position(parms.X,parms.Y) - G->position(parms.Z,parms.W));
+
+  for (int i = 0; i < maxiter; i++)
+  {
+                              // right-hand size and solution
+    T B[4] = {0};
+    bool systemsolved = true;
+
+                              // matrix 4 x 4
+    T A[16] = {0};
+
+                              // make system
+    makeSystemAllCases(F,G,parms,A,B,inc);
+
+ #ifdef _DEBUG
+      memmove(AA,A,sizeof(A));
+ #endif
+
+                              // solve system
+    if (!solveSystem4x4<T>(A,B,DBL_MIN * 10.0))
+    {
+      parms = bestparms;
+      systemsolved = false;
+    }
+
+    if (systemsolved)
+    {
+      parms.X += B[0] * relaxcoef;
+      parms.Y += B[1] * relaxcoef;
+      parms.Z += B[2] * relaxcoef;
+      parms.W += B[3] * relaxcoef;
+
+      LIMIT(parms.X,0,1);
+      LIMIT(parms.Y,0,1);
+      LIMIT(parms.Z,0,1);
+      LIMIT(parms.W,0,1);
+    }
+
+    T dist = !(F->position(parms.X,parms.Y) - G->position(parms.Z,parms.W));
+    if (dist < tolerance)
+    {
+      return true;
+    }
+
+    if (dist < bestdist)
+    {
+      bestparms = parms;
+      bestdist = dist;
+    }
+  }
+  
+  parms = bestparms;
+  return false;
+} 
+
 
 }

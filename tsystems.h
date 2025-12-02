@@ -381,7 +381,7 @@ Success :
 
 /** Solve overdetermined system, N1(number of rows) x N2(columns);
   solution vector is in first N2 values of B */
-template <class T> bool SolveSystemOverdetemined(int N1, int N2, T A[], T B[], T tolerance)
+template <class T> bool solveSystemOverdetemined(int N1, int N2, T A[], T B[], T tolerance)
 {
                               // make transpose
   T *AT = (T *) malloc(N1 * N2 * sizeof(T));
@@ -571,7 +571,7 @@ private:
 };
 
 /** Find pivot, right-hand side is vectors. */
-template <class T, class Tint> void FindPivotVec(Tint N, Tint row, T A[], TPoint<T> B[], 
+template <class T, class Tint> void findPivotVec(Tint N, Tint row, T A[], TPoint<T> B[], 
   std::vector<T> &temp)
 {
   for (Tint K = row; K < N - 1; K++)
@@ -607,7 +607,7 @@ template <class T, class Tint> void FindPivotVec(Tint N, Tint row, T A[], TPoint
 }
 
 /** System with pivoting, right-hand side is vectors. */
-template <class T, class Tint> bool SolveSystemWithPivotingVec(
+template <class T, class Tint> bool solveSystemWithPivotingVec(
   Tint N, T A[], TPoint<T> B[], T tolerance, T &quality, bool makePivoting)
 {
   Tint K,K1,J,I;
@@ -630,7 +630,7 @@ template <class T, class Tint> bool SolveSystemWithPivotingVec(
   {
     // Reshuffle matrices A and B
     if (makePivoting)
-      FindPivotVec<T,Tint>(N,K,A,B,temp);
+      findPivotVec<T,Tint>(N,K,A,B,temp);
 
     K1 = K + 1;
     AKK = A[K*N+K];
@@ -678,7 +678,7 @@ template <class T, class Tint> bool SolveSystemWithPivotingVec(
 }
 
 /** System with pivoting, right-hand side is vectors. */
-template <class T, class Tint> bool SolveATASystem(Tint N1, Tint N2, T A[], 
+template <class T, class Tint> bool solveATASystem(Tint N1, Tint N2, T A[], 
   TPoint<T> B[], T tolerance, bool multiplyATB = true)
 {
   // AT * A
@@ -738,7 +738,7 @@ template <class T, class Tint> bool SolveATASystem(Tint N1, Tint N2, T A[],
            
   // Solve system
   T quality;
-  bool res = SolveSystemWithPivotingVec(N2,&ATA[0],&ATB[0],tolerance,quality,true);
+  bool res = solveSystemWithPivotingVec(N2,&ATA[0],&ATB[0],tolerance,quality,true);
 
   for (int i = 0; i < N2; i++)
   {
@@ -746,6 +746,95 @@ template <class T, class Tint> bool SolveATASystem(Tint N1, Tint N2, T A[],
   }
 
   return res;
+}
+
+/** This stuff is for surface-surface intersections. */
+template <class T> void makeSystemOneParmFixed(TPoint<T> F0, TPoint<T> G0, TPoint<T> Fu, 
+  TPoint<T> Fv, TPoint<T> Gs, TPoint<T> Gt, 
+  T A[16], T B[4])
+{
+                              // matrix 4 x 4
+  A[0 * 4 + 0] = Fu.X;
+  A[0 * 4 + 1] = Fv.X;
+  A[0 * 4 + 2] = -Gs.X;
+  A[0 * 4 + 3] = -Gt.X;
+  B[0] = G0.X - F0.X;
+
+  A[1 * 4 + 0] = Fu.Y;
+  A[1 * 4 + 1] = Fv.Y;
+  A[1 * 4 + 2] = -Gs.Y;
+  A[1 * 4 + 3] = -Gt.Y;
+  B[1] = G0.Y - F0.Y;
+
+  A[2 * 4 + 0] = Fu.Z;
+  A[2 * 4 + 1] = Fv.Z;
+  A[2 * 4 + 2] = -Gs.Z;
+  A[2 * 4 + 3] = -Gt.Z;
+  B[2] = G0.Z - F0.Z;
+
+  A[3 * 4 + 0] = 0;
+  A[3 * 4 + 1] = 0;
+  A[3 * 4 + 2] = 0;
+  A[3 * 4 + 3] = 0;
+  B[3] = 0;
+}
+
+/** This stuff is for surface-surface intersections. */
+template <class T> void makeSystemOneParmFixedLastEquation(int type, T A[16], T B[4])
+{
+  assert(type >= 0 && type <= 3);
+
+  A[3 * 4 + type] = 1;
+  B[3] = 0;
+}
+
+/** This stuff is for surface-surface intersections. */
+template <class T> void makeSystemBoundary(TPoint<T> F0, TPoint<T> G0, TPoint<T> Fu, TPoint<T> Fv, 
+  TPoint<T> Gs, TPoint<T> Gt, 
+  T A[9], T B[3], bool Galongs)
+{
+                              // matrix 3 x 3
+  for (int i = 0; i < 3; i++)
+  {
+    A[i * 3 + 0] = Fu.XYZ[i];
+    A[i * 3 + 1] = Fv.XYZ[i];
+    A[i * 3 + 2] = Galongs ? (-Gs.XYZ[i]) : (-Gt.XYZ[i]);
+    B[i] = G0.XYZ[i] - F0.XYZ[i];
+  }
+}
+
+/** This stuff is for surface-surface intersections. */
+template <class T> bool solveSystemUnderdetermined3x4(TPoint<T> F0, TPoint<T> G0, TPoint<T> Fu, TPoint<T> Fv, 
+  TPoint<T> Gs, TPoint<T> Gt, 
+  T A[16], T B[4])
+{
+  A[0 * 4 + 0] = Fu.X;
+  A[0 * 4 + 1] = Fv.X;
+  A[0 * 4 + 2] = -Gs.X;
+  A[0 * 4 + 3] = -Gt.X;
+  B[0] = G0.X - F0.X;
+
+  A[1 * 4 + 0] = Fu.Y;
+  A[1 * 4 + 1] = Fv.Y;
+  A[1 * 4 + 2] = -Gs.Y;
+  A[1 * 4 + 3] = -Gt.Y;
+  B[1] = G0.Y - F0.Y;
+
+  A[2 * 4 + 0] = Fu.Z;
+  A[2 * 4 + 1] = Fv.Z;
+  A[2 * 4 + 2] = -Gs.Z;
+  A[2 * 4 + 3] = -Gt.Z;
+  B[2] = G0.Z - F0.Z;
+
+  bool ok = solveSystemOverdetemined<T>(3,4,A,B,DBL_MIN * 10.0);
+
+  return ok;
+}
+
+/** Solve system 4 x 4. */
+template <class T> bool solveSystem4x4(T A[16], T B[4], T tolerance)
+{
+  return solveSystemWithPivoting<T,int>(4,A,B,tolerance);
 }
 
 }

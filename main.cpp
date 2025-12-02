@@ -1764,7 +1764,8 @@ int main(int argc, char* argv[])
     T bigtolerance = 0.0;
     makeSolid(surfaces,hsurfaces,boundariesUV,boundariesUV1,tolerance,bigtolerance);
 
-    saveTrimmedSurfaceIges(surfaces[1],boundariesUV[1],DEBUG_DIR + "Kilo propeller surface 1 trimmed.iges");
+    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces 1 trimmed.iges");
+    saveTrimmedSurfacesIges(hsurfaces,boundariesUV1,DEBUG_DIR + "Kilo propeller surfaces 2 trimmed.iges");
 
     surfaces.insert(surfaces.end(),hsurfaces.begin(),hsurfaces.end());
     boundariesUV.insert(boundariesUV.end(),boundariesUV1.begin(),boundariesUV1.end());

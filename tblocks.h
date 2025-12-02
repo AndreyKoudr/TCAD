@@ -593,7 +593,8 @@ template <class T> void makeSolid(
   std::vector<TSplineSurface<T> *> &surfaces1,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV0,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV1,
-  T tolerance, T &bigtolerance, T parmtolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  T tolerance, T &bigtolerance, T parmtolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D,
+  bool improveintersection = true, int maxiter = 20, T relaxcoef = 0.5)
 {
   boundariesUV0.clear();
   boundariesUV1.clear();
@@ -647,6 +648,25 @@ template <class T> void makeSolid(
 
       if (ok)
       {
+        if (improveintersection)
+        {
+          for (int k = 0; k < boundary0.size(); k++)
+          {
+            for (int l = 0; l < int(boundary0[k].size()); l++)
+            {
+              TPoint<T> parms(boundary0[k][l].X,boundary0[k][l].Y,boundary1[k][l].X,boundary1[k][l].Y);
+
+              if (improveIntersection<T>(surfaces0[i],surfaces1[j],parms,maxiter,relaxcoef,parmtolerance))
+              {
+                boundary0[k][l].X = parms.X;
+                boundary0[k][l].Y = parms.Y;
+                boundary1[k][l].X = parms.Z;
+                boundary1[k][l].Y = parms.W;
+              }
+            }
+          }
+        }
+
         // calculate difference in boundary lines
         T maxdiff = 0.0;
 

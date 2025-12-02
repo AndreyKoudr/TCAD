@@ -141,6 +141,9 @@ namespace tcad {
 // delete an instance of class
 #define DELETE_CLASS(class_inst) if (class_inst) { delete class_inst; class_inst = nullptr; }
 
+// deallocate
+#define FREE(mem) if (mem) { free(mem); mem = nullptr; }; 
+
 // default b-spline
 #define SPLINE_DEGREE 3
 

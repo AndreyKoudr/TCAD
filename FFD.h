@@ -227,7 +227,7 @@ public:
     }
 
     // Solve system
-    bool res = SolveATASystem<MATRIX_FLOAT,int>(numW * numV * numU,int(uvw.size()),&R[0],&D[0],
+    bool res = solveATASystem<MATRIX_FLOAT,int>(numW * numV * numU,int(uvw.size()),&R[0],&D[0],
       static_cast<MATRIX_FLOAT>(1.0e-20),false);
     assert(res);
 
