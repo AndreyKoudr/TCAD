@@ -754,7 +754,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
         // curve C in XYZ
         for (int j = 0; j < int(boundary.size()); j++)
         {
-          tcad::TSplineCurve<T> C(boundary[j],splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+          tcad::TSplineCurve<T> C(boundary[j],int(boundary[j].size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
 
           lines[dir128line] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
           dir128line++;
