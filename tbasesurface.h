@@ -572,6 +572,19 @@ public:
     }
   }
 
+  /** Convert U/V into XYZ points. */
+  template <class T> void UVIntoPoints(std::vector<TPoint<T>> &UV,
+    std::vector<TPoint<T>> &points)
+  {
+    points.clear();
+
+    for (int i = 0; i < int(UV.size()); i++)
+    {
+      TPoint<T> p = this->position(UV[i].X,UV[i].Y);
+      points.push_back(p);
+    }
+  }
+
   /** Is it a boundary point? */
   template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
   {

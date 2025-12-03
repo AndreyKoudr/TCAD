@@ -45,6 +45,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tedge.h"
 #include <assert.h>
 
+//#define DEBUG_SOLID
+#ifdef NDEBUG
+  #undef DEBUG_SOLID
+#endif
+
 namespace tcad {
 
 /** Find all bad edges in the map which do not have exactly two neightbour faces. 
@@ -82,7 +87,7 @@ template <class T> void getBoundaryPartXYZ(std::vector<tcad::TSplineSurface<T> *
 }
 
 /** Create solid model as edges; each edge has two end nodes (from vertices) 
-  pluse one middle node (from middlevertices)
+  plus one middle node (from middlevertices)
   and two surfaces from left and right; the first has right edge direction 
   (surface to the left), second has opposite.
 */
@@ -112,6 +117,7 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   {
     for (int j = 0; j < int(boundariesUV[i].size()); j++)
     {
+      int count = 0;
       for (int k = 0; k < int(boundariesUV[i][j].size()); k++)
       {
         // this curve should be XYZ, not UV
@@ -120,7 +126,7 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
 
         TPointCurve<T> curve(points);
 
-        if (curve.length() > tolerance)
+        if (curve.length() > tolerance) 
         {
           TPoint<T> s = curve.start();
           TPoint<T> e = curve.end();
@@ -131,14 +137,18 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
           middlevertices.push_back(m);
 
           edges.push_back(std::array<LINT,3>{(LINT) vertices.size() - 2,(LINT) vertices.size() - 1,(LINT) middlevertices.size() - 1});
-          edgelocations.push_back(std::array<LINT,4>{i,j,k,0});
+          edgelocations.push_back(std::array<LINT,4>{i,j,count++,0});
+        } else
+        {
+          // remove this degenerated piece of boundary, only ONE! piece of boundary can 
+          // be degenerated //!!!!!!
+          boundariesUV[i][j].erase(boundariesUV[i][j].begin() + k);
         }
       } // boundary part (curve)
     } // loops
   } // surfaces
 
-//!!!!!!! #ifdef _DEBUG
-#if 1
+#ifdef DEBUG_SOLID
   outputDebugString(std::string("BEFORE tolerance ") + to_string(tolerance) + 
     std::string(" vertices ") + to_string(int(vertices.size())) + 
     std::string(" middlevertices ") + to_string(int(middlevertices.size())));
@@ -149,8 +159,7 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   removeDuplicates(vertices,true,tolerance,&vreplacement);
   removeDuplicates(middlevertices,true,tolerance,&mreplacement);
 
-//!!!!!!! #ifdef _DEBUG
-#if 1
+#ifdef DEBUG_SOLID
   outputDebugString(std::string("AFTER tolerance ") + to_string(tolerance) + 
     std::string(" vertices ") + to_string(int(vertices.size())) + 
     std::string(" middlevertices ") + to_string(int(middlevertices.size())));
@@ -180,6 +189,10 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
     }
   }
 
+#ifdef DEBUG_SOLID
+  outputDebugString("");
+#endif
+
   // set "reversed" for every edge location
   for (auto &e : edgemap)
   {
@@ -201,6 +214,11 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
 
       // reversed
       e.second[i][3] = (LINT) (dr < d);
+
+#ifdef DEBUG_SOLID
+      outputDebugString(std::string("surface ") + to_string(int(e.second[i][0])) +
+        std::string(" reversed ") + to_string(int(e.second[i][3])));
+#endif
     }
   }
 
@@ -222,9 +240,8 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
     }
   }
 
-//!!!!!!! #ifdef _DEBUG
-#if 1
-  outputDebugString(std::string("num  bad edges ") + to_string(n));
+#ifdef DEBUG_SOLID
+  outputDebugString(std::string("num bad edges ") + to_string(n));
 #endif
 
   return (n == 0);
@@ -294,7 +311,7 @@ template <class T> int findLoopEdges(std::vector<std::array<LINT,11>> &edges, in
 {
   for (int i = 0; i < loopsize; i++)
   {
-    for (int j = 0; j < edges.size(); j++)
+    for (int j = 0; j < int(edges.size()); j++)
     {
       if (edges[j][3] == surface && edges[j][4] == loop && edges[j][5] == i)
       {
@@ -308,6 +325,108 @@ template <class T> int findLoopEdges(std::vector<std::array<LINT,11>> &edges, in
   }
 
   return int(iedges.size());
+}
+
+/** Check loop. */
+template <class T> bool loopOK(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, 
+  std::vector<std::array<LINT,11>> &edges, int nsurface, 
+  int nloop, int loopsize, std::vector<std::pair<int,bool>> &iedges, T tolerance,
+  std::vector<std::vector<TPoint<T>>> &dloop0, std::vector<std::vector<TPoint<T>>> &dloop1)
+{
+  // remember edges involved
+  std::vector<int> nedges;
+
+  // make iedges for this nsurface and nloop
+  for (int i = 0; i < loopsize; i++)
+  {
+    for (int j = 0; j < int(edges.size()); j++)
+    {
+      if (edges[j][3] == nsurface && edges[j][4] == nloop && edges[j][5] == i)
+      {
+        iedges.push_back(std::pair<int,bool>(j,bool(edges[j][6])));
+        nedges.push_back(j);
+      }
+      if (edges[j][7] == nsurface && edges[j][8] == nloop && edges[j][9] == i)
+      {
+        iedges.push_back(std::pair<int,bool>(j,bool(edges[j][10])));
+        nedges.push_back(j);
+      }
+    }
+  }
+
+  // edge maybe degenerated
+  //assert(loopsize == iedges.size());
+  //assert(loopsize == nedges.size());
+  //if (loopsize != iedges.size())
+  //  return false;
+
+  bool ok = true;
+
+  // take surface and loop, ther are constant here
+  tcad::TSplineSurface<T> *surface = surfaces[nsurface];
+  std::vector<std::vector<tcad::TPoint<T>>> &loop = boundariesUV[nsurface][nloop];
+
+#ifdef DEBUG_SOLID
+  outputDebugString(string(""));
+#endif
+
+  dloop0.clear();
+  dloop1.clear();
+
+  // these are edges i.e. pieces of boundary
+  for (int i = 0; i < int(iedges.size()); i++)
+  {
+    int nedge = iedges[i].first;
+    bool reversed = iedges[i].second;
+
+    // ending/middle vertices from edge
+    TPoint<T> v0 = vertices[edges[nedge][0]];
+    TPoint<T> v1 = vertices[edges[nedge][1]];
+    TPoint<T> vm = middlevertices[edges[nedge][2]];
+
+    // piece of boundary in UV
+    std::vector<tcad::TPoint<T>> &pieceUV = loop[i];
+
+    // into XYZ
+    std::vector<tcad::TPoint<T>> points;
+    surface->UVIntoPoints(pieceUV,points);
+
+    TPoint<T> p0 = points.front();
+    TPoint<T> p1 = points.back();
+
+    T d = !(v0 - p0) + !(v1 - p1);
+    T dr = !(v0 - p1) + !(v1 - p0);
+
+    bool reversed01 = (dr < d);
+
+    assert(reversed == reversed01);
+
+    if (reversed)
+    {
+      std::vector<TPoint<T>> line;
+      line.push_back(v1);
+      line.push_back(vm);
+      line.push_back(v0);
+      dloop0.push_back(line);
+    } else
+    {
+      std::vector<TPoint<T>> line;
+      line.push_back(v0);
+      line.push_back(vm);
+      line.push_back(v1);
+      dloop0.push_back(line);
+    }
+
+    dloop1.push_back(points);
+
+#ifdef DEBUG_SOLID
+    outputDebugString(std::string("rev ") + to_string(int(reversed)) + std::string(" rev01 ") + to_string(int(reversed01)));
+#endif
+  }
+
+  return ok;
 }
 
 }

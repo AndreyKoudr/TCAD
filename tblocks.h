@@ -693,7 +693,7 @@ template <class T> void makeSolid(
 
         bigtolerance = std::max<T>(bigtolerance,maxdiff);
 
-#ifdef _DEBUG
+#ifdef DEBUG_BLOCKS
         outputDebugString(std::string("maxdiff = ") + to_string(maxdiff) + 
           std::string(" bigtolerance = ") + to_string(bigtolerance) +
           std::string(" maxseglen = ") + to_string(maxseglen));

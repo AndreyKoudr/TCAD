@@ -278,91 +278,6 @@ template <class T> void addIges504(std::vector<std::string> &lines,
   finalize(lines,dirline,count,igesstr);
 }
 
-/** Entity 508. */
-template <class T> void addIges508(std::vector<std::string> &lines, 
-  std::vector<std::array<LINT,11>> &edges, 
-  int surface, int loop, int loopsize, int edgeDE, 
-  int dirline, int *count)
-{
-  std::string igesstr = "";
-
-  // save all info
-  addIgesString(lines,to_string(508),dirline,count,igesstr);
-
-  // some boundary pieces can be split
-  addIgesString(lines,to_string(loopsize),dirline,count,igesstr);
-
-  // find edge numbers for this surface and this loop
-  std::vector<std::pair<int,bool>> iedges;
-  findLoopEdges<T>(edges,surface,loop,loopsize,iedges);
-  assert(!iedges.empty());
-
-  for (int i = 0; i < iedges.size(); i++)
-  {
-    int iedge = iedges[i].first;
-    bool reversed = iedges[i].second;
-
-    addIgesString(lines,to_string(0),dirline,count,igesstr);
-    addIgesString(lines,to_string(edgeDE),dirline,count,igesstr);
-
-    addIgesString(lines,to_string(iedge + 1),dirline,count,igesstr);
-    addIgesString(lines,to_string((int) (!reversed)),dirline,count,igesstr);
-
-    addIgesString(lines,to_string((int) 0),dirline,count,igesstr);
-  }
-
-  finalize(lines,dirline,count,igesstr);
-}
-
-/** Entity 510. */
-template <class T> void addIges510(std::vector<std::string> &lines, int surfaceDE, 
-  std::vector<int> &loopDEs, int dirline, int *count)
-{
-  std::string igesstr = "";
-
-  addIgesString(lines,to_string(510),dirline,count,igesstr);
-  addIgesString(lines,to_string(surfaceDE),dirline,count,igesstr);
-  addIgesString(lines,to_string(int(loopDEs.size())),dirline,count,igesstr);
-  addIgesString(lines,to_string(1),dirline,count,igesstr); // the first loop is the outer
-//  addIgesString(lines,to_string(0),dirline,count,igesstr); //!!! no outer loop is identified
-  for (int i = 0; i < int(loopDEs.size()); i++)
-  {
-    addIgesString(lines,to_string(loopDEs[i]),dirline,count,igesstr);
-  }
-
-  finalize(lines,dirline,count,igesstr);
-}
-
-/** Entity 514. */
-template <class T> void addIges514(std::vector<std::string> &lines, std::vector<int> &faceDEs, int dirline, int *count)
-{
-  std::string igesstr = "";
-
-  addIgesString(lines,to_string(514),dirline,count,igesstr);
-  addIgesString(lines,to_string((int) faceDEs.size()),dirline,count,igesstr);
-
-  for (int i = 0; i < faceDEs.size(); i++)
-  {
-    addIgesString(lines,to_string(faceDEs[i]),dirline,count,igesstr);
-    addIgesString(lines,to_string((int) 1),dirline,count,igesstr);
-  }
-
-  finalize(lines,dirline,count,igesstr);
-}
-
-/** Entity 186. */
-template <class T> void addIges186(std::vector<std::string> &lines, int shellDE, int dirline, int *count)
-{
-  std::string igesstr = "";
-
-  addIgesString(lines,to_string(186),dirline,count,igesstr);
-  addIgesString(lines,to_string(shellDE),dirline,count,igesstr);
-  addIgesString(lines,to_string(1),dirline,count,igesstr);
-  addIgesString(lines,to_string(0),dirline,count,igesstr);
-
-  finalize(lines,dirline,count,igesstr);
-}
-
 /** Make the whole collection of lines to save them. */
 template <class T> bool makeCurveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
   std::vector<std::string> &lines, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
@@ -467,6 +382,127 @@ template <class T> bool makeCurveLinesIges(std::vector<std::vector<tcad::TPoint<
   lines.push_back(s);
 
   return true;
+}
+
+/** Save curves as points. */
+template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
+  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+{
+  std::vector<std::string> lines;
+
+  if (makeCurveLinesIges(curves,lines,splinedegree,minpoints))
+  {
+    bool ok = writeLines(lines,filename);
+    return ok;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Entity 508. */
+template <class T> void addIges508(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, T tolerance,
+  std::vector<std::string> &lines, 
+  std::vector<std::array<LINT,11>> &edges, 
+  int surface, int loop, int loopsize, int edgeDE, 
+  int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  // save all info
+  addIgesString(lines,to_string(508),dirline,count,igesstr);
+
+  // some boundary pieces can be split
+  addIgesString(lines,to_string(loopsize),dirline,count,igesstr);
+
+  // find edge numbers for this surface and this loop
+  std::vector<std::pair<int,bool>> iedges;
+
+#if 1 //!!!!!!!
+  std::vector<std::vector<TPoint<T>>> dloop0,dloop1;
+  loopOK(surfaces,boundariesUV,vertices,middlevertices,edges,surface,loop,loopsize,
+    iedges,tolerance,dloop0,dloop1);
+
+  #ifdef DEBUG_SOLID
+    saveLinesIges<T>(dloop0,std::string("loop0_") + to_string(surface) + "_" + to_string(loop) + ".iges");
+    saveLinesIges<T>(dloop1,std::string("loop1_") + to_string(surface) + "_" + to_string(loop) + ".iges");
+  #endif
+#else
+  findLoopEdges<T>(edges,surface,loop,loopsize,iedges);
+#endif;
+
+  assert(!iedges.empty());
+
+  // it should be ok even with degenerated edges as see the code :
+  // "// remove this degenerated piece of boundary, only ONE!"
+  assert(loopsize == iedges.size());
+
+  for (int i = 0; i < iedges.size(); i++)
+  {
+    int iedge = iedges[i].first;
+    bool reversed = iedges[i].second;
+
+    addIgesString(lines,to_string(0),dirline,count,igesstr);
+    addIgesString(lines,to_string(edgeDE),dirline,count,igesstr);
+
+    addIgesString(lines,to_string(iedge + 1),dirline,count,igesstr);
+    addIgesString(lines,to_string((int) (!reversed)),dirline,count,igesstr);
+
+    addIgesString(lines,to_string((int) 0),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 510. */
+template <class T> void addIges510(std::vector<std::string> &lines, int surfaceDE, 
+  std::vector<int> &loopDEs, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  addIgesString(lines,to_string(510),dirline,count,igesstr);
+  addIgesString(lines,to_string(surfaceDE),dirline,count,igesstr);
+  addIgesString(lines,to_string(int(loopDEs.size())),dirline,count,igesstr);
+  addIgesString(lines,to_string(1),dirline,count,igesstr); // the first loop is the outer
+//  addIgesString(lines,to_string(0),dirline,count,igesstr); //!!! no outer loop is identified
+  for (int i = 0; i < int(loopDEs.size()); i++)
+  {
+    addIgesString(lines,to_string(loopDEs[i]),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 514. */
+template <class T> void addIges514(std::vector<std::string> &lines, std::vector<int> &faceDEs, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  addIgesString(lines,to_string(514),dirline,count,igesstr);
+  addIgesString(lines,to_string((int) faceDEs.size()),dirline,count,igesstr);
+
+  for (int i = 0; i < faceDEs.size(); i++)
+  {
+    addIgesString(lines,to_string(faceDEs[i]),dirline,count,igesstr);
+    addIgesString(lines,to_string((int) 1),dirline,count,igesstr);
+  }
+
+  finalize(lines,dirline,count,igesstr);
+}
+
+/** Entity 186. */
+template <class T> void addIges186(std::vector<std::string> &lines, int shellDE, int dirline, int *count)
+{
+  std::string igesstr = "";
+
+  addIgesString(lines,to_string(186),dirline,count,igesstr);
+  addIgesString(lines,to_string(shellDE),dirline,count,igesstr);
+  addIgesString(lines,to_string(1),dirline,count,igesstr);
+  addIgesString(lines,to_string(0),dirline,count,igesstr);
+
+  finalize(lines,dirline,count,igesstr);
 }
 
 /** Make the whole collection of lines to save them. */
@@ -947,15 +983,6 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     // make spline curve
     tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
 
-//!!!!!!
-//    tcad::TSplineCurve<T> C(points,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
-//TPoint<T> err(0.05154532527962163,0.3257354690456166,1.2693589534566567);
-//T d = !(C.controlPoints()[2] - err);
-//if (d < 0.00001)
-//{
-//  d *= 1.0;
-//}
-
     lines[sdirline] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
     sdirline++;
 
@@ -1022,7 +1049,10 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
       sdirline++;
 
       before = int(lines.size());
-      addIges508<T>(lines,edges,i,j,int(boundariesUV[i][j].size()),edgeDE,dcount - 1,&pcount);
+
+      addIges508<T>(surfaces,boundariesUV,vertices,middlevertices,tolerance,
+        lines,edges,i,j,int(boundariesUV[i][j].size()),edgeDE,dcount - 1,&pcount);
+
       loopDEs.push_back(dcount - 1);
       after = int(lines.size());
 
@@ -1084,21 +1114,21 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 
 //===== Curves =================================================================
 
-/** Save curves as points. */
-template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
-  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
-{
-  std::vector<std::string> lines;
-
-  if (makeCurveLinesIges(curves,lines,splinedegree,minpoints))
-  {
-    bool ok = writeLines(lines,filename);
-    return ok;
-  } else
-  {
-    return false;
-  }
-}
+///** Save curves as points. DECLARED ABOVE. */
+//template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
+//  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+//{
+//  std::vector<std::string> lines;
+//
+//  if (makeCurveLinesIges(curves,lines,splinedegree,minpoints))
+//  {
+//    bool ok = writeLines(lines,filename);
+//    return ok;
+//  } else
+//  {
+//    return false;
+//  }
+//}
 
 /** Save curve as points. */
 template <class T> bool saveLinesIges(std::vector<tcad::TPoint<T>> &curve, 
