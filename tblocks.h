@@ -587,6 +587,24 @@ template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour
   }
 }
 
+/** Make surfaces of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
+  The contour must be defined in Z-X coordinates,
+  normally with decreasing Z. numfaces is that along circumference. 
+  U is circumferential, V - along Z axis. */
+template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<T>>> &contour,
+  int numfaces, int pointsperface, int K1, int K2, 
+  std::vector<TSplineSurface<T> *> &surfaces, 
+  int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
+  CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
+{
+  for (int i = 0; i < int(contour.size()); i++)
+  {
+    makeSurfacesOfRevolution(contour[i],
+      numfaces,pointsperface,K1,K2,surfaces,M1,M2,startU,endU,startV,endV);
+  }
+}
+
 /** Intersect surfaces to make a solid. */
 template <class T> void makeSolid(
   std::vector<TSplineSurface<T> *> &surfaces0,

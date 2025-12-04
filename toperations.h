@@ -116,12 +116,18 @@ template <class T> bool removeDuplicateNodes(std::vector<TPoint<T>> &points, T t
   from the smoothed points. */
 template <class T> void smoothPointsByOrtho(std::vector<TPoint<T>> &points, 
   CurveEndType start, CurveEndType end, int power = 8, int integration = GAUSSINT_8, 
-  bool keependpoints = true)
+  bool keependpoints = true, int numnewpoints = -1)
 {
   // (1) prepare parameters by length to place new smoothed points to original 
   // parameteric positions
   std::vector<T> parms;
-  prepareParameters(points,parms,true,false);
+  if (numnewpoints > 1)
+  {
+    prepareUniformParameters(numnewpoints,parms);
+  } else
+  {
+    prepareParameters(points,parms,true,false);
+  }
 
   // (2) create orthogonal polynomial from points, it smoothes points by poly, makes many new points
   TOrthoSegment<T> ssegment(points,start,end,power,integration);
@@ -153,12 +159,18 @@ template <class T> void smoothPointsByOrtho(std::vector<TPoint<T>> &points,
 /** Smooth curve points by a qubic Bezier segment (very hard, very smooth). You can create any curve 
   from the smoothed points. */
 template <class T> void smoothPointsByBezier(std::vector<TPoint<T>> &points, 
-  CurveEndType start, CurveEndType end)
+  CurveEndType start, CurveEndType end, int numnewpoints = -1)
 {
   // (1) prepare parameters by length to place new smoothed points to original 
   // parameteric positions
   std::vector<T> parms;
-  prepareParameters(points,parms,true,false);
+  if (numnewpoints > 1)
+  {
+    prepareUniformParameters(numnewpoints,parms);
+  } else
+  {
+    prepareParameters(points,parms,true,false);
+  }
 
   // (2) create a cubic Bezier segment from points
   TBezierSegment<T> ssegment(points,start,end);
@@ -199,14 +211,20 @@ template <class T> void smoothPointsByBezier(std::vector<TPoint<T>> &points,
 /** Smooth curve points by a Bezier curve of numsegments. You can create any curve 
   from the smoothed points. */
 template <class T> void smoothPointsByBezierCurve(std::vector<TPoint<T>> &points, int numsegments,
-  CurveEndType start, CurveEndType end)
+  CurveEndType start, CurveEndType end, int numnewpoints = -1)
 {
   assert(numsegments >= 1);
 
   // (1) prepare parameters by length to place new smoothed points to original 
   // parameteric positions
   std::vector<T> parms;
-  prepareParameters(points,parms,true,false);
+  if (numnewpoints > 1)
+  {
+    prepareUniformParameters(numnewpoints,parms);
+  } else
+  {
+    prepareParameters(points,parms,true,false);
+  }
 
   // (2) create a cubic Bezier segment from points
   TBezierCurve<T> scurve(points,numsegments,start,end);
@@ -249,14 +267,20 @@ template <class T> void smoothPointsByBezierCurve(std::vector<TPoint<T>> &points
   points, otherwise a natural spline is built (second derivative of XYZ on parameter
   is zero) at the end. */
 template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points, int k, 
-  CurveEndType start, CurveEndType end, int degree = SPLINE_DEGREE)
+  CurveEndType start, CurveEndType end, int degree = SPLINE_DEGREE, int numnewpoints = -1)
 {
   assert(k >= 1);
 
   // (1) prepare parameters by length to place new smoothed points to original 
   // parameteric positions
   std::vector<T> parms;
-  prepareParameters(points,parms,true,false);
+  if (numnewpoints > 1)
+  {
+    prepareUniformParameters(numnewpoints,parms);
+  } else
+  {
+    prepareParameters(points,parms,true,false);
+  }
 
   // (2) create a spline from points
   TSplineCurve<T> scurve(points,k,degree,start,end);

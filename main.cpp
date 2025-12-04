@@ -297,6 +297,8 @@ int main(int argc, char* argv[])
   TestTimer();
   double starttime = GetTime();
 
+#if 1 //!!!!!!!
+
   /*****************************************************************************
 
     Part 1 : CURVES. What can we do with them?
@@ -1691,6 +1693,11 @@ int main(int argc, char* argv[])
 
   cout << "5.7 Blocks : propeller, trimmed and solid" << endl;
 
+  // keep them for submarine, propeller surfaces
+  std::vector<TSplineSurface<T> *> propsurfaces;
+  // propeller trimming curves
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> propboundariesUV;
+
   {
     T propR = 1.3;
     T tolerance = propR * PARM_TOLERANCE;
@@ -1770,6 +1777,11 @@ int main(int argc, char* argv[])
     surfaces.insert(surfaces.end(),hsurfaces.begin(),hsurfaces.end());
     boundariesUV.insert(boundariesUV.end(),boundariesUV1.begin(),boundariesUV1.end());
 
+    // move propeller to hull position
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(-0.3 - 0.1 - 29.7,0.0,0.0)); 
+    makeTransform<T>(surfaces,&t);
+
     saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces trimmed.iges");
 
     std::vector<std::vector<TPoint<T>>> badedges;
@@ -1781,7 +1793,53 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
 
-    deleteSurfaces(surfaces);
+    // keep for further use in submarine
+    propsurfaces = surfaces;
+    propboundariesUV = boundariesUV;
+  }
+
+#endif
+
+  /*****************************************************************************
+    5.8 Blocks : submarine hull, axisymmetric solid
+  *****************************************************************************/
+
+  cout << "5.8 Blocks : submarine hull, axisymmetric solid" << endl;
+
+  // hull surfaces
+  std::vector<TSplineSurface<T> *> hullsurfaces;
+  // hull trimming curves
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> hullboundariesUV;
+
+  {
+    T hullL = 74.0;
+    T tolerance = hullL * PARM_TOLERANCE;
+
+    // make axisymmetric hull
+    smoothPointsByBezier(KiloHull<T>[1],END_FIXED,END_CLAMPED,50);
+    smoothPointsByBezier(KiloHull<T>[3],END_CLAMPED,END_CLAMPED,50);
+    makeSurfacesOfRevolution<T>(KiloHull<T>,8,9,16,32,hullsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_CLAMPED); 
+
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),+90.0 * CPI); 
+    makeTransform<T>(hullsurfaces,&t);
+
+    saveSurfacesIges(hullsurfaces,DEBUG_DIR + "Kilo sub hull surfaces.iges");
+
+    // make boundaries
+    for (int i = 0; i < int(hullsurfaces.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> loop;
+      hullsurfaces[i]->closeOuterBoundaryLoop(loop);
+
+      hullboundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+      hullboundariesUV.back().push_back(loop);
+    }
+
+    bool ok = saveSolidIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull solid.iges",tolerance);
+
+    assert(ok);
   }
 
   double endtime = GetTime();

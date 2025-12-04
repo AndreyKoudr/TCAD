@@ -296,6 +296,18 @@ template <class T> bool prepareParameters(std::vector<TPoint<T>> &points,
   return true;
 }
 
+/** Get uniform parameters [0..1]. */
+template <class T> void prepareUniformParameters(int numpoints, std::vector<T> &parms)
+{
+  parms.clear();
+
+  for (int i = 0; i < numpoints; i++)
+  {
+    T U = T(i) / T(numpoints - 1);
+    parms.push_back(U);
+  }
+}
+
 /** Split points into x,y,z arrays. */
 template <class T> void splitXYZ(std::vector<TPoint<T>> &points, std::vector<T> &x, std::vector<T> &y, std::vector<T> &z)
 {

@@ -91,7 +91,7 @@ namespace tcad {
 //===== Tolerances =============================================================
 
 // tolerance
-#define TOLERANCE(T) std::numeric_limits<T>::epsilon() * static_cast<T>(100.0)
+#define TOLERANCE(T) std::numeric_limits<T>::epsilon() * static_cast<T>(1000.0)
 
 // parametric tolerance
 #define PARM_TOLERANCE 0.000001

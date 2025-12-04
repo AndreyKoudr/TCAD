@@ -264,4 +264,56 @@ template <class T> std::vector<TPoint<T>> KiloPropHubEnd = {
   TPoint<T>(0.0,    0.0,     0.0)
 };
 
+/** Kilo hull in Z-X coordinates. */
+#define KHCOEF 0.33
+
+#if 0 //!!!!!!!
+
+template <class T> std::vector<std::vector<TPoint<T>>> KiloHull = {
+  {
+    TPoint<T>(0.0 * KHCOEF,    0.0,    -29.7),
+    TPoint<T>(0.24,            0.0,    -29.7)
+  },
+  {
+    TPoint<T>(0.24,            0.0,    -29.7),
+    TPoint<T>(7.5 * KHCOEF,    0.0,    -60.0 * KHCOEF),
+    TPoint<T>(12.5 * KHCOEF,   0.0,    -30.0 * KHCOEF),
+    TPoint<T>(15.0 * KHCOEF,   0.0,    104.0 * KHCOEF),
+    TPoint<T>(15.0 * KHCOEF,   0.0,    110.0 * KHCOEF),
+    TPoint<T>(12.5 * KHCOEF,   0.0,    120.0 * KHCOEF),
+    TPoint<T>( 8.0 * KHCOEF,   0.0,    130.0 * KHCOEF),
+    TPoint<T>( 0.0 * KHCOEF,   0.0,    134.0 * KHCOEF)
+  }
+};
+
+#else
+
+template <class T> std::vector<std::vector<TPoint<T>>> KiloHull = {
+  {
+    TPoint<T>(0.0 * KHCOEF,    0.0,    -29.7),
+    TPoint<T>(0.24,            0.0,    -29.7)
+  },
+  {
+    TPoint<T>(0.24,            0.0,    -29.7),
+    TPoint<T>(7.5 * KHCOEF,    0.0,    -60.0 * KHCOEF),
+    TPoint<T>(12.5 * KHCOEF,   0.0,    -30.0 * KHCOEF),
+    TPoint<T>(15.0 * KHCOEF,   0.0,    -15.0 * KHCOEF),
+    TPoint<T>(15.0 * KHCOEF,   0.0,      0.0 * KHCOEF),
+  },
+  {
+    TPoint<T>(15.0 * KHCOEF,   0.0,      0.0 * KHCOEF),
+    TPoint<T>(15.0 * KHCOEF,   0.0,    104.0 * KHCOEF),
+  },
+  {
+    TPoint<T>(15.0 * KHCOEF,   0.0,    104.0 * KHCOEF),
+    TPoint<T>(15.0 * KHCOEF,   0.0,    110.0 * KHCOEF),
+    TPoint<T>(12.5 * KHCOEF,   0.0,    120.0 * KHCOEF),
+    TPoint<T>( 8.0 * KHCOEF,   0.0,    130.0 * KHCOEF),
+    TPoint<T>( 0.1 * KHCOEF,   0.0,    134.0 * KHCOEF),
+    TPoint<T>( 0.0 * KHCOEF,   0.0,    134.0 * KHCOEF)
+  }
+};
+
+#endif
+
 }

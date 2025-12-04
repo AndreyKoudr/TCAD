@@ -379,6 +379,9 @@ public:
     getDerivativesU1(points,temp);
     TPointCurve<T> U1(temp);
 
+    if (!U0.ok() || !U1.ok())
+      return;
+
     // set rows
     for (int i = 0; i <= this->K2; i++)
     {
@@ -411,6 +414,9 @@ public:
     TPointCurve<T> V0(temp);
     getDerivativesV1(points,temp);
     TPointCurve<T> V1(temp);
+
+    if (!V0.ok() || !V1.ok())
+      return;
 
     for (int i = 0; i <= this->K1; i++)
     {

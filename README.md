@@ -144,6 +144,8 @@ Blocks
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hub_solid.png)
 - 5.7 Blocks : propeller, trimmed and solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_propeller_solid_autodesk.png)
+- 5.8 Blocks : submarine hull, axisymmetric solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_hull_solid.png)
 
 Important parameters in main.cpp
 ================================
@@ -179,7 +181,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Doing blocks, improving solid construction.<br /> 
+Doing submarine from parts.<br /> 
 
 
 

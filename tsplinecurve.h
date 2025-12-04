@@ -255,10 +255,14 @@ public:
     https://web.mit.edu/hyperbook/Patrikalakis-Maekawa-Cho/node17.html */
   void setClampedStart(std::vector<TPoint<T>> &points)
   {
-    // direction at the start
-    TPoint<T> dir = startDirection(points);
+    T len = calculateLength<T>(points);
+    if (len > TOLERANCE(T))
+    {
+      // direction at the start
+      TPoint<T> dir = startDirection(points);
 
-    setClampedStart(dir);
+      setClampedStart(dir);
+    }
   }
 
   /** Set first derivative at curve end from points. It moves control point cpoints.size() - 2. */
@@ -281,10 +285,14 @@ public:
   /** Set first derivative at curve end from points. It moves control point cpoints.size() - 2. */
   void setClampedEnd(std::vector<TPoint<T>> &points)
   {
-    // direction at the end
-    TPoint<T> dir = endDirection(points);
+    T len = calculateLength<T>(points);
+    if (len > TOLERANCE(T))
+    {
+      // direction at the end
+      TPoint<T> dir = endDirection(points);
 
-    setClampedEnd(dir);
+      setClampedEnd(dir);
+    }
   }
 
 protected:
