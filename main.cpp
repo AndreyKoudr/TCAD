@@ -77,6 +77,11 @@ using namespace tcad;
 // Let us choose double as our basic real type
 #define T double
 
+//===== assert issues red error message in release =============================
+
+#define ASSERT(condition) if (!(condition)) { errorMessage(std::string("Assertion failure in line ") + \
+  to_string(__LINE__)); }; assert(condition)
+
 //===== Random generator for running examples ==================================
 
 #include <time.h>
@@ -233,11 +238,11 @@ bool checkTopoCutAndBoundary(const std::string &name, TPlane<T> &plane,
   // is manifold?
   std::vector<std::pair<LINT,LINT>> badedges;
   bool manifold = tris.manifold(tolerance,badedges);
-  assert(manifold == mustbemanifold);
+  ASSERT(manifold == mustbemanifold);
 
   // is solid?
   bool solid = tris.solid(tolerance,badedges);
-  assert(solid == mustbesolid);
+  ASSERT(solid == mustbesolid);
 
   // get boundary
   std::vector<std::vector<TPoint<T>>> boundary;
@@ -246,10 +251,10 @@ bool checkTopoCutAndBoundary(const std::string &name, TPlane<T> &plane,
   // output boundary, the should be none if solid
   if (solid)
   {
-    assert (!bok);
+    ASSERT(!bok);
   } else
   {
-    assert(bok);
+    ASSERT(bok);
 
     // redivide point curves by sharp corners to make it look as in the 
     // original STL
@@ -293,6 +298,9 @@ bool rewriteSTLAsBinary(const std::string &filename)
 
 int main(int argc, char* argv[])
 {
+  // start console output (for errorMessage("..."))
+  startConsole();
+
   // start time measurement
   TestTimer();
   double starttime = GetTime();
@@ -584,7 +592,7 @@ int main(int argc, char* argv[])
   TPoint<T> pactual = splinecurve.derivative(U,0);
   T diff = !(pactual - p);
 
-  assert(diff < 0.005);
+  ASSERT(diff < 0.005);
 
   // take Bezier curve
   U = beziercurve.findUforPoint(p);
@@ -592,7 +600,7 @@ int main(int argc, char* argv[])
   pactual = beziercurve.derivative(U,0);
   diff = !(pactual - p);
 
-  assert(diff < 0.005);
+  ASSERT(diff < 0.005);
 
   // take ortho segment
   U = orthosegment.findUforPoint(p);
@@ -600,7 +608,7 @@ int main(int argc, char* argv[])
   pactual = orthosegment.derivative(U,0);
   diff = !(pactual - p);
 
- //!!!!!!! assert(diff < 0.005);
+ //!!!!!!! ASSERT(diff < 0.005);
 
   /*****************************************************************************
     1.11 Curves : how to intersect by plane
@@ -615,7 +623,7 @@ int main(int argc, char* argv[])
   std::vector<T> Upoints;
   int numintrs = splinecurve.intersectByPlane(plane,Upoints,curvetolerance);
 
-  assert(numintrs == 2);
+  ASSERT(numintrs == 2);
 
   // find intersection points
   std::vector<TPoint<T>> intrs;
@@ -628,7 +636,7 @@ int main(int argc, char* argv[])
   for (int i = 0; i < int(intrs.size()); i++)
   {
     T dist = std::abs(plane.distance(intrs[i]));
-    assert(dist < curvetolerance);
+    ASSERT(dist < curvetolerance);
   }
 
   /*****************************************************************************
@@ -653,7 +661,7 @@ int main(int argc, char* argv[])
   // two intersections are expected
   numintrs = curve.findIntersections(ecurve,UV,curvetolerance); 
 
-  assert(numintrs == 2);
+  ASSERT(numintrs == 2);
 
   // check coincidence
   for (int i = 0; i < int(UV.size()); i++)
@@ -661,7 +669,7 @@ int main(int argc, char* argv[])
     TPoint<T> p0 = curve.derivative(UV[i].X,0);
     TPoint<T> p1 = ecurve.derivative(UV[i].Y,0);
     T dist = !(p1 - p0);
-    assert(dist < curvetolerance);
+    ASSERT(dist < curvetolerance);
   }
 
   /*****************************************************************************
@@ -732,11 +740,11 @@ int main(int argc, char* argv[])
   // is manifold?
   std::vector<std::pair<LINT,LINT>> badedges;
   bool manifold = NACAtris.manifold(NACAtolerance,badedges);
-  assert(manifold);
+  ASSERT(manifold);
 
   // is solid?
   bool solid = NACAtris.solid(NACAtolerance,badedges);
-  assert(solid);
+  ASSERT(solid);
 
   /*****************************************************************************
     2.3 Surfaces : triangles : cut by plane
@@ -772,7 +780,7 @@ int main(int argc, char* argv[])
     saveCurveIges(NACAcutcurve,DEBUG_DIR + "NACA cut curve.iges");
   } else
   {
-    assert(false);
+    ASSERT(false);
   }
 
   /*****************************************************************************
@@ -785,7 +793,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> NACAtrisboundary;
   bool bok = NACAtris.getBoundary(NACAtrisboundary,NACAtolerance);
 
-  assert(!bok);
+  ASSERT(!bok);
 
   // now take more complicated boundary
   std::string partname;
@@ -818,7 +826,7 @@ int main(int argc, char* argv[])
   TPlane<T> scutplane(TPoint<T>(1.0,0.0,0.0),TPoint<T>(5.8,0.0,0.0)); 
 
   bool sok1 = checkTopoCutAndBoundary("shuttle",scutplane,true,true,10.0);
-  assert(sok1);
+  ASSERT(sok1);
 
   // already binary
   //rewriteSTLAsBinary("wing.stl");
@@ -827,7 +835,7 @@ int main(int argc, char* argv[])
   TPlane<T> wcutplane(TPoint<T>(0.0,0.0,1.0),TPoint<T>(0.0,0.0,0.0)); 
 
   bool wok1 = checkTopoCutAndBoundary("wing",wcutplane,true,true,45.0);
-  //!!!!!!! assert(wok1);
+  //!!!!!!! ASSERT(wok1);
 
   /*****************************************************************************
     2.7 Surfaces : triangles : find intersection of one set of triangles with 
@@ -851,7 +859,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> fcutpoints;
   bool iok = fuselage.intersect(fuselage1,fcutpoints,ftolerance); 
 
-  assert(iok);
+  ASSERT(iok);
 
   // redivide point curves by sharp corners to make it look good
   std::vector<std::vector<TPoint<T>>> fcpoints;
@@ -1014,7 +1022,7 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
-  assert(wcok);
+  ASSERT(wcok);
 
   // intersected tris triangles to display them in STL
   TTriangles<T> apsurfacetris;
@@ -1054,7 +1062,7 @@ int main(int argc, char* argv[])
     NACAtolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0); // round leading edge at U = 0
 
-  assert(plok);
+  ASSERT(plok);
 
   std::vector<std::vector<TPoint<T>>> plboundarypoints;
   apsurface.boundaryIntoPoints(plboundary,plboundarypoints);
@@ -1109,7 +1117,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<std::vector<TPoint<T>>>> tr1closedboundary;
   bool tr1ok1 = apsurface.closeBoundaryLoop(tr1boundary,tr1closedboundary,NACAtolerance);
 
-  assert(tr1ok1);
+  ASSERT(tr1ok1);
 
   saveTrimmedSurfaceIges(&apsurface,tr1closedboundary,DEBUG_DIR + "spline surface cut by plane 1 and trimmed.iges");
 
@@ -1129,7 +1137,7 @@ int main(int argc, char* argv[])
     std::vector<std::vector<std::vector<TPoint<T>>>> tr1closedboundary;
     bool tr1ok1 = apsurface.closeBoundaryLoop(tr1boundary,tr1closedboundary,NACAtolerance);
 
-    assert(tr1ok1);
+    ASSERT(tr1ok1);
 
     saveTrimmedSurfaceIges(&apsurface,tr1closedboundary,DEBUG_DIR + "spline surface cut by plane 1a and trimmed.iges");
   }
@@ -1150,7 +1158,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<std::vector<TPoint<T>>>> tr2closedboundary;
   bool tr2ok1 = apsurface.closeBoundaryLoop(tr2boundary,tr2closedboundary,NACAtolerance);
 
-  assert(tr2ok1);
+  ASSERT(tr2ok1);
 
   saveTrimmedSurfaceIges(&apsurface,tr2closedboundary,DEBUG_DIR + "spline surface cut by plane 2 and trimmed.iges");
 
@@ -1174,13 +1182,13 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
-  assert(tr3ok);
+  ASSERT(tr3ok);
 
   // close boundary on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr3closedboundary0;
   bool tr3ok1 = apsurface.closeBoundaryLoop(tr3boundary0,tr3closedboundary0,NACAtolerance);
 
-  assert(tr3ok1);
+  ASSERT(tr3ok1);
 
   saveTrimmedSurfaceIges(&apsurface,tr3closedboundary0,DEBUG_DIR + "spline surface cut by another surface and trimmed.iges");
 
@@ -1215,13 +1223,13 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
-  assert(tr4ok);
+  ASSERT(tr4ok);
 
   // close boundary on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr4closedboundary0;
   bool tr4ok1 = apsurface.closeBoundaryLoop(tr4boundary0,tr4closedboundary0,NACAtolerance);
 
-  assert(tr4ok1);
+  ASSERT(tr4ok1);
 
   saveTrimmedSurfaceIges(&apsurface,tr4closedboundary0,DEBUG_DIR + "upper airfoil surface cut by another surface and trimmed.iges");
 
@@ -1233,13 +1241,13 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
-  assert(tr5ok);
+  ASSERT(tr5ok);
 
   // close boundary on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr5closedboundary0;
   bool tr5ok1 = apsurfacelower.closeBoundaryLoop(tr5boundary0,tr5closedboundary0,NACAtolerance);
 
-  assert(tr5ok1);
+  ASSERT(tr5ok1);
 
   saveTrimmedSurfaceIges(&apsurfacelower,tr5closedboundary0,DEBUG_DIR + "lower airfoil surface cut by another surface and trimmed.iges");
 
@@ -1253,7 +1261,7 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
-  assert(tr6ok);
+  ASSERT(tr6ok);
 
   // intersect with lower surface...
   bool tr7ok = cylsurface.intersect(apsurfacelower,tr6intersections,tr6boundary0,tr6boundary1,NACAtolerance,
@@ -1261,13 +1269,13 @@ int main(int argc, char* argv[])
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
-  assert(tr7ok);
+  ASSERT(tr7ok);
 
   // close boundary (hole) on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr6closedboundary0;
   bool tr6ok1 = cylsurface.closeBoundaryLoop(tr6boundary0,tr6closedboundary0,NACAtolerance);
 
-  assert(tr6ok1);
+  ASSERT(tr6ok1);
 
   // add outer boundary
   std::vector<std::vector<TPoint<T>>> tr6outerloop;
@@ -1296,7 +1304,7 @@ int main(int argc, char* argv[])
       TPoint<T> UVap = apsurface.findUVforPoint(points,UVpoints,k1,k2,pos);
 
       T distap = !(UVap - UV);
-      assert(distap < 0.015);
+      ASSERT(distap < 0.015);
     }
   }
 
@@ -1340,7 +1348,7 @@ int main(int argc, char* argv[])
       TPoint<T> UVWap = volume.findUVWforPoint(points,UVWpoints,k1,k2,k3,pos);
 
       T distap = !(UVWap - UVW);
-      assert(distap < 0.00001);
+      ASSERT(distap < 0.00001);
     }
 
     // test first derivatives
@@ -1387,9 +1395,9 @@ int main(int argc, char* argv[])
       T diff0 = !(bderU - sderU);
       T diff1 = !(bderV - sderV);
       T diff2 = !(bderW - sderW);
-      assert(diff0 < 0.0001);
-      assert(diff1 < 0.0001);
-      assert(diff2 < 0.0001);
+      ASSERT(diff0 < 0.0001);
+      ASSERT(diff1 < 0.0001);
+      ASSERT(diff2 < 0.0001);
     }
 
     std::vector<TSplineSurface<T> *> faces;
@@ -1567,8 +1575,8 @@ int main(int argc, char* argv[])
     int k1 = 0;
     int k2 = 0;
     cambersurface.createPoints(temp,nullptr,&k1,&k2,N1,N2);
-    assert(k1 + 1 == N1);
-    assert(k2 + 1 == N2);
+    ASSERT(k1 + 1 == N1);
+    ASSERT(k2 + 1 == N2);
     points1Dto2D(temp,k1,k2,newcamberpoints);
 
     // we have all the data : camber + thickness N1 x N2 arrays, make spline surfaces
@@ -1687,11 +1695,18 @@ int main(int argc, char* argv[])
     deleteSurfaces(surfaces);
   }
 
+
+#endif
+
   /*****************************************************************************
     5.7 Blocks : propeller, trimmed and solid
   *****************************************************************************/
 
   cout << "5.7 Blocks : propeller, trimmed and solid" << endl;
+
+#ifdef _DEBUG
+  errorMessage("This thing (makeSolid()) may be slow in Debug, try Release instead.");
+#endif
 
   // keep them for submarine, propeller surfaces
   std::vector<TSplineSurface<T> *> propsurfaces;
@@ -1769,6 +1784,7 @@ int main(int argc, char* argv[])
     // mutual intersections between faces, in peocess, estimate big tolerance as max
     // difference between boundaty curves
     T bigtolerance = 0.0;
+
     makeSolid(surfaces,hsurfaces,boundariesUV,boundariesUV1,tolerance,bigtolerance);
 
     saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces 1 trimmed.iges");
@@ -1796,9 +1812,9 @@ int main(int argc, char* argv[])
     // keep for further use in submarine
     propsurfaces = surfaces;
     propboundariesUV = boundariesUV;
-  }
 
-#endif
+    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces trimmed 1.iges");
+  }
 
   /*****************************************************************************
     5.8 Blocks : submarine hull, axisymmetric solid
@@ -1839,7 +1855,91 @@ int main(int argc, char* argv[])
 
     bool ok = saveSolidIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull solid.iges",tolerance);
 
-    assert(ok);
+    ASSERT(ok);
+  }
+
+  /*****************************************************************************
+    5.9 Blocks : attach propeller to submarine hull by shaft
+  *****************************************************************************/
+
+  //!!! The process is not very fast, making it faster !!!
+
+  cout << "5.9 Blocks : attach propeller to submarine hull by shaft" << endl;
+
+  // shaft : axisymmetric faces, not solid, to connect propeller to hull
+  // and make single solid
+  std::vector<TSplineSurface<T> *> shaftsurfaces;
+  // shaft trimming curves
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> shaftboundariesUV;
+
+  // this is the whole sub
+  std::vector<TSplineSurface<T> *> subsurfaces;
+  // hull trimming curves
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> subboundariesUV;
+
+  {
+    T hullL = 74.0;
+    T tolerance = hullL * PARM_TOLERANCE;
+
+    std::vector<TPoint<T>> shaftcontour;
+    shaftcontour.push_back(TPoint<T>(0.2,0.0,-29.9));
+    shaftcontour.push_back(TPoint<T>(0.2,0.0,-29.6));
+
+    // make axisymmetric shaft
+    makeSurfacesOfRevolution<T>(shaftcontour,8,9,8,8,shaftsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_FREE,END_FREE,END_FREE,END_FREE); 
+
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),+90.0 * CPI); 
+    makeTransform<T>(shaftsurfaces,&t);
+
+    saveSurfacesIges(shaftsurfaces,DEBUG_DIR + "Kilo sub shaft.iges");
+
+    // make boundaries
+    for (int i = 0; i < int(shaftsurfaces.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> loop;
+      shaftsurfaces[i]->closeOuterBoundaryLoop(loop);
+
+      shaftboundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+      shaftboundariesUV.back().push_back(loop);
+    }
+
+    // whole sub
+    subsurfaces = propsurfaces;
+    subboundariesUV = propboundariesUV;
+
+    subsurfaces.insert(subsurfaces.end(),hullsurfaces.begin(),hullsurfaces.end());
+    subboundariesUV.insert(subboundariesUV.end(),hullboundariesUV.begin(),hullboundariesUV.end());
+
+    saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub surfaces trimmed before connection with shaft.iges");
+
+    // make a solid from shaft and propeller+hull
+
+    // mutual intersections between faces, in peocess, estimate big tolerance as max
+    // difference between boundaty curves
+    T bigtolerance = 0.0;
+
+    // make solid, do not clear old boundaries
+    makeSolid(shaftsurfaces,subsurfaces,shaftboundariesUV,subboundariesUV,tolerance,bigtolerance,
+      PARM_TOLERANCE,false);
+
+    // whole submarine
+    subsurfaces.insert(subsurfaces.end(),shaftsurfaces.begin(),shaftsurfaces.end());
+    subboundariesUV.insert(subboundariesUV.end(),shaftboundariesUV.begin(),shaftboundariesUV.end());
+
+    saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub surfaces trimmed.iges");
+
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub solid with propeller.iges",
+      bigtolerance,SPLINE_DEGREE,18,&badedges);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+
+    ASSERT(ok);
   }
 
   double endtime = GetTime();

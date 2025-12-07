@@ -585,6 +585,94 @@ public:
     }
   }
 
+  /** Extend segment to boundary by moving point p1 in the direction p0->p1. 
+    intr is intersection point, distance to boundary is returned, -1.0 in 
+    case of failure. */
+  template <class T> T extendToBoundary(TPoint<T> p0, TPoint<T> p1, TPoint<T> &intr,
+    T parmtolerance = PARM_TOLERANCE)
+  {
+    T mindist = std::numeric_limits<T>::max();
+    bool found = false;
+    for (int i = 0; i < 4; i++)
+    {
+      int i1 = (i < 3) ? (i + 1) : 0;
+      TPoint<T> c0 = cornerUV<T>[i];
+      TPoint<T> c1 = cornerUV<T>[i1];
+
+      T t1,t2,Xi,Yi;
+      if (intersectSegmentsXY<T>(p0.X,p0.Y,p1.X,p1.Y,c0.X,c0.Y,c1.X,c1.Y,
+        &t1,&t2,&Xi,&Yi) && t1 > 1.0 - parmtolerance) // forward
+      {
+        T dx = Xi - p1.X;
+        T dy = Yi - p1.Y;
+        T d = sqrt(dx * dx + dy * dy);
+        if (d < mindist)
+        {
+          mindist = d;
+          intr.X = Xi;
+          intr.Y = Yi;
+        }
+        found = true;
+      }
+    }
+
+    return found ? mindist : -1.0;
+  }
+
+  /** Find a cut piece (except busy) closest by its start to boundary. */
+  template <class T> int findClosestStart(std::vector<std::vector<TPoint<T>>> &cut,
+    T &mindist, TPoint<T> &intr, std::vector<bool> *busy = nullptr)
+  {
+    // find closest piece to the current loop end among not busy
+    int closest = -1;
+
+    mindist = std::numeric_limits<T>::max();
+    for (int i = 0; i < int(cut.size()); i++)
+    {
+      if (busy && (*busy)[i])
+        continue;
+      
+      T dist = extendToBoundary<T>(cut[i][1],cut[i][0],intr);
+      if (dist >= 0.0 && dist < mindist)
+      {
+        mindist = dist;
+        closest = i;
+      }
+    }
+
+    if (busy && closest >= 0)
+      (*busy)[closest] = true;
+
+    return closest;
+  }
+
+  /** Find a cut piece (except busy) closest by its end to boundary. */
+  template <class T> int findClosestEnd(std::vector<std::vector<TPoint<T>>> &cut,
+    T &mindist, TPoint<T> &intr, std::vector<bool> *busy = nullptr)
+  {
+    // find closest piece to the current loop end among not busy
+    int closest = -1;
+
+    mindist = std::numeric_limits<T>::max();
+    for (int i = 0; i < int(cut.size()); i++)
+    {
+      if (busy && (*busy)[i])
+        continue;
+      
+      T dist = extendToBoundary<T>(cut[i][cut[i].size() - 2],cut[i][cut[i].size() - 1],intr);
+      if (dist >= 0.0 && dist < mindist)
+      {
+        mindist = dist;
+        closest = i;
+      }
+    }
+
+    if (busy && closest >= 0)
+      (*busy)[closest] = true;
+
+    return closest;
+  }
+
   /** Is it a boundary point? */
   template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
   {
@@ -593,6 +681,19 @@ public:
       std::abs(p.X - 1.0) < parmtolerance ||
       std::abs(p.Y - 0.0) < parmtolerance ||
       std::abs(p.Y - 1.0) < parmtolerance);
+  }
+
+  /** Ser accurate values for boundary point. */
+  template <class T> void correctBoundaryPoint(TPoint<T> &p, T parmtolerance = PARM_TOLERANCE)
+  {
+    if (std::abs(p.X - 0.0) < parmtolerance)
+      p.X = 0.0;
+    if (std::abs(p.X - 1.0) < parmtolerance)
+      p.X = 1.0;
+    if (std::abs(p.Y - 0.0) < parmtolerance)
+      p.Y = 0.0;
+    if (std::abs(p.Y - 1.0) < parmtolerance)
+      p.Y = 1.0;
   }
 
   /** Find a cut piece (except busy) close to p. p is "tail", cut front is "head" to be
@@ -642,6 +743,10 @@ public:
 
       // attach next piece
       ordered.push_back(cut[closest]);
+
+      // remove gap between the two if any
+      TPoint<T> p = (ordered[ordered.size() - 2].back() + ordered[ordered.size() - 1].front()) * 0.5;
+      ordered[ordered.size() - 2].back() = ordered[ordered.size() - 1].front() = p;
       busy[closest] = true;
 
       // success : delete this ordered piece from cuts
@@ -711,11 +816,17 @@ public:
       // cut is modified
       if (orderCuts(starting,cut,ordered,tolerance,parmtolerance))
       {
+        if (boundaryPoint<T>(ordered.front().front(),parmtolerance))
+          correctBoundaryPoint<T>(ordered.front().front());
+        if (boundaryPoint<T>(ordered.back().back(),parmtolerance))
+          correctBoundaryPoint<T>(ordered.back().back());
+
         allordered.push_back(ordered);
         count++;
         found = true;
       }
     } while (found);
+
 
     return count;
   }
@@ -829,7 +940,8 @@ public:
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
     std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
-    T tolerance, T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100)
+    T tolerance, T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
+    T maxparmgap = 0.001)
   {
     if (cutUV.empty())
       return false;
@@ -861,7 +973,30 @@ public:
     std::vector<std::vector<std::vector<TPoint<T>>>> allordered;
     if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
     {
-      return false;
+      std::vector<bool> busy(cut.size(),false);
+
+      // try to extend cut to reach the boundary from both ends
+      T mindist0 = 0.0;
+      T mindist1 = 0.0;
+      TPoint<T> intr0, intr1;
+      int closest0 = findClosestStart(cut,mindist0,intr0,&busy);
+      int closest1 = findClosestEnd(cut,mindist1,intr1,&busy);
+
+      if (closest0 >= 0 && mindist0 < maxparmgap)
+      {
+        cut[closest0].front() = intr0;
+      }
+
+      if (closest1 >= 0 && mindist1 < maxparmgap)
+      {
+        cut[closest1].back() = intr1;
+      }
+
+      // again
+      if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
+      {
+        return false;
+      }
     }
 
     // step 4 : embed cut into existing outer loop;
@@ -967,6 +1102,14 @@ public:
     }
   }
 
+  /** Get min/max from control points. */
+  virtual std::pair<TPoint<T>,TPoint<T>> getMinMax()
+  {
+    std::pair<TPoint<T>,TPoint<T>> minmax;
+    tcad::calculateMinMax<T>(this->cpoints,&minmax.first,&minmax.second);
+    return minmax;
+  }
+
 public: //!!!!!!!
 
   // number of columns minus 1
@@ -980,6 +1123,7 @@ protected:
   std::vector<TPoint<T>> cpoints;
 
 };
+
 
 /** Calculate min/max from control points. */
 template <class T> bool calculateMinMax(std::vector<TBaseSurface<T> *> &surfaces,
@@ -1099,7 +1243,7 @@ template <class T> bool solveSystemOneParmFixed(TBaseSurface<T> *F, TBaseSurface
   makeSystemOneParmFixed(F0,G0,Fu,Fv,Gs,Gt,A,B);
   makeSystemOneParmFixedLastEquation(type,A,B);
 
-  bool ok = solveSystem4x4<T>(A,B,DBL_MIN * 10.0);
+  bool ok = solveSystem4x4<T>(A,B,TOLERANCE(T));
 
   if (ok)
   {
@@ -1149,7 +1293,7 @@ template <class T> bool solveSystemBoundary(TBaseSurface<T> *F, TBaseSurface<T> 
 
   makeSystemBoundary(F0,G0,Fu,Fv,Gs,Gt,A,B,(edge == 0 || edge == 2));
 
-  bool ok = solveSystemWithPivoting<T,int>(3,A,B,DBL_MIN * 10.0);
+  bool ok = solveSystemWithPivoting<T,int>(3,A,B,TOLERANCE(T));
 
   if (ok)
   {
@@ -1199,7 +1343,7 @@ template <class T> void makeSystemAllCases(TBaseSurface<T> *F, TBaseSurface<T> *
 
 /** This stuff is for improvement of surface intersections. */
 template <class T> bool improveIntersection(TBaseSurface<T> *F, TBaseSurface<T> *G, TPoint<T> &parms, 
-  int maxiter = 100, T relaxcoef = 0.5, T tolerance = PARM_TOLERANCE)
+  int maxiter = 100, T relaxcoef = 0.5, T tolerance = PARM_TOLERANCE, T maxparmchange = 0.1)
 {
   TPoint<T> bestparms;
   TPoint<T> initparms = parms;
@@ -1227,11 +1371,12 @@ template <class T> bool improveIntersection(TBaseSurface<T> *F, TBaseSurface<T> 
     T B[4] = {0};
     bool systemsolved = true;
 
-                              // which system to solve?
     bool onedge1[4]; T t1[4]; 
     bool onedge2[4]; T t2[4];
     bool edge1 = parmOnEdge(parms.X,parms.Y,onedge1,t1,tolerance);
     bool edge2 = parmOnEdge(parms.Z,parms.W,onedge2,t2,tolerance);
+
+                              // which system to solve?
     if (edge1 || edge2)
     {
                                // matrix 4 x 4
@@ -1291,7 +1436,7 @@ template <class T> bool improveIntersection(TBaseSurface<T> *F, TBaseSurface<T> 
       memmove(AA,A,sizeof(A));
   #endif
 
-      if (!solveSystem4x4<T>(A,B,DBL_MIN * 10.0))
+      if (!solveSystem4x4<T>(A,B,TOLERANCE(T)))
       {
         parms = bestparms;
         systemsolved = false;
@@ -1322,6 +1467,16 @@ template <class T> bool improveIntersection(TBaseSurface<T> *F, TBaseSurface<T> 
 
     if (systemsolved)
     {
+      T dp = std::max<T>(
+        std::max<T>(std::abs(B[0]),std::abs(B[1])),
+        std::max<T>(std::abs(B[2]),std::abs(B[3])));
+
+      if (dp > maxparmchange)
+      {
+        parms = bestparms;
+        return false;
+      }
+
       parms.X += B[0] * relaxcoef;
       parms.Y += B[1] * relaxcoef;
       parms.Z += B[2] * relaxcoef;
@@ -1383,7 +1538,7 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
  #endif
 
                               // solve system
-    if (!solveSystem4x4<T>(A,B,DBL_MIN * 10.0))
+    if (!solveSystem4x4<T>(A,B,TOLERANCE(T)))
     {
       parms = bestparms;
       systemsolved = false;
@@ -1418,6 +1573,5 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
   parms = bestparms;
   return false;
 } 
-
 
 }

@@ -46,9 +46,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 
 //#define DEBUG_SOLID
-#ifdef NDEBUG
-  #undef DEBUG_SOLID
-#endif
+//#ifdef NDEBUG
+//  #undef DEBUG_SOLID
+//#endif
 
 namespace tcad {
 

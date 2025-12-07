@@ -639,7 +639,7 @@ template <class T> void getDerivativesV1(std::vector<std::vector<TPoint<T>>> &po
   parameter to mark point between point0 and point1. U check for [0..1] is here. */
 template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
   const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, 
-  const T parmtolerance = PARM_TOLERANCE)
+  const T tolerance, const T parmtolerance = PARM_TOLERANCE)
 {
                                       // get vector point0->point1 
   TPoint<T> v01 = point1 - point0;
@@ -698,6 +698,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
       if (projectPointOnSegment(intersection,p0,p1,&intr,&t,parmtolerance))
       {
         T dist = !(intersection - intr);
+//!!!!!!!        if (dist < tolerance)
         if (dist < TOLERANCE(T))
         {
           onedge = true;
@@ -975,6 +976,27 @@ template <class T> void extendMinMax(TPoint<T> &min, TPoint<T> &max, T coef = 1.
   TPoint<T> d = (max - min) * 0.5 * coef;
   min = c - d;
   max = c + d;
+}
+
+/** Extend min/max box by coef. */
+template <class T> void extendBox(std::pair<TPoint<T>,TPoint<T>> &box, T coef = 1.0)
+{
+  extendMinMax(box.first,box.second,coef);
+}
+
+/** Boxes intersect? */
+template <class T> bool boxesOverlap(std::pair<TPoint<T>,TPoint<T>> &box0,
+  std::pair<TPoint<T>,TPoint<T>> &box1)
+{
+  bool overlap = 
+    box0.first.X < box1.second.X &&
+    box1.first.X < box0.second.X &&
+    box0.first.Y < box1.second.Y &&
+    box1.first.Y < box0.second.Y &&
+    box0.first.Z < box1.second.Z &&
+    box1.first.Z < box0.second.Z;
+
+  return overlap;
 }
 
 /** Generates ranges array of numranges + 1 elements. */

@@ -26,6 +26,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#define _CRT_SECURE_NO_WARNINGS
 
 #define NOMINMAX
 #include "windows.h"
@@ -43,6 +44,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #define LIMIT(x,xmin,xmax) if (x < xmin) x = xmin; if (x > xmax) x = xmax
+
+// console handle
+HANDLE hConsole = nullptr;
 
 std::string to_string(double d, int len, int len_after_dot)
 {
@@ -328,4 +332,46 @@ bool containsOnlyChars(const std::string &s, char from, char to)
 void outputDebugString(const std::string &str)
 {
   OutputDebugStringA((str + std::string("\n")).c_str());
+}
+
+void errorMessage(std::string s)
+{
+  if (hConsole)
+  {
+    int col = 12;
+
+    // color your text in Windows console mode
+    // colors are 0=black 1=blue 2=green and so on to 15=white  
+    // colorattribute = foreground + background * 16
+    // to get red text on yellow use 4 + 14*16 = 228
+    // light red on yellow would be 12 + 14*16 = 236
+
+    FlushConsoleInputBuffer(hConsole);
+    SetConsoleTextAttribute(hConsole,col);
+
+    printf("%s\n",s.c_str());
+
+    // set back to black background and gray text
+    SetConsoleTextAttribute(hConsole,7); 
+  } else
+  {
+    printf("%s\n",s.c_str());
+  }
+}
+
+bool startConsole()
+{
+  hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+  if (!hConsole)
+  {
+    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+      freopen("CONOUT$","w",stdout);
+      freopen("CONOUT$","w",stderr);
+
+      hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    }
+  }
+
+  return (hConsole != nullptr);
 }

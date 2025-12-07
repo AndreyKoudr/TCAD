@@ -94,7 +94,7 @@ namespace tcad {
 #define TOLERANCE(T) std::numeric_limits<T>::epsilon() * static_cast<T>(1000.0)
 
 // parametric tolerance
-#define PARM_TOLERANCE 0.000001
+#define PARM_TOLERANCE 0.000001 //!!!!!!!
 
 // round
 #define ROUND(x)  (int) (floor(x + .5))
@@ -160,7 +160,7 @@ namespace tcad {
 #define USE_SPACEPARTITIONING
 
 // use threading for speed
-#define USE_THREADS
+//!!!!!!! #define USE_THREADS
 
 // default number of threads
 #define NUM_THREADS 8
@@ -171,6 +171,9 @@ namespace tcad {
     #define USE_SPACEPARTITIONING
   #endif
 #endif
+
+// use mutex or critical sections
+#define USE_MUTEX
 
 }
 

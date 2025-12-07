@@ -81,10 +81,13 @@ public:
 
   /** Constructor for point approximation. */
   TSplineCurve(std::vector<TPoint<T>> &ppoints, int k1, int m1, 
-    bool pclampedstart = true, bool pclampedend = true) : TBaseCurve<T>()
+    bool pclampedstart = true, bool pclampedend = true, int minpoints = 6) : TBaseCurve<T>()
   {
     // set parameters
-    allocate(k1,m1,false);
+    int k = std::max(k1,minpoints - 1);
+    allocate(k,m1,false);
+
+//!!!!!!!    allocate(k1,m1,false);
 
     // points are not cpoints 
     points = ppoints;
@@ -96,10 +99,13 @@ public:
 
   /** Constructor for point interpolation. */
   TSplineCurve(std::vector<TPoint<T>> &ppoints, int m1,
-    bool pclampedstart = true, bool pclampedend = true) : TBaseCurve<T>()
+    bool pclampedstart = true, bool pclampedend = true, int minpoints = 6) : TBaseCurve<T>()
   {
     // set parameters
-    allocate(int(ppoints.size()) - 1,m1,true);
+    int k = std::max(int(ppoints.size()) - 1,minpoints - 1);
+    allocate(k,m1,true);
+
+ //!!!!!!!   allocate(int(ppoints.size()) - 1,m1,true);
 
     // points are not cpoints 
     points = ppoints;

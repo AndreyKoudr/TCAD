@@ -736,7 +736,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
         // connect to each other with C1 discontinuity
         for (int j = 0; j < int(boundariesUV[i][il].size()); j++)
         {
-          tcad::TSplineCurve<T> B(boundariesUV[i][il][j],splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); 
+          tcad::TSplineCurve<T> B(boundariesUV[i][il][j],int(boundary[j].size()) - 1,splinedegree,tcad::END_FREE,tcad::END_FREE); //!!!
 
           lines[dir128line] = makeIgesDirectoryLine0(dirline1260parametric,pcount,-1,&dcount);
           dir128line++;
@@ -754,7 +754,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
         // curve C in XYZ
         for (int j = 0; j < int(boundary.size()); j++)
         {
-          tcad::TSplineCurve<T> C(boundary[j],int(boundary[j].size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
+          tcad::TSplineCurve<T> C(boundary[j],int(boundary[j].size()) - 1,splinedegree,tcad::END_FREE,tcad::END_FREE); //!!!
 
           lines[dir128line] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
           dir128line++;

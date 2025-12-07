@@ -30,6 +30,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace tcad {
 
+#ifdef USE_MUTEX
+  std::mutex imutex;
+  std::mutex emutex;
+#endif
+
 bool edgeComp(const std::pair<LINT,LINT> &a, const std::pair<LINT,LINT> &b)
 {
   std::pair<LINT,LINT> aa = a;

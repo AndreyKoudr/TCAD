@@ -124,7 +124,7 @@ template <class T> TPoint<T> startDirection(std::vector<TPoint<T>> &points)
   T len = !d;
   T curvelen = calculateLength(points);
   T DU = len / curvelen;
-  TPoint<T> dir = d / DU;
+  TPoint<T> dir = (DU > PARM_TOLERANCE) ? (d / DU) : TPoint<T>();
   return dir;
 }
 
@@ -135,7 +135,7 @@ template <class T> TPoint<T> endDirection(std::vector<TPoint<T>> &points)
   T len = !d;
   T curvelen = calculateLength(points);
   T DU = len / curvelen;
-  TPoint<T> dir = d / DU;
+  TPoint<T> dir = (DU > PARM_TOLERANCE) ? (d / DU) : TPoint<T>();
   return dir;
 }
 
@@ -1617,6 +1617,54 @@ template <class T> void divideByDuplicates(std::vector<TPoint<T>> &points,
       }
     }
   } 
+}
+
+/** Extend curve length by moving start or end by dlen. */
+template <class T> void extendByLength(std::vector<TPoint<T>> &points, bool extendstart, T dlen)
+{
+  assert(points.size() > 1);
+
+  if (dlen > 0.0)
+  {
+    T len = calculateLength(points);
+
+    if (extendstart)
+    {
+      TPoint<T> p0 = points[0];
+      TPoint<T> p1 = points[1];
+      TPoint<T> dir = p0 - p1;
+      T d = !dir;
+      T dnew = d + dlen;
+      dir = +dir;
+      points[0] = p1 + dir * dnew;
+    } else
+    {
+      TPoint<T> p0 = points[points.size() - 2];
+      TPoint<T> p1 = points[points.size() - 1];
+      TPoint<T> dir = p1 - p0;
+      T d = !dir;
+      T dnew = d + dlen;
+      dir = +dir;
+      points[points.size() - 1] = p0 + dir * dnew;
+    }
+  }
+}
+
+/** Extend curve by moving start or end by coef, which must be > 1.0. */
+template <class T> void extend(std::vector<TPoint<T>> &points, bool extendstart, T coef)
+{
+  assert(points.size() > 1);
+  assert(coef >= 1.0);
+  LIMIT_MIN(coef,1.0);
+
+  if (coef > 1.0)
+  {
+    T len = calculateLength(points);
+    T lennew = len * coef;
+    T dlen = lennew - len;
+
+    extendByLength(points,extendstart,dlen);
+  }
 }
 
 }

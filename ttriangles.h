@@ -50,6 +50,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 
 #include <thread>
+#include <mutex>
 
 #define NOMINMAX
 #include "windows.h"
@@ -170,6 +171,20 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   oedges[1] = std::pair<TPoint<T>,TPoint<T>>(other[1],other[2]);
   oedges[2] = std::pair<TPoint<T>,TPoint<T>>(other[2],other[0]);
 
+//!!!!!!!
+//bool stop = false;
+//TPoint<T> err0(-29.799847932004926,0.14142135623730948,0.14142135623730764);
+//TPoint<T> err1(-29.802149779470824,0.14142135623730953,0.14142135623730767);
+//T d0 = !(tri[1] - err0);
+//T d1 = !(tri[2] - err0);
+//T d2 = !(tri[1] - err1);
+//T d3 = !(tri[2] - err1);
+//if (d0 < 0.0000001 || d1 < 0.0000001 || d2 < 0.0000001 || d3 < 0.0000001)
+//{
+//  int gsgsg = 0;
+//  stop = true;
+//}
+
   intrs.clear();
 
   // tri edges with other triangle
@@ -177,7 +192,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   {
     T U = 0.0;
     TPoint<T> intersection;
-    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,parmtolerance))
+    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,tolerance,parmtolerance))
     {
       intrs.push_back(intersection);
     }
@@ -188,7 +203,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   {
     T U = 0.0;
     TPoint<T> intersection;
-    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,parmtolerance))
+    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,tolerance,parmtolerance))
     {
       intrs.push_back(intersection);
     }
@@ -2107,6 +2122,11 @@ template <class T> bool TTriangles<T>::intersectByPlane(TPlane<T> &plane,
   return ok;
 }
 
+#ifdef USE_MUTEX
+  extern std::mutex imutex;
+  extern std::mutex emutex;
+#endif
+
 /** Intersect tris which are in one cell cellindex. */
 template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other, LINT cellindex,
   std::vector<std::set<LINT>> *celltris, std::vector<std::set<LINT>> *ocelltris,
@@ -2129,10 +2149,17 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
     for (LINT index1 : (*ocelltris)[cellindex])
     {
       // already considered
+#ifdef USE_MUTEX
+      imutex.lock();
+      bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end() ||
+        intersected->find(std::pair<LINT,LINT>(index1,index0)) != intersected->end());
+      imutex.unlock();
+#else
       EnterCriticalSection(isection);
       bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end() ||
         intersected->find(std::pair<LINT,LINT>(index1,index0)) != intersected->end());
       LeaveCriticalSection(isection);
+#endif
       if (done)
         continue;
 
@@ -2149,6 +2176,14 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
       std::vector<TPoint<T>> intrs;
       if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
       {
+//!!!!!!!
+//bool print = false;
+//if (print)
+//{
+//  tris->saveFaceSTL(int(index0),"index0.stl","TCAD",false);
+//  other->saveFaceSTL(int(index1),"index1.stl","TCAD",false);
+//}
+
         if (intrs.size() == 2)
         {
 
@@ -2169,6 +2204,19 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
             ouv1 += ouvcorners[k] * ocoord1.XYZW[k];
           }
 
+#ifdef USE_MUTEX
+          emutex.lock();
+
+          // keep U,V for every intersection on both surfaces
+          UVintrs->push_back(TPoint<T>(uv0.X,uv0.Y,ouv0.X,ouv0.Y));
+          intrs[0].W = T(UVintrs->size() - 1);
+          UVintrs->push_back(TPoint<T>(uv1.X,uv1.Y,ouv1.X,ouv1.Y));
+          intrs[1].W = T(UVintrs->size() - 1);
+
+          edges->push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
+
+          emutex.unlock();
+#else
           EnterCriticalSection(esection);
 
           // keep U,V for every intersection on both surfaces
@@ -2180,13 +2228,20 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
           edges->push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
 
           LeaveCriticalSection(esection);
+#endif
         }
       }
 
       // register as already tested
+#ifdef USE_MUTEX
+      imutex.lock();
+      intersected->insert(std::pair<LINT,LINT>(index0,index1));
+      imutex.unlock();
+#else
       EnterCriticalSection(isection);
       intersected->insert(std::pair<LINT,LINT>(index0,index1));
       LeaveCriticalSection(isection);
+#endif
     }
   }
 }
@@ -2229,10 +2284,17 @@ template <class T> void intersectCellsNoUV(TTriangles<T> *tris, TTriangles<T> *o
     for (LINT index1 : (*ocelltris)[cellindex])
     {
       // already considered
+#ifdef USE_MUTEX
+      imutex.lock();
+      bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end() ||
+        intersected->find(std::pair<LINT,LINT>(index1,index0)) != intersected->end());
+      imutex.unlock();
+#else
       EnterCriticalSection(isection);
       bool done = (intersected->find(std::pair<LINT,LINT>(index0,index1)) != intersected->end() ||
         intersected->find(std::pair<LINT,LINT>(index1,index0)) != intersected->end());
       LeaveCriticalSection(isection);
+#endif
       if (done)
         continue;
 
@@ -2249,18 +2311,28 @@ template <class T> void intersectCellsNoUV(TTriangles<T> *tris, TTriangles<T> *o
       {
         if (intrs.size() == 2)
         {
-          EnterCriticalSection(esection);
-
+#ifdef USE_MUTEX
+          emutex.lock();
           edges->push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
-
+          emutex.unlock();
+#else
+          EnterCriticalSection(esection);
+          edges->push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
           LeaveCriticalSection(esection);
+#endif
         }
       }
 
       // register as already tested
+#ifdef USE_MUTEX
+      imutex.lock();
+      intersected->insert(std::pair<LINT,LINT>(index0,index1));
+      imutex.unlock();
+#else
       EnterCriticalSection(isection);
       intersected->insert(std::pair<LINT,LINT>(index0,index1));
       LeaveCriticalSection(isection);
+#endif
     }
   }
 }
@@ -2423,7 +2495,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     numthreads = numactive;
   LIMIT_MIN(numthreads,1);
 
-#ifdef _DEBUG
+#ifdef DEBUG_TRIS
   outputDebugString(std::string("num threads = ") + to_string(numthreads));
 #endif
 

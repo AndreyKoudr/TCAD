@@ -104,3 +104,7 @@ bool containsOnlyChars(const string &s, char from, char to);
 
                               // output debug string
 void outputDebugString(const std::string &str);
+                              // error message to console in red color
+void errorMessage(std::string s);
+                              // start console output
+bool startConsole();

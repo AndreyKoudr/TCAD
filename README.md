@@ -146,6 +146,10 @@ Blocks
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_propeller_solid_autodesk.png)
 - 5.8 Blocks : submarine hull, axisymmetric solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_hull_solid.png)
+- 5.9 Blocks : attach propeller to submarine hull by shaft<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_connection.png)
+... with the result as propeller + hull + shaft solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_shaft_solid.png)
 
 Important parameters in main.cpp
 ================================
@@ -181,7 +185,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Doing submarine from parts.<br /> 
+Submarine from parts : speeding it up with space partitioning, threads and SIMD.<br /> 
 
 
 
