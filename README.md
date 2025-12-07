@@ -147,7 +147,7 @@ Blocks
 - 5.8 Blocks : submarine hull, axisymmetric solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_hull_solid.png)
 - 5.9 Blocks : attach propeller to submarine hull by shaft<br />
-![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_connection.png)
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_connection.png)<br />
 ... with the result as propeller + hull + shaft solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_shaft_solid.png)
 
