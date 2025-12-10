@@ -30,7 +30,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace tcad {
 
-#ifdef USE_MUTEX
+// for intersections
+#ifdef GLOBAL_INTRCHECK
   std::mutex imutex;
   std::mutex emutex;
 #endif

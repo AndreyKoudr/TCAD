@@ -488,6 +488,9 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
 {
   UV.clear();
 
+  if (points0.empty() || points1.empty())
+    return 0;
+
   for (int i = 0; i < points0.size() - 1; i++)
   {
     TPoint<T> p0 = points0[i];
@@ -1193,7 +1196,7 @@ template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points,
                               // array will hold integer coordinate + vertex
                               // number and will be sorted by coordinate
   size_t numvectors = points.size();
-  LINT knsize = sizeof(LINT) * numvectors * 2;
+  LINT knsize = sizeof(LINT) * (LINT) numvectors * 2;
   LINT *cnumber = (LINT *) malloc(knsize);
   if (cnumber == nullptr) return false;
                               // zero out
@@ -1225,7 +1228,7 @@ template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points,
       if (replacement[i] == 0) 
       {
         cnumber[numtosort * 2] = static_cast<LINT>((points[i].X + dx) / gridstep);
-        cnumber[numtosort * 2 + 1] = i;
+        cnumber[numtosort * 2 + 1] = (LINT) i;
         numtosort++;
       }
     }

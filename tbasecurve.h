@@ -256,6 +256,12 @@ public:
     }
   }
 
+public:
+
+  // name for debugging purposes
+  std::string name;
+
+
 protected:
 
   // control points, call update() after every change

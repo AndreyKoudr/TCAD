@@ -943,4 +943,29 @@ private:
   TSplineSurface<T> *VUderivative = nullptr;
 };
 
+/** Name surfaces with name + number. */
+template <class T> void nameSurfaces(std::vector<TSplineSurface<T> *> &surfaces,
+  std::string prefix)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    surfaces[i]->name = prefix + " " + to_string(i);
+  }
+}
+
+/** Close outer boundary. */
+template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
+  // surface  // loop 0   // 4 pieces // piece contents
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    std::vector<std::vector<TPoint<T>>> loop;
+    surfaces[i]->closeOuterBoundaryLoop(loop);
+
+    boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+    boundariesUV.back().push_back(loop);
+  }
+}
+
 }

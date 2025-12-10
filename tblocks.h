@@ -789,7 +789,7 @@ template <class T> bool makeSolid(
   #endif
 
         bool ok = surface0->intersect(*surface1,intersections,boundary0,boundary1,
-          tolerance,parmtolerance,
+          parmtolerance,
           manypoints,manypoints,1.0,1.0,1.0,1.0, 
   #ifdef DEBUG_BLOCKS
           manypoints,manypoints,1.0,1.0,1.0,1.0,true);
@@ -877,14 +877,14 @@ template <class T> bool makeSolid(
         if (ok)
         {
           // close boundary on first surface
-          bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],tolerance,
-            maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+          bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
+            maxseglen * 2.0,parmtolerance,manypoints);
           if (!ok0)
           {
             boundaries0[i].push_back(boundary0);
           }
-          bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],tolerance,
-            maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+          bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],
+            maxseglen * 2.0,parmtolerance,manypoints);
           if (!ok1)
           {
             boundaries1[j].push_back(boundary1);
@@ -1008,14 +1008,14 @@ template <class T> bool makeSolid(
       if (ok)
       {
         // close boundary on first surface
-        bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],tolerance,
-          maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+        bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
+          maxseglen * 2.0,parmtolerance,manypoints);
         if (!ok0)
         {
           boundaries0[i].push_back(boundary0);
         }
-        bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],tolerance,
-          maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+        bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],
+          maxseglen * 2.0,parmtolerance,manypoints);
         if (!ok1)
         {
           boundaries1[j].push_back(boundary1);
@@ -1040,8 +1040,8 @@ template <class T> bool makeSolid(
         }
       }
 
-      bool ok = surfaces0[i]->closeBoundaryLoop(boundary,boundariesUV0[i],tolerance,
-        maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+      bool ok = surfaces0[i]->closeBoundaryLoop(boundary,boundariesUV0[i],
+        maxseglen * 2.0,parmtolerance,manypoints);
     }
   }
 
@@ -1058,10 +1058,13 @@ template <class T> bool makeSolid(
         }
       }
 
-      bool ok = surfaces1[i]->closeBoundaryLoop(boundary,boundariesUV1[i],tolerance,
-        maxseglen * 2.0,PARM_TOLERANCE,manypoints);
+      bool ok = surfaces1[i]->closeBoundaryLoop(boundary,boundariesUV1[i],
+        maxseglen * 2.0,parmtolerance,manypoints);
     }
   }
+
+  bigtolerance *= 2.0; //!!!!!!!
+//  outputDebugString(std::string("big tolerance ") + to_string(bigtolerance,18));
 
   return true;
 }

@@ -492,7 +492,7 @@ public:
     boundary0/1 contain U,V in X,Y for every intersection curve for both surfaces. */
   template <class T> int intersect(TBaseSurface<T> &other, std::vector<std::vector<TPoint<T>>> &intersections, 
     std::vector<std::vector<TPoint<T>>> &boundary0, std::vector<std::vector<TPoint<T>>> &boundary1,
-    T tolerance, T parmtolerance = TOLERANCE(T), 
+    T parmtolerance = PARM_TOLERANCE, 
     int numpointsU0 = MANY_POINTS2D, int numpointsV0 = MANY_POINTS2D,
     T refinestartU0 = 1.0, T refineendU0 = 1.0, 
     T refinestartV0 = 1.0, T refineendV0 = 1.0,
@@ -516,7 +516,7 @@ public:
       }
 #endif
 
-      if (tris.intersect(othertris,intersections,tolerance,parmtolerance,&boundary0,&boundary1))
+      if (tris.intersect(othertris,intersections,parmtolerance,&boundary0,&boundary1))
       {
         return int(intersections.size());
       } else
@@ -940,7 +940,7 @@ public:
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
     std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
-    T tolerance, T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
+    T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
     T maxparmgap = 0.001)
   {
     if (cutUV.empty())
@@ -1038,7 +1038,7 @@ public:
       std::vector<TPoint<T>> UV;
 
       // cut curve specifies a correct direction of the loop, it must go first here
-      int numintrs = findIntersections(cutpoints,allpoints,UV,tolerance); 
+      int numintrs = findIntersections(cutpoints,allpoints,UV,parmtolerance); 
 
       if (numintrs == 2)
       {
@@ -1075,6 +1075,19 @@ public:
       // divide outer loop back into parts
       std::vector<std::vector<TPoint<T>>> newouterloop; 
       divideByDuplicates<T>(newpoints,newouterloop,parmtolerance);
+
+      // correct points on the boundary
+      for (int i = 0; i < int(newouterloop.size()); i++)
+      {
+        if (boundaryPoint(newouterloop[i].front(),parmtolerance))
+        {
+          correctBoundaryPoint(newouterloop[i].front(),parmtolerance);
+        }
+        if (boundaryPoint(newouterloop[i].back(),parmtolerance))
+        {
+          correctBoundaryPoint(newouterloop[i].back(),parmtolerance);
+        }
+      }
 
       // update the changed outer loop
       loops[0] = outerloop = newouterloop;
@@ -1117,13 +1130,15 @@ public: //!!!!!!!
   // number of rows munus 1
   int K2 = 0;
 
+  // name for debugging purposes
+  std::string name;
+
 protected:
 
   // (K1 + 1) * (K2 + 1) control points, call update() after every change
   std::vector<TPoint<T>> cpoints;
 
 };
-
 
 /** Calculate min/max from control points. */
 template <class T> bool calculateMinMax(std::vector<TBaseSurface<T> *> &surfaces,
