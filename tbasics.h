@@ -94,7 +94,7 @@ namespace tcad {
 #define TOLERANCE(T) std::numeric_limits<T>::epsilon() * static_cast<T>(1000.0)
 
 // parametric tolerance
-#define PARM_TOLERANCE 0.0000001 //!!!!!!!
+#define PARM_TOLERANCE 0.0000001 
 
 // this big is used to make tolerance = L * PARM_BIGTOLERANCE to
 // substitute into saveSolidIges()
@@ -167,7 +167,7 @@ namespace tcad {
 #define USE_THREADS
 
 // default number of threads
-#define NUM_THREADS 8 //!!!!!!!
+#define NUM_THREADS 8
 
 // partition is part of threading
 #ifdef USE_THREADS

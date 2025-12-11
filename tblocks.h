@@ -605,6 +605,417 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
   }
 }
 
+#if 1 //!!! More memory, a little bit faster ~10%
+
+/** Intersect surfaces to make a solid. */
+template <class T> bool makeSolid(
+  std::vector<TSplineSurface<T> *> &surfaces0,
+  std::vector<TSplineSurface<T> *> &surfaces1,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV0,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV1,
+  T tolerance, T &bigtolerance, T parmtolerance = PARM_TOLERANCE, 
+  bool clearboundaries = true, int manypoints = MANY_POINTS2D,
+  bool improveintersection = true, int maxiter = 20, T relaxcoef = 0.5,
+  T refinestartU = 1.0, T refineendU = 1.0, 
+  T refinestartV = 1.0, T refineendV = 1.0,
+  int maxcoef = 1) //!!!
+{
+  if (clearboundaries)
+  {
+    boundariesUV0.clear();
+    boundariesUV1.clear();
+
+    // step 1 : make outer boundaries
+    for (int i = 0; i < int(surfaces0.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> loop;
+      surfaces0[i]->closeOuterBoundaryLoop(loop,manypoints);
+
+      boundariesUV0.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+      boundariesUV0.back().push_back(loop);
+    }
+    for (int i = 0; i < int(surfaces1.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> loop;
+      surfaces1[i]->closeOuterBoundaryLoop(loop,manypoints);
+
+      boundariesUV1.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+      boundariesUV1.back().push_back(loop);
+    }
+  }
+
+  // prepare triangles
+  // set good surface subdivisions for triangles (they better be uniform for threading)
+  std::vector<TSplineSurface<T> *> allsurfaces = surfaces0;
+  allsurfaces.insert(allsurfaces.end(),surfaces1.begin(),surfaces1.end());
+
+  // find min surfaces size
+  T minsize = std::numeric_limits<T>::max();
+  for (int i = 0; i < int(allsurfaces.size()); i++)
+  {
+    T usize = allsurfaces[i]->Usize();
+    T vsize = allsurfaces[i]->Vsize();
+    T size = (usize + vsize) * 0.5;
+
+    minsize = std::min(minsize,size);
+  }
+
+  // minsize will correspond to manypoints division,
+  // make triangles for all surfaces together with bounding boxes
+  std::vector<TTriangles<T> *> tris0;
+  std::vector<TTriangles<T> *> tris1;
+  std::vector<std::vector<std::array<TPoint<T>,8>>> tboxes0;
+  std::vector<std::vector<std::array<TPoint<T>,8>>> tboxes1;
+
+  for (int i = 0; i < int(surfaces0.size()); i++)
+  {
+    TTriangles<T> *tris = new TTriangles<T>();
+
+    T usize = surfaces0[i]->Usize();
+    T vsize = surfaces0[i]->Vsize();
+
+    int coef0 = int(usize / minsize);
+    int coef1 = int(vsize / minsize);
+
+    LIMIT(coef0,1,maxcoef);
+    LIMIT(coef1,1,maxcoef);
+
+    int numpointsU = manypoints * coef0;
+    int numpointsV = manypoints * coef1;
+    surfaces0[i]->createTriangles(*tris,numpointsU,numpointsV,
+      refinestartU,refineendU,refinestartV,refineendV);
+
+    std::vector<std::array<TPoint<T>,8>> boxes;
+    tris->makeFaceBoxes(boxes);
+
+    tboxes0.push_back(boxes);
+    tris0.push_back(tris);
+  }
+
+  for (int i = 0; i < int(surfaces1.size()); i++)
+  {
+    TTriangles<T> *tris = new TTriangles<T>();
+
+    T usize = surfaces1[i]->Usize();
+    T vsize = surfaces1[i]->Vsize();
+
+    int coef0 = int(usize / minsize);
+    int coef1 = int(vsize / minsize);
+
+    LIMIT(coef0,1,maxcoef);
+    LIMIT(coef1,1,maxcoef);
+
+    int numpointsU = manypoints * coef0;
+    int numpointsV = manypoints * coef1;
+    surfaces1[i]->createTriangles(*tris,numpointsU,numpointsV,
+      refinestartU,refineendU,refinestartV,refineendV);
+
+    std::vector<std::array<TPoint<T>,8>> boxes;
+    tris->makeFaceBoxes(boxes);
+
+    tboxes1.push_back(boxes);
+    tris1.push_back(tris);
+  }
+
+  // "delayed" boundary pieces
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> boundaries0(surfaces0.size());
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> boundaries1(surfaces1.size());
+
+  // estmate big tolerance as max difference between boundary lines to be used in making
+  // a solid downstream
+  bigtolerance = 0.0;
+  T maxseglen = 0.0;
+
+  // min/max of all surfaces
+  TPoint<T> min,max;
+  T maxedge = 0.0;
+
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> boxes0;
+
+  for (int i = 0; i < int(surfaces0.size()); i++)
+  {
+    std::pair<TPoint<T>,TPoint<T>> mm = surfaces0[i]->getMinMax();
+    T d = !(mm.second - mm.first);
+    maxedge = std::max<T>(maxedge,d);
+
+    if (i == 0)
+    {
+      min = mm.first;
+      max = mm.second;
+    } else
+    {
+      min = pointMin<T>(min,mm.first);
+      max = pointMin<T>(max,mm.second);
+    }
+
+    extendBox(mm,1.1); //!!!
+    boxes0.push_back(mm);
+  }
+
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> boxes1;
+
+  for (int i = 0; i < int(surfaces1.size()); i++)
+  {
+    std::pair<TPoint<T>,TPoint<T>> mm = surfaces1[i]->getMinMax();
+    T d = !(mm.second - mm.first);
+    maxedge = std::max<T>(maxedge,d);
+
+    min = pointMin<T>(min,mm.first);
+    max = pointMin<T>(max,mm.second);
+
+    extendBox(mm,1.1); //!!!
+    boxes1.push_back(mm);
+  }
+
+  maxedge *= 1.1; //!!!!!!
+  TPoint<T> dmm = max - min;
+
+  // no intersection possible
+  if (dmm.X < tolerance || dmm.Y < tolerance || dmm.Z < tolerance)
+  {
+    deleteTriangles<T>(tris0);
+    deleteTriangles<T>(tris1);
+    return false;
+  }
+
+  // cells big enough for spacial partitioning to identify if two triangles
+  // may intersect, they can if they have a node in the same cell only
+  OBackground<T> cells(min,max,(LINT) (dmm.X / maxedge),(LINT) (dmm.Y / maxedge),(LINT) (dmm.Z / maxedge),8);
+
+  // total number of cells
+  LINT numcells = cells.numBackgroundCells();
+
+  // now distribute all surfaces over cells
+  std::vector<std::set<LINT>> cellfaces0(numcells);
+  for (LINT i = 0; i < int(surfaces0.size()); i++)
+  {
+    std::pair<TPoint<T>,TPoint<T>> mm = surfaces0[i]->getMinMax();
+
+    std::array<TPoint<T>,8> corners;
+    makeBox<T>(mm.first,mm.second,corners);
+   
+    for (int j = 0; j < 8; j++)
+    {
+      LINT index = cells.findCell(corners[j]);
+      assert(index >= 0);
+
+      cellfaces0[index].insert(i);
+    }
+  }
+
+  // other faces in cells
+  std::vector<std::set<LINT>> cellfaces1(numcells);
+  for (LINT i = 0; i < int(surfaces1.size()); i++)
+  {
+    std::pair<TPoint<T>,TPoint<T>> mm = surfaces1[i]->getMinMax();
+
+    std::array<TPoint<T>,8> corners;
+    makeBox<T>(mm.first,mm.second,corners);
+   
+    for (int j = 0; j < 8; j++)
+    {
+      LINT index = cells.findCell(corners[j]);
+      assert(index >= 0);
+
+      cellfaces1[index].insert(i);
+    }
+  }
+
+  // now distinguish cells which are (1) not empty (2) contain faces from
+  // this and other surfaces (surfaces0 and surfaces1)
+  std::vector<LINT> activecells;
+  for (LINT i = 0; i < numcells; i++)
+  {
+    if (!cellfaces0[i].empty() && !cellfaces1[i].empty())
+    {
+      activecells.push_back(i);
+    }
+  }
+  int numactive = int(activecells.size());
+
+  // now make intersections
+  for (int cl = 0; cl < numactive; cl++)
+  {
+    LINT acell = activecells[cl];
+
+    for (auto i : cellfaces0[acell])
+    {
+#ifdef DEBUG_BLOCKS
+      outputDebugString(std::string("i ") + to_string(i));
+#endif
+
+      TSplineSurface<T> *surface0 = surfaces0[i];
+
+      for (auto j : cellfaces1[acell])
+      {
+#ifdef DEBUG_BLOCKS
+        outputDebugString(std::string("j ") + to_string(j));
+#endif
+
+        // simple measure
+        if (!boxesOverlap(boxes0[i],boxes1[j]))
+          continue;
+
+        TSplineSurface<T> *surface1 = surfaces1[j];
+
+        // this may switch off in this loop at the slightest failure
+        bool improve = improveintersection;
+
+        std::vector<std::vector<TPoint<T>>> intersections; 
+        std::vector<std::vector<TPoint<T>>> boundary0,boundary1,iboundary0,iboundary1;
+
+  #ifdef DEBUG_BLOCKS
+        outputDebugString("");
+  #endif
+
+        bool ok = tris0[i]->intersect(*tris1[j],tboxes0[i],tboxes1[j],
+          intersections,parmtolerance,&boundary0,&boundary1,NUM_THREADS); 
+
+        if (ok)
+        {
+          iboundary0 = boundary0;
+          iboundary1 = boundary1;
+
+          if (improve)
+          {
+            for (int k = 0; k < iboundary0.size(); k++)
+            {
+              for (int l = 0; l < int(iboundary0[k].size()); l++)
+              {
+                TPoint<T> parms(iboundary0[k][l].X,iboundary0[k][l].Y,iboundary1[k][l].X,iboundary1[k][l].Y);
+
+                //!!! this may spoil everything, most likely planar faces are problematic
+                if (improveIntersection<T>(surfaces0[i],surfaces1[j],parms,maxiter,relaxcoef,parmtolerance))
+                {
+                  iboundary0[k][l].X = parms.X;
+                  iboundary0[k][l].Y = parms.Y;
+                  iboundary1[k][l].X = parms.Z;
+                  iboundary1[k][l].Y = parms.W;
+                } else
+                {
+                  improve = false;
+                  break;
+                }
+              }
+              if (!improve)
+                break;
+            }
+          }
+
+          // if still improve
+          if (improve)
+          {
+            boundary0 = iboundary0;
+            boundary1 = iboundary1;
+          }
+
+          // calculate difference in boundary lines
+          T maxdiff = 0.0;
+
+          for (int k = 0; k < boundary0.size(); k++)
+          {
+            std::vector<TPoint<T>> intr0,intr1;
+            for (int l = 0; l < int(boundary0[k].size()); l++)
+            {
+              TPoint<T> p0 = surfaces0[i]->position(boundary0[k][l].X,boundary0[k][l].Y);
+              TPoint<T> p1 = surfaces1[j]->position(boundary1[k][l].X,boundary1[k][l].Y);
+              intr0.push_back(p0);
+              intr1.push_back(p1);
+
+              T d = !(p1 - p0);
+              maxdiff = std::max<T>(maxdiff,d);
+            }
+
+            T segmin = 0.0;
+            T segmax = 0.0;
+            segmentLenMinMax<T>(boundary0[k],segmin,segmax);
+
+            maxseglen = std::max(maxseglen,segmax);
+          }
+
+          bigtolerance = std::max<T>(bigtolerance,maxdiff);
+
+  #ifdef DEBUG_BLOCKS
+          outputDebugString(std::string("maxdiff = ") + to_string(maxdiff) + 
+            std::string(" bigtolerance = ") + to_string(bigtolerance) +
+            std::string(" maxseglen = ") + to_string(maxseglen));
+  #endif
+        }
+
+        for (auto &b : boundary1)
+        {
+          std::reverse(b.begin(),b.end());
+        }
+        std::reverse(boundary1.begin(),boundary1.end());
+
+        if (ok)
+        {
+          // close boundary on first surface
+          bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
+            maxseglen * 2.0,parmtolerance,manypoints);
+          if (!ok0)
+          {
+            boundaries0[i].push_back(boundary0);
+          }
+          bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],
+            maxseglen * 2.0,parmtolerance,manypoints);
+          if (!ok1)
+          {
+            boundaries1[j].push_back(boundary1);
+          }
+        }
+      }
+    }
+  }
+
+  // combine delayed boundaries
+  for (int i = 0; i < int(surfaces0.size()); i++)
+  {
+    if (!boundaries0[i].empty())
+    {
+      std::vector<std::vector<TPoint<T>>> boundary;
+      for (int j = 0; j < int(boundaries0[i].size()); j++)
+      {
+        for (int k = 0; k < int(boundaries0[i][j].size()); k++)
+        {
+          boundary.push_back(boundaries0[i][j][k]);
+        }
+      }
+
+      bool ok = surfaces0[i]->closeBoundaryLoop(boundary,boundariesUV0[i],
+        maxseglen * 2.0,parmtolerance,manypoints);
+    }
+  }
+
+  for (int i = 0; i < int(surfaces1.size()); i++)
+  {
+    if (!boundaries1[i].empty())
+    {
+      std::vector<std::vector<TPoint<T>>> boundary;
+      for (int j = 0; j < int(boundaries1[i].size()); j++)
+      {
+        for (int k = 0; k < int(boundaries1[i][j].size()); k++)
+        {
+          boundary.push_back(boundaries1[i][j][k]);
+        }
+      }
+
+      bool ok = surfaces1[i]->closeBoundaryLoop(boundary,boundariesUV1[i],
+        maxseglen * 2.0,parmtolerance,manypoints);
+    }
+  }
+
+  bigtolerance *= 2.0; //!!!!!!!
+//  outputDebugString(std::string("big tolerance ") + to_string(bigtolerance,18));
+
+  deleteTriangles<T>(tris0);
+  deleteTriangles<T>(tris1);
+
+  return true;
+}
+
+#else
+
 /** Intersect surfaces to make a solid. */
 template <class T> bool makeSolid(
   std::vector<TSplineSurface<T> *> &surfaces0,
@@ -1068,5 +1479,7 @@ template <class T> bool makeSolid(
 
   return true;
 }
+
+#endif
 
 }
