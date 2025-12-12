@@ -42,6 +42,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tsystems.h"
 #include "tpoint.h"
 
+#include <xmmintrin.h>
+#include <emmintrin.h>
+
+
 namespace tcad {
 
 /** How to straighten three vectors. */
@@ -85,11 +89,64 @@ template <class T> T derivativeXn(T x, int power)
   return (power > 0) ? T(power) * pow(x,power - 1) : 0.0;
 }
 
+// dot product
+#define SIMD_DOT(V0,V1,result) \
+  __m256d datacopy = V0; \
+  datacopy.m256d_f64[3] = 0.0; \
+  __m128d sum1 = _mm_add_pd(_mm256_castpd256_pd128(_mm256_mul_pd(V1,datacopy)), \
+    _mm256_extractf128_pd(_mm256_mul_pd(V1,datacopy),1)); \
+  __m128d swapped = _mm_shuffle_pd(sum1,sum1,0b01); \
+  __m128d dotproduct = _mm_add_pd(sum1,swapped); \
+  result = dotproduct.m128d_f64[0];
+
+// vector length
+#define SIMD_LEN(V,result) \
+  __m256d datacopy = V; \
+  datacopy.m256d_f64[3] = 0.0; \
+  __m128d sum1 = _mm_add_pd(_mm256_castpd256_pd128(_mm256_mul_pd(V,datacopy)), \
+    _mm256_extractf128_pd(_mm256_mul_pd(V,datacopy),1)); \
+  __m128d swapped = _mm_shuffle_pd(sum1,sum1,0b01); \
+  __m128d dotproduct = _mm_sqrt_pd(_mm_add_pd(sum1,swapped)); \
+  result = dotproduct.m128d_f64[0];
+
 /** Build a plane defined by normal N (normalised) and scalar D. Vectors 01 and 02  should 
   not be collinear. */
 template <class T> bool makePlaneOf3Vectors(const TPoint<T> &V0, const TPoint<T> &V1, const TPoint<T> &V2, 
   TPoint<T> &N, T &D)
 {
+#ifdef USE_SIMD
+  __m256d v0 = _mm256_setr_pd(V0.X,V0.Y,V0.Z,0.0);
+
+  // normal
+  __m256d n = _mm256_permute4x64_pd(
+		_mm256_sub_pd(
+			_mm256_mul_pd(_mm256_sub_pd(_mm256_setr_pd(V1.X,V1.Y,V1.Z,0.0),v0),
+        _mm256_permute4x64_pd(_mm256_sub_pd(_mm256_setr_pd(V2.X,V2.Y,V2.Z,0.0),v0),_MM_SHUFFLE(3,0,2,1))),
+			_mm256_mul_pd(_mm256_sub_pd(_mm256_setr_pd(V2.X,V2.Y,V2.Z,0.0),v0),
+        _mm256_permute4x64_pd(_mm256_sub_pd(_mm256_setr_pd(V1.X,V1.Y,V1.Z,0.0),v0),_MM_SHUFFLE(3,0,2,1)))
+		),_MM_SHUFFLE(3,0,2,1));
+
+  // length
+  double len = 0.0;
+  SIMD_LEN(n,len);
+
+  if (len > TOLERANCE(T))
+  {
+    n = _mm256_div_pd(n,_mm256_set1_pd(len));
+    N.X = n.m256d_f64[0];
+    N.Y = n.m256d_f64[1];
+    N.Z = n.m256d_f64[2];
+
+    SIMD_DOT(n,v0,D);
+    D = -D;
+
+    return true;
+  } else
+  {
+    return false;
+  }
+
+#else
   N = (V1 - V0) ^ (V2 - V0);
   T len = !N;
   if (len > TOLERANCE(T))
@@ -102,6 +159,7 @@ template <class T> bool makePlaneOf3Vectors(const TPoint<T> &V0, const TPoint<T>
   {
     return false;
   }
+#endif
 }
 
 /** Intersection of segments in XY. */

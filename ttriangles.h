@@ -63,9 +63,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   #undef DEBUG_TRIS
 #endif
 
-// slower but more reliable
-//!!!!!!! #define GLOBAL_INTRCHECK
-
 namespace tcad {
 
 /**
@@ -2153,54 +2150,30 @@ template <class T> bool TTriangles<T>::intersectByPlane(TPlane<T> &plane,
   return ok;
 }
 
-#ifdef GLOBAL_INTRCHECK
-  extern std::mutex imutex;
-  extern std::mutex emutex;
-#endif
-
-struct pair_hash {
-  inline std::size_t operator()(const std::pair<LINT,LINT> &v) const {
-    return v.first * 31 + v.second;
-  }
-};
-
 /** Intersect tris which are in one cell cellindex. */
 template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other, LINT cellindex,
-  std::vector<std::set<LINT>> *celltris, std::vector<std::set<LINT>> *ocelltris,
+  std::vector<std::vector<LINT>> *celltris, int i0, int i1,
+  std::vector<std::vector<LINT>> *ocelltris, int j0, int j1,
   std::vector<TPoint<T>> *centres, std::vector<TPoint<T>> *ocentres,
   // output :
   std::vector<std::pair<LINT,LINT>> *intersected, std::vector<TPoint<T>> *UVintrs,
   std::vector<std::pair<TPoint<T>,TPoint<T>>> *edges,
-  T tolerance, T parmtolerance, std::unordered_set<std::pair<LINT,LINT>,pair_hash> *sintersected = nullptr)
+  T tolerance, T parmtolerance)
 {
-  for (LINT index0 : (*celltris)[cellindex])
+  if (i1 < i0 || j1 < j0)
+    return;
+
+  for (int i = i0; i <= i1; i++)
   {
+    LINT index0 = (*celltris)[cellindex][i];
+
     TPoint<T> c = (*centres)[index0];
 
     std::array<TPoint<T>,3> corners = tris->threeCorners(index0);
 
-    // UVcorners must be filled in TBaseSurface::createTriangles()
-    std::array<TPoint<T>,3> uvcorners = tris->UVcorners[index0];
-
-    for (LINT index1 : (*ocelltris)[cellindex])
+    for (int j = j0; j <= j1; j++)
     {
-      bool done = false;
-
-#ifdef GLOBAL_INTRCHECK
-      if (sintersected)
-      {
-        imutex.lock();
-
-        done = (sintersected && 
-          (sintersected->find(std::pair<LINT,LINT>(index0,index1)) != sintersected->end() ||
-          sintersected->find(std::pair<LINT,LINT>(index1,index0)) != sintersected->end()));
-
-        imutex.unlock();
-      }
-#endif
-
-      if (done)
-        continue;
+      LINT index1 = (*ocelltris)[cellindex][j];
 
       // check by sizes
       TPoint<T> oc = (*ocentres)[index1];
@@ -2209,69 +2182,46 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
         continue;
 
       std::array<TPoint<T>,3> ocorners = other->threeCorners(index1);
-      // UVcorners must be filled in TBaseSurface::createTriangles()
-      std::array<TPoint<T>,3> ouvcorners = other->UVcorners[index1];
 
       std::vector<TPoint<T>> intrs;
       if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
       {
-
-//!!!!!!!
-//bool print = false;
-//if (print)
-//{
-//  tris->saveFaceSTL(int(index0),"index0.stl","TCAD",false);
-//  other->saveFaceSTL(int(index1),"index1.stl","TCAD",false);
-//}
         if (intrs.size() == 2)
         {
-
-// outputDebugString(to_string(int(index0)) + " " + to_string(int(index1)));
-
-          TPoint<T> coord0 = barycentricCoord(corners,intrs[0]);
-          TPoint<T> coord1 = barycentricCoord(corners,intrs[1]);
-          TPoint<T> ocoord0 = barycentricCoord(ocorners,intrs[0]);
-          TPoint<T> ocoord1 = barycentricCoord(ocorners,intrs[1]);
-
-          // these will contain U,V in X,Y for every intersection point
-          TPoint<T> uv0,uv1,ouv0,ouv1;
-          for (int k = 0; k < 3; k++)
+          if (UVintrs)
           {
-            uv0 += uvcorners[k] * coord0.XYZW[k];
-            uv1 += uvcorners[k] * coord1.XYZW[k];
-            ouv0 += ouvcorners[k] * ocoord0.XYZW[k];
-            ouv1 += ouvcorners[k] * ocoord1.XYZW[k];
+            // UVcorners must be filled in TBaseSurface::createTriangles()
+            std::array<TPoint<T>,3> uvcorners = tris->UVcorners[index0];
+            std::array<TPoint<T>,3> ouvcorners = other->UVcorners[index1];
+
+            TPoint<T> coord0 = barycentricCoord(corners,intrs[0]);
+            TPoint<T> coord1 = barycentricCoord(corners,intrs[1]);
+            TPoint<T> ocoord0 = barycentricCoord(ocorners,intrs[0]);
+            TPoint<T> ocoord1 = barycentricCoord(ocorners,intrs[1]);
+
+            // these will contain U,V in X,Y for every intersection point
+            TPoint<T> uv0,uv1,ouv0,ouv1;
+            for (int k = 0; k < 3; k++)
+            {
+              uv0 += uvcorners[k] * coord0.XYZW[k];
+              uv1 += uvcorners[k] * coord1.XYZW[k];
+              ouv0 += ouvcorners[k] * ocoord0.XYZW[k];
+              ouv1 += ouvcorners[k] * ocoord1.XYZW[k];
+            }
+
+            // keep U,V for every intersection on both surfaces
+            UVintrs->push_back(TPoint<T>(uv0.X,uv0.Y,ouv0.X,ouv0.Y));
+            intrs[0].W = T(UVintrs->size() - 1);
+            UVintrs->push_back(TPoint<T>(uv1.X,uv1.Y,ouv1.X,ouv1.Y));
+            intrs[1].W = T(UVintrs->size() - 1);
           }
 
-#ifdef GLOBAL_INTRCHECK
-          emutex.lock();
-#endif
-
-          // keep U,V for every intersection on both surfaces
-          UVintrs->push_back(TPoint<T>(uv0.X,uv0.Y,ouv0.X,ouv0.Y));
-          intrs[0].W = T(UVintrs->size() - 1);
-          UVintrs->push_back(TPoint<T>(uv1.X,uv1.Y,ouv1.X,ouv1.Y));
-          intrs[1].W = T(UVintrs->size() - 1);
-
           edges->push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
-
-#ifdef GLOBAL_INTRCHECK
-          emutex.unlock();
-#endif
 
           if (intersected)
             intersected->push_back(std::pair<LINT,LINT>(index0,index1));
         }
       }
-
-#ifdef GLOBAL_INTRCHECK
-      if (sintersected)
-      {
-        imutex.lock();
-        sintersected->insert(std::pair<LINT,LINT>(index0,index1));
-        imutex.unlock();
-      }
-#endif
     }
   }
 }
@@ -2279,112 +2229,28 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
 /** Intersect range of cells. */
 template <class T> void intersectMultiCells(std::vector<LINT> *activecells, LINT cell0, LINT cell1,
   TTriangles<T> *tris, TTriangles<T> *other, 
-  std::vector<std::set<LINT>> *celltris, std::vector<std::set<LINT>> *ocelltris,
+  std::vector<std::vector<LINT>> *celltris, std::vector<std::vector<LINT>> *ocelltris,
   std::vector<TPoint<T>> *centres, std::vector<TPoint<T>> *ocentres,
   // output :
   std::vector<std::pair<LINT,LINT>> *intersected, std::vector<TPoint<T>> *UVintrs,
   std::vector<std::pair<TPoint<T>,TPoint<T>>> *edges,
-  T tolerance, T parmtolerance, std::unordered_set<std::pair<LINT,LINT>,pair_hash> *sintersected = nullptr)
+  T tolerance, T parmtolerance)
 {
   for (LINT i = cell0; i <= cell1; i++)
   {
     LINT index = (*activecells)[i];
-    intersectCells(tris,other,index,celltris,ocelltris,centres,ocentres,
-      intersected,UVintrs,edges,tolerance,parmtolerance,sintersected);
-  }
-}
+    intersectCells(tris,other,index,
 
-/** Intersect tris which are in one cell cellindex. */
-template <class T> void intersectCellsNoUV(TTriangles<T> *tris, TTriangles<T> *other, LINT cellindex,
-  std::vector<std::set<LINT>> *celltris, std::vector<std::set<LINT>> *ocelltris,
-  std::vector<TPoint<T>> *centres, std::vector<TPoint<T>> *ocentres,
-  // output :
-  std::vector<std::pair<LINT,LINT>> *intersected, std::vector<TPoint<T>> *UVintrs,
-  std::vector<std::pair<TPoint<T>,TPoint<T>>> *edges,
-  T tolerance, T parmtolerance, std::unordered_set<std::pair<LINT,LINT>,pair_hash> *sintersected = nullptr)
-{
-  for (LINT index0 : (*celltris)[cellindex])
-  {
-    TPoint<T> c = (*centres)[index0];
-
-    std::array<TPoint<T>,3> corners = tris->threeCorners(index0);
-
-    for (LINT index1 : (*ocelltris)[cellindex])
-    {
-      bool done = false;
-
-#ifdef GLOBAL_INTRCHECK
-      if (sintersected)
-      {
-        imutex.lock();
-
-        done = (sintersected && 
-          (sintersected->find(std::pair<LINT,LINT>(index0,index1)) != sintersected->end() ||
-          sintersected->find(std::pair<LINT,LINT>(index1,index0)) != sintersected->end()));
-
-        imutex.unlock();
-      }
+#if 0
+// THIS COMPILES! celltris is a pointer
+      celltris,0,int(celltris[index].size()) - 1,
+      ocelltris,0,int(ocelltris[index].size()) - 1,
+#else
+// it should be :
+      celltris,0,int((*celltris)[index].size()) - 1,
+      ocelltris,0,int((*ocelltris)[index].size()) - 1,
+      centres,ocentres,intersected,UVintrs,edges,tolerance,parmtolerance);
 #endif
-
-      if (done)
-        continue;
-
-      // check by sizes
-      TPoint<T> oc = (*ocentres)[index1];
-      T d = !(oc - c);
-      if (d > oc.W + c.W)
-        continue;
-
-      std::array<TPoint<T>,3> ocorners = other->threeCorners(index1);
-
-      std::vector<TPoint<T>> intrs;
-      if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
-      {
-        if (intrs.size() == 2)
-        {
-#ifdef GLOBAL_INTRCHECK
-          emutex.lock();
-#endif
-
-          edges->push_back(std::pair<TPoint<T>,TPoint<T>>(intrs[0],intrs[1]));
-
-#ifdef GLOBAL_INTRCHECK
-          emutex.unlock();
-#endif
-
-          if (intersected)
-            intersected->push_back(std::pair<LINT,LINT>(index0,index1));
-        }
-      }
-
-#ifdef GLOBAL_INTRCHECK
-      if (sintersected)
-      {
-        imutex.lock();
-        sintersected->insert(std::pair<LINT,LINT>(index0,index1));
-        imutex.unlock();
-      }
-#endif
-
-    }
-  }
-}
-
-/** Intersect range of cells. */
-template <class T> void intersectMultiCellsNoUV(std::vector<LINT> *activecells, LINT cell0, LINT cell1,
-  TTriangles<T> *tris, TTriangles<T> *other, 
-  std::vector<std::set<LINT>> *celltris, std::vector<std::set<LINT>> *ocelltris,
-  std::vector<TPoint<T>> *centres, std::vector<TPoint<T>> *ocentres,
-  // output :
-  std::vector<std::pair<LINT,LINT>> *intersected, std::vector<TPoint<T>> *UVintrs,
-  std::vector<std::pair<TPoint<T>,TPoint<T>>> *edges,
-  T tolerance, T parmtolerance, std::unordered_set<std::pair<LINT,LINT>,pair_hash> *sintersected = nullptr)
-{
-  for (LINT i = cell0; i <= cell1; i++)
-  {
-    LINT index = (*activecells)[i];
-    intersectCellsNoUV(tris,other,index,celltris,ocelltris,centres,ocentres,
-      intersected,UVintrs,edges,tolerance,parmtolerance,sintersected);
   }
 }
 
@@ -2449,19 +2315,9 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   LINT numcells = cells.numBackgroundCells();
 
   // now distribute all tris over cells
-  std::vector<std::set<LINT>> celltris(numcells);
+  std::vector<std::set<LINT>> celltristemp(numcells);
   for (LINT i = 0; i < numFaces(); i++)
   {
-    //std::array<TPoint<T>,3> corners = threeCorners(i);
-   
-    //for (int j = 0; j < 3; j++)
-    //{
-    //  LINT index = cells.findCell(corners[j]);
-    //  assert(index >= 0);
-
-    //  celltris[index].insert(i);
-    //}
-
     // important, do not remove
     std::array<TPoint<T>,8> box;
     faceBox(i,box);
@@ -2471,23 +2327,13 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
       LINT index = cells.findCell(box[j]);
       assert(index >= 0);
 
-      celltris[index].insert(i);
+      celltristemp[index].insert(i);
     }
   }
 
-  std::vector<std::set<LINT>> ocelltris(numcells);
+  std::vector<std::set<LINT>> ocelltristemp(numcells);
   for (LINT i = 0; i < other.numFaces(); i++)
   {
-    //std::array<TPoint<T>,3> corners = other.threeCorners(i);
-    
-    //for (int j = 0; j < 3; j++)
-    //{
-    //  LINT index = cells.findCell(corners[j]);
-    //  assert(index >= 0);
-
-    //  ocelltris[index].insert(i);
-    //}
-
     // important, do not remove
     std::array<TPoint<T>,8> box;
     other.faceBox(i,box);
@@ -2497,8 +2343,24 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
       LINT index = cells.findCell(box[j]);
       assert(index >= 0);
 
-      ocelltris[index].insert(i);
+      ocelltristemp[index].insert(i);
     }
+  }
+
+  // convert sets into vectors to divide for threading
+  std::vector<std::vector<LINT>> celltris;
+  std::vector<std::vector<LINT>> ocelltris;
+
+  for (int i = 0; i < int(celltristemp.size()); i++)
+  {
+    std::vector<LINT> list(celltristemp[i].begin(),celltristemp[i].end());
+    celltris.push_back(list);
+  }
+
+  for (int i = 0; i < int(ocelltristemp.size()); i++)
+  {
+    std::vector<LINT> list(ocelltristemp[i].begin(),ocelltristemp[i].end());
+    ocelltris.push_back(list);
   }
 
   // now distinguish cells which are (1) not empty (2) contain triangles from
@@ -2516,15 +2378,14 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   if (numactive == 0)
     return false;
 
+  if (numactive == 0)
+    return false;
+
   // now we've got two plain lists of triangles for every cell
 
 #ifndef USE_THREADS
-  numthreads = 1;
+  numthreads = 0;
 #endif
-
-  if (numactive < numthreads)
-    numthreads = numactive;
-  LIMIT_MIN(numthreads,1);
 
 #ifdef DEBUG_TRIS
   outputDebugString(
@@ -2533,49 +2394,25 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     std::string(" active cells = ") + to_string(numactive));
 #endif
 
+  // no threads
   if (numthreads <= 1)
   {
-#ifdef DEBUG_TRIS
-  outputDebugString(
-    std::string(" active cell size = ") + 
-    to_string(int(celltris[activecells[0]].size())) + " " +
-    to_string(int(ocelltris[activecells[0]].size())));
-#endif
-
     std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numactive);
     std::vector<std::vector<TPoint<T>>> tUVintrs(numactive);
     std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numactive);
 
-    std::unordered_set<std::pair<LINT,LINT>,pair_hash> sintersected;
-
-    if (makeboundaries)
+    for (LINT i = 0; i < numactive; i++)
     {
-      for (LINT i = 0; i < numactive; i++)
-      {
-        LINT index = activecells[i];
+      LINT index = activecells[i];
 
-        intersectCells(this,&other,index,&celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[i],&tUVintrs[i],&tedges[i],tolerance,parmtolerance,nullptr);
-#endif
-      }
-    } else
-    {
-      for (LINT i = 0; i < numactive; i++)
-      {
-        LINT index = activecells[i];
-        intersectCellsNoUV(this,&other,index,&celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[i],&tUVintrs[i],&tedges[i],tolerance,parmtolerance,nullptr);
-#endif
-      }
+      intersectCells(this,&other,index,
+        &celltris,0,int(celltris[index].size()) - 1,
+        &ocelltris,0,int(ocelltris[index].size()) - 1,
+        &centres,&ocentres,
+        &intersected[i],makeboundaries ? &tUVintrs[i] : nullptr,
+        &tedges[i],tolerance,parmtolerance);
     }
 
-#ifndef GLOBAL_INTRCHECK
     int count = 0;
 
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
@@ -2602,86 +2439,171 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
         }
       }
     }
-#endif
-
-  } else
+  } else // num threads > 1
   {
-    std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numthreads);
-    std::vector<std::vector<TPoint<T>>> tUVintrs(numthreads);
-    std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numthreads);
-
-    std::unordered_set<std::pair<LINT,LINT>,pair_hash> sintersected;
-
-    // distribute over threads
-    std::vector<std::thread> threads;
-    int dt = int(numactive) / numthreads;
-    for (int t = 0; t < numthreads; t++)
+    if (numactive == 1)
     {
-      int j1 = t * dt;
-      int j2 = (t + 1) * dt - 1;
+  #ifdef DEBUG_TRIS
+    outputDebugString(
+      std::string(" num active 1, active cell size = ") + 
+      to_string(int(celltris[activecells[0]].size())) + " " +
+      to_string(int(ocelltris[activecells[0]].size())));
+  #endif
 
-      if (t == numthreads - 1)
-        j2 = int(numactive) - 1;
+      std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numthreads);
+      std::vector<std::vector<TPoint<T>>> tUVintrs(numthreads);
+      std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numthreads);
 
-      std::thread th;
-      if (makeboundaries)
+      // single active cell
+      LINT index = activecells[0];
+      int ncells0 = int(celltris[index].size());
+      int ncells1 = int(ocelltris[index].size());
+
+      int ncells = std::max<int>(ncells0,ncells1);
+
+      if (ncells < numthreads)
+        numthreads = ncells;
+      LIMIT_MIN(numthreads,1);
+
+      // distribute over threads
+
+      if (ncells0 > ncells1)
       {
-        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,
-          &celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[t],&tUVintrs[t],&tedges[t],tolerance,parmtolerance,nullptr);
-#endif
+        std::vector<std::thread> threads;
+        int dt = int(ncells) / numthreads;
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = t * dt;
+          int j2 = (t + 1) * dt - 1;
+
+          if (t == numthreads - 1)
+            j2 = int(ncells) - 1;
+
+          std::thread th;
+          th = std::thread(intersectCells<T>,this,&other,index,
+            &celltris,j1,j2,
+            &ocelltris,0,ncells1 - 1,
+            &centres,&ocentres,
+            &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
+            &tedges[t],tolerance,parmtolerance);
+
+          threads.push_back(std::move(th));
+        }
+
+        for (auto &th : threads) {     
+          th.join();
+        }
       } else
       {
-        th = std::thread(intersectMultiCellsNoUV<T>,&activecells,j1,j2,this,&other,
-          &celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK          
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[t],&tUVintrs[t],&tedges[t],tolerance,parmtolerance,nullptr);
-#endif
+        std::vector<std::thread> threads;
+        int dt = int(ncells) / numthreads;
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = t * dt;
+          int j2 = (t + 1) * dt - 1;
+
+          if (t == numthreads - 1)
+            j2 = int(ncells) - 1;
+
+          std::thread th;
+          th = std::thread(intersectCells<T>,this,&other,index,
+            &celltris,0,ncells0 - 1,
+            &ocelltris,j1,j2,
+            &centres,&ocentres,
+            &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
+            &tedges[t],tolerance,parmtolerance);
+
+          threads.push_back(std::move(th));
+        }
+
+        for (auto &th : threads) {     
+          th.join();
+        }
       }
 
-      threads.push_back(std::move(th));
-    }
+      int count = 0;
+      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 
-    for (auto &th : threads) {     
-      th.join();
-    }
-
-#ifndef GLOBAL_INTRCHECK
-    int count = 0;
-
-    std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
-
-    for (int t = 0; t < numthreads; t++)
-    {
-      for (int k = 0; k < int(tedges[t].size()); k++)
+      for (int t = 0; t < numthreads; t++)
       {
-        // avoid inserting same intersected tris
-#ifndef GLOBAL_INTRCHECK
-        auto res = intrset.insert(intersected[t][k]);
-
-        if (res.second)
-#endif
+        for (int k = 0; k < int(tedges[t].size()); k++)
         {
-          if (makeboundaries)
-          {
-            UVintrs.push_back(tUVintrs[t][k * 2]);
-            UVintrs.push_back(tUVintrs[t][k * 2 + 1]);
-          }
+          // avoid inserting same intersected tris
+          auto res = intrset.insert(intersected[t][k]);
 
-          std::pair<TPoint<T>,TPoint<T>> edge = tedges[t][k];
-          edge.first.W = T(count++);
-          edge.second.W = T(count++);
-          edges.push_back(edge);
+          if (res.second)
+          {
+            if (makeboundaries)
+            {
+              UVintrs.push_back(tUVintrs[t][k * 2]);
+              UVintrs.push_back(tUVintrs[t][k * 2 + 1]);
+            }
+
+            std::pair<TPoint<T>,TPoint<T>> edge = tedges[t][k];
+            edge.first.W = T(count++);
+            edge.second.W = T(count++);
+            edges.push_back(edge);
+          }
+        }
+      }
+    } else
+    {
+      std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numthreads);
+      std::vector<std::vector<TPoint<T>>> tUVintrs(numthreads);
+      std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numthreads);
+
+      // distribute over threads
+      std::vector<std::thread> threads;
+      int dt = int(numactive) / numthreads;
+      for (int t = 0; t < numthreads; t++)
+      {
+        int j1 = t * dt;
+        int j2 = (t + 1) * dt - 1;
+
+        if (t == numthreads - 1)
+          j2 = int(numactive) - 1;
+
+        std::thread th;
+        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,
+          &celltris,&ocelltris,&centres,&ocentres,
+          &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
+          &tedges[t],tolerance,parmtolerance);
+
+        threads.push_back(std::move(th));
+      }
+
+      for (auto &th : threads) {     
+        th.join();
+      }
+
+      int count = 0;
+
+      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+
+      for (int t = 0; t < numthreads; t++)
+      {
+        for (int k = 0; k < int(tedges[t].size()); k++)
+        {
+          // avoid inserting same intersected tris
+          auto res = intrset.insert(intersected[t][k]);
+
+          if (res.second)
+          {
+            if (makeboundaries)
+            {
+              UVintrs.push_back(tUVintrs[t][k * 2]);
+              UVintrs.push_back(tUVintrs[t][k * 2 + 1]);
+            }
+
+            std::pair<TPoint<T>,TPoint<T>> edge = tedges[t][k];
+            edge.first.W = T(count++);
+            edge.second.W = T(count++);
+            edges.push_back(edge);
+          }
         }
       }
     }
-#endif
-  }
+  } // num threads > 1
 
 #else
   
@@ -2885,8 +2807,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   LINT numcells = cells.numBackgroundCells();
 
   // now distribute all tris over cells
-  std::vector<std::set<LINT>> celltris(numcells);
-
+  std::vector<std::set<LINT>> celltristemp(numcells);
   for (LINT i = 0; i < numFaces(); i++)
   {
     // important, do not remove
@@ -2897,11 +2818,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
       LINT index = cells.findCell(box[j]);
       assert(index >= 0);
 
-      celltris[index].insert(i);
+      celltristemp[index].insert(i);
     }
   }
 
-  std::vector<std::set<LINT>> ocelltris(numcells);
+  std::vector<std::set<LINT>> ocelltristemp(numcells);
   for (LINT i = 0; i < other.numFaces(); i++)
   {
     // important, do not remove
@@ -2912,8 +2833,24 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
       LINT index = cells.findCell(box[j]);
       assert(index >= 0);
 
-      ocelltris[index].insert(i);
+      ocelltristemp[index].insert(i);
     }
+  }
+
+  // convert sets into vectors to divide for threading
+  std::vector<std::vector<LINT>> celltris;
+  std::vector<std::vector<LINT>> ocelltris;
+
+  for (int i = 0; i < int(celltristemp.size()); i++)
+  {
+    std::vector<LINT> list(celltristemp[i].begin(),celltristemp[i].end());
+    celltris.push_back(list);
+  }
+
+  for (int i = 0; i < int(ocelltristemp.size()); i++)
+  {
+    std::vector<LINT> list(ocelltristemp[i].begin(),ocelltristemp[i].end());
+    ocelltris.push_back(list);
   }
 
   // now distinguish cells which are (1) not empty (2) contain triangles from
@@ -2934,12 +2871,8 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   // now we've got two plain lists of triangles for every cell
 
 #ifndef USE_THREADS
-  numthreads = 1;
+  numthreads = 0;
 #endif
-
-  if (numactive < numthreads)
-    numthreads = numactive;
-  LIMIT_MIN(numthreads,1);
 
 #ifdef DEBUG_TRIS
   outputDebugString(
@@ -2948,49 +2881,25 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     std::string(" active cells = ") + to_string(numactive));
 #endif
 
+  // no threads
   if (numthreads <= 1)
   {
-#ifdef DEBUG_TRIS
-  outputDebugString(
-    std::string(" active cell size = ") + 
-    to_string(int(celltris[activecells[0]].size())) + " " +
-    to_string(int(ocelltris[activecells[0]].size())));
-#endif
-
     std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numactive);
     std::vector<std::vector<TPoint<T>>> tUVintrs(numactive);
     std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numactive);
 
-    std::unordered_set<std::pair<LINT,LINT>,pair_hash> sintersected;
-
-    if (makeboundaries)
+    for (LINT i = 0; i < numactive; i++)
     {
-      for (LINT i = 0; i < numactive; i++)
-      {
-        LINT index = activecells[i];
+      LINT index = activecells[i];
 
-        intersectCells(this,&other,index,&celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[i],&tUVintrs[i],&tedges[i],tolerance,parmtolerance,nullptr);
-#endif
-      }
-    } else
-    {
-      for (LINT i = 0; i < numactive; i++)
-      {
-        LINT index = activecells[i];
-        intersectCellsNoUV(this,&other,index,&celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[i],&tUVintrs[i],&tedges[i],tolerance,parmtolerance,nullptr);
-#endif
-      }
+      intersectCells(this,&other,index,
+        &celltris,0,int(celltris[index].size()) - 1,
+        &ocelltris,0,int(ocelltris[index].size()) - 1,
+        &centres,&ocentres,
+        &intersected[i],makeboundaries ? &tUVintrs[i] : nullptr,
+        &tedges[i],tolerance,parmtolerance);
     }
 
-#ifndef GLOBAL_INTRCHECK
     int count = 0;
 
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
@@ -3017,86 +2926,171 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
         }
       }
     }
-#endif
-
-  } else
+  } else // num threads > 1
   {
-    std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numthreads);
-    std::vector<std::vector<TPoint<T>>> tUVintrs(numthreads);
-    std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numthreads);
-
-    std::unordered_set<std::pair<LINT,LINT>,pair_hash> sintersected;
-
-    // distribute over threads
-    std::vector<std::thread> threads;
-    int dt = int(numactive) / numthreads;
-    for (int t = 0; t < numthreads; t++)
+    if (numactive == 1)
     {
-      int j1 = t * dt;
-      int j2 = (t + 1) * dt - 1;
+  #ifdef DEBUG_TRIS
+    outputDebugString(
+      std::string(" num active 1, active cell size = ") + 
+      to_string(int(celltris[activecells[0]].size())) + " " +
+      to_string(int(ocelltris[activecells[0]].size())));
+  #endif
 
-      if (t == numthreads - 1)
-        j2 = int(numactive) - 1;
+      std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numthreads);
+      std::vector<std::vector<TPoint<T>>> tUVintrs(numthreads);
+      std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numthreads);
 
-      std::thread th;
-      if (makeboundaries)
+      // single active cell
+      LINT index = activecells[0];
+      int ncells0 = int(celltris[index].size());
+      int ncells1 = int(ocelltris[index].size());
+
+      int ncells = std::max<int>(ncells0,ncells1);
+
+      if (ncells < numthreads)
+        numthreads = ncells;
+      LIMIT_MIN(numthreads,1);
+
+      // distribute over threads
+
+      if (ncells0 > ncells1)
       {
-        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,
-          &celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[t],&tUVintrs[t],&tedges[t],tolerance,parmtolerance,nullptr);
-#endif
+        std::vector<std::thread> threads;
+        int dt = int(ncells) / numthreads;
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = t * dt;
+          int j2 = (t + 1) * dt - 1;
+
+          if (t == numthreads - 1)
+            j2 = int(ncells) - 1;
+
+          std::thread th;
+          th = std::thread(intersectCells<T>,this,&other,index,
+            &celltris,j1,j2,
+            &ocelltris,0,ncells1 - 1,
+            &centres,&ocentres,
+            &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
+            &tedges[t],tolerance,parmtolerance);
+
+          threads.push_back(std::move(th));
+        }
+
+        for (auto &th : threads) {     
+          th.join();
+        }
       } else
       {
-        th = std::thread(intersectMultiCellsNoUV<T>,&activecells,j1,j2,this,&other,
-          &celltris,&ocelltris,&centres,&ocentres,
-#ifdef GLOBAL_INTRCHECK          
-          nullptr,&UVintrs,&edges,tolerance,parmtolerance,&sintersected);
-#else
-          &intersected[t],&tUVintrs[t],&tedges[t],tolerance,parmtolerance,nullptr);
-#endif
+        std::vector<std::thread> threads;
+        int dt = int(ncells) / numthreads;
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = t * dt;
+          int j2 = (t + 1) * dt - 1;
+
+          if (t == numthreads - 1)
+            j2 = int(ncells) - 1;
+
+          std::thread th;
+          th = std::thread(intersectCells<T>,this,&other,index,
+            &celltris,0,ncells0 - 1,
+            &ocelltris,j1,j2,
+            &centres,&ocentres,
+            &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
+            &tedges[t],tolerance,parmtolerance);
+
+          threads.push_back(std::move(th));
+        }
+
+        for (auto &th : threads) {     
+          th.join();
+        }
       }
 
-      threads.push_back(std::move(th));
-    }
+      int count = 0;
+      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 
-    for (auto &th : threads) {     
-      th.join();
-    }
-
-#ifndef GLOBAL_INTRCHECK
-    int count = 0;
-
-    std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
-
-    for (int t = 0; t < numthreads; t++)
-    {
-      for (int k = 0; k < int(tedges[t].size()); k++)
+      for (int t = 0; t < numthreads; t++)
       {
-        // avoid inserting same intersected tris
-#ifndef GLOBAL_INTRCHECK
-        auto res = intrset.insert(intersected[t][k]);
-
-        if (res.second)
-#endif
+        for (int k = 0; k < int(tedges[t].size()); k++)
         {
-          if (makeboundaries)
-          {
-            UVintrs.push_back(tUVintrs[t][k * 2]);
-            UVintrs.push_back(tUVintrs[t][k * 2 + 1]);
-          }
+          // avoid inserting same intersected tris
+          auto res = intrset.insert(intersected[t][k]);
 
-          std::pair<TPoint<T>,TPoint<T>> edge = tedges[t][k];
-          edge.first.W = T(count++);
-          edge.second.W = T(count++);
-          edges.push_back(edge);
+          if (res.second)
+          {
+            if (makeboundaries)
+            {
+              UVintrs.push_back(tUVintrs[t][k * 2]);
+              UVintrs.push_back(tUVintrs[t][k * 2 + 1]);
+            }
+
+            std::pair<TPoint<T>,TPoint<T>> edge = tedges[t][k];
+            edge.first.W = T(count++);
+            edge.second.W = T(count++);
+            edges.push_back(edge);
+          }
+        }
+      }
+    } else
+    {
+      std::vector<std::vector<std::pair<TPoint<T>,TPoint<T>>>> tedges(numthreads);
+      std::vector<std::vector<TPoint<T>>> tUVintrs(numthreads);
+      std::vector<std::vector<std::pair<LINT,LINT>>> intersected(numthreads);
+
+      // distribute over threads
+      std::vector<std::thread> threads;
+      int dt = int(numactive) / numthreads;
+      for (int t = 0; t < numthreads; t++)
+      {
+        int j1 = t * dt;
+        int j2 = (t + 1) * dt - 1;
+
+        if (t == numthreads - 1)
+          j2 = int(numactive) - 1;
+
+        std::thread th;
+        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,
+          &celltris,&ocelltris,&centres,&ocentres,
+          &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
+          &tedges[t],tolerance,parmtolerance);
+
+        threads.push_back(std::move(th));
+      }
+
+      for (auto &th : threads) {     
+        th.join();
+      }
+
+      int count = 0;
+
+      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+
+      for (int t = 0; t < numthreads; t++)
+      {
+        for (int k = 0; k < int(tedges[t].size()); k++)
+        {
+          // avoid inserting same intersected tris
+          auto res = intrset.insert(intersected[t][k]);
+
+          if (res.second)
+          {
+            if (makeboundaries)
+            {
+              UVintrs.push_back(tUVintrs[t][k * 2]);
+              UVintrs.push_back(tUVintrs[t][k * 2 + 1]);
+            }
+
+            std::pair<TPoint<T>,TPoint<T>> edge = tedges[t][k];
+            edge.first.W = T(count++);
+            edge.second.W = T(count++);
+            edges.push_back(edge);
+          }
         }
       }
     }
-#endif
-  }
+  } // num threads > 1
 
 #else
   

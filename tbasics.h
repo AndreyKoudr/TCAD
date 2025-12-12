@@ -176,5 +176,8 @@ namespace tcad {
   #endif
 #endif
 
+// use SIMD
+//#define USE_SIMD
+
 }
 
