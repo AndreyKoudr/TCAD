@@ -825,7 +825,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<std::string> &lines, T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
-  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 40)
 {
   lines.clear();
 
@@ -840,7 +840,8 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   std::vector<std::array<LINT,11>> edges;
 
   // Create non-manifold solid model
-  if (!createSolidEdges(surfaces,boundariesUV,vertices,middlevertices,edges,tolerance,pbadedges))
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,middlevertices,edges,
+    tolerance,pbadedges,attempts))
     return false;
 
   // calculate size
@@ -1244,12 +1245,15 @@ template <class T> bool saveTrimmedSurfaceIges(tcad::TSplineSurface<T> *surface,
 /** Save trimmed surfaces as solid in IGES. All surfaces must have closed boundaries. */
 template <class T> bool saveSolidIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
 //surface     loop        piece       points
-  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, const std::string &filename,
-  T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, 
+  const std::string &filename,
+  T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 40)
 {
   std::vector<std::string> lines;
 
-  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree,numdigits,pbadedges))
+  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree,
+    numdigits,pbadedges,attempts))
   {
     bool ok = writeLines(lines,filename);
     return ok;

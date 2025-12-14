@@ -1628,6 +1628,8 @@ int main(int argc, char* argv[])
     deleteSurfaces(surfaces);
   }
 
+#endif
+
   /*****************************************************************************
     5.4 Blocks : blade
   *****************************************************************************/
@@ -1688,15 +1690,13 @@ int main(int argc, char* argv[])
     std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV;
     closeOuterBoundary<T>(surfaces,boundariesUV);
 
-    bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller hub solid.iges",tolerance);
+    bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller hub solid.iges",
+      tolerance);
 
     ASSERT(ok);
 
     deleteSurfaces(surfaces);
   }
-
-
-#endif
 
   /*****************************************************************************
     5.7 Blocks : propeller, trimmed and solid
@@ -1829,7 +1829,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller solid.iges",
-      bigtolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -1858,7 +1858,7 @@ int main(int argc, char* argv[])
 
   {
     T hullL = 74.0;
-    T bigtolerance = hullL * PARM_BIGTOLERANCE;
+    T tolerance = hullL * PARM_TOLERANCE;
 
     // make axisymmetric hull
     smoothPointsByBezier(KiloHull<T>[1],END_FIXED,END_CLAMPED,50);
@@ -1880,7 +1880,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull solid.iges",
-      bigtolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,SPLINE_DEGREE,18,&badedges);
 
     if (!ok)
     {
@@ -1960,7 +1960,161 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub solid with propeller.iges",
-      bigtolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,SPLINE_DEGREE,18,&badedges);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+
+    ASSERT(ok);
+  }
+
+  /*****************************************************************************
+    5.10 Blocks : submarine fin
+  *****************************************************************************/
+
+  cout << "5.10 Blocks : sub fin" << endl;
+
+  // sub fin
+  std::vector<TSplineSurface<T> *> subfinsurfaces;
+  // sub fin trimming curves
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> subfinboundariesUV;
+
+  {
+    // base (lowest) fin contour
+    std::vector<TPoint<T>> basepoints = KiloFinBase<T>;
+    smoothPointsByOrtho(basepoints,END_FIXED,END_ROUNDED,4,GAUSSINT_8,true,50,0.5,0.5);
+
+    TPointCurve<T> basecurve(basepoints);
+    saveCurveIges(basecurve,DEBUG_DIR + "Sub fin base curve.iges");
+
+    std::vector<TPoint<T>> upperpoints = basepoints;
+
+    // upper fin contour
+    T XCOEF = 42.0 / 44.0;
+    TTransform<T> t;
+    t.Resize(TPoint<T>(XCOEF,0.9,1.0));
+    // the stem wall is vertical at height Z = 17.0 * KHCOEF
+    t.Translate(TPoint<T>(0.272,0.0,17.0 * KHCOEF));
+
+    makeTransform(upperpoints,&t);
+
+    TPointCurve<T> uppercurve(upperpoints);
+    saveCurveIges(uppercurve,DEBUG_DIR + "Sub fin upper curve.iges");
+
+    // top contour ("rounding top")
+    T radius = KHCOEF;
+    std::vector<TPoint<T>> toppoints = upperpoints;
+
+    TPoint<T> min,max;
+    calculateMinMax(toppoints,&min,&max);
+    TPoint<T> d = max - min;
+    TPoint<T> centre = (min + max) * 0.5;
+    T xcoef = (d.X - radius * 2.0) / d.X;
+    T ycoef = (d.Y - radius) / d.Y;
+
+    t.LoadIdentity();
+    t.Translate(-centre);
+    t.Resize(TPoint<T>(xcoef,ycoef,1.0));
+    t.Translate(centre + TPoint<T>(0.0,-radius * 0.5,radius));
+
+    makeTransform(toppoints,&t);
+
+    TPointCurve<T> topcurve(toppoints);
+    saveCurveIges(topcurve,DEBUG_DIR + "Sub fin top curve.iges");
+
+    // make surfaces now
+    std::vector<std::vector<TPoint<T>>> points;
+    points.push_back(basepoints);
+    points.push_back(upperpoints);
+    points.push_back(toppoints);
+
+    TSplineSurface<T> *finwall0 = new TSplineSurface<T>(points,40,SPLINE_DEGREE,40,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); //!!!!!!!
+
+    // one boundary for flat top
+    std::vector<TPoint<T>> points0 = toppoints;
+
+    // make correct normal
+    finwall0->reverseU();
+    std::reverse(points0.begin(),points0.end());
+
+    saveSurfaceIges(finwall0,DEBUG_DIR + "Sub fin wall surface 0.iges");
+
+    // make another symmetric part
+    TSplineSurface<T> *finwall1 = new TSplineSurface<T>(*finwall0);
+
+    // another boundary for flat top
+    std::vector<TPoint<T>> points1 = points0;
+
+    t.LoadIdentity();
+    t.Resize(TPoint<T>(1.0,-1.0,1.0));
+
+    finwall1->makeTransform(&t);
+    makeTransform<T>(points1,&t);
+
+    saveSurfaceIges(finwall1,DEBUG_DIR + "Sub fin wall surface 1.iges");
+
+    // make flat top
+    std::vector<std::vector<TPoint<T>>> flatpoints;
+    flatpoints.push_back(points0);
+    flatpoints.push_back(points1);
+
+    TSplineSurface<T> *flattop = new TSplineSurface<T>(flatpoints,40,SPLINE_DEGREE,8,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); //!!!!!!!
+
+    saveSurfaceIges(flattop,DEBUG_DIR + "Sub fin flat top.iges");
+
+    subfinsurfaces.push_back(finwall0);
+    subfinsurfaces.push_back(finwall1);
+    subfinsurfaces.push_back(flattop);
+
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(50.0 * KHCOEF,0.0,13.0 * KHCOEF));
+
+    makeTransform(subfinsurfaces,&t);
+
+    finwall0->reverseU();
+
+    saveSurfacesIges(subfinsurfaces,DEBUG_DIR + "Sub fin surfaces.iges");
+  }
+
+  /*****************************************************************************
+    5.11 Blocks : submarine hull + propeller + fin, all single solid
+  *****************************************************************************/
+
+  cout << "5.11 Blocks : submarine hull + propeller + fin, all single solid" << endl;
+
+  {
+    T hullL = 74.0;
+    T tolerance = hullL * PARM_TOLERANCE;
+
+    // name for debugging
+    nameSurfaces<T>(subfinsurfaces,"fin");
+
+    // make boundaries
+    closeOuterBoundary<T>(subfinsurfaces,subfinboundariesUV);
+
+    // make a solid from fin and propeller + hull
+
+    // mutual intersections between faces, in peocess, estimate big tolerance as max
+    // difference between boundaty curves
+    T bigtolerance = 0.0;
+
+    // make solid, do not clear old boundaries
+    makeSolid(subfinsurfaces,subsurfaces,subfinboundariesUV,subboundariesUV,tolerance,bigtolerance,
+      PARM_TOLERANCE,false);
+
+    // whole submarine
+    subsurfaces.insert(subsurfaces.end(),subfinsurfaces.begin(),subfinsurfaces.end());
+    subboundariesUV.insert(subboundariesUV.end(),subfinboundariesUV.begin(),subfinboundariesUV.end());
+
+    saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+propeller surfaces trimmed.iges");
+
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+propeller solid.iges",
+      tolerance,SPLINE_DEGREE,18,&badedges);
 
     if (!ok)
     {

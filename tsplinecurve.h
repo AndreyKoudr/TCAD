@@ -87,8 +87,6 @@ public:
     int k = std::max(k1,minpoints - 1);
     allocate(k,m1,false);
 
-//!!!!!!!    allocate(k1,m1,false);
-
     // points are not cpoints 
     points = ppoints;
     clampedstart = pclampedstart;
@@ -104,8 +102,6 @@ public:
     // set parameters
     int k = std::max(int(ppoints.size()) - 1,minpoints - 1);
     allocate(k,m1,true);
-
- //!!!!!!!   allocate(int(ppoints.size()) - 1,m1,true);
 
     // points are not cpoints 
     points = ppoints;

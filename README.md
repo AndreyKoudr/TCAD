@@ -150,6 +150,9 @@ Blocks
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_connection.png)<br />
 ... with the result as propeller + hull + shaft solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_shaft_solid.png)
+- 5.10 Blocks : submarine fin<br />
+- 5.11 Blocks : submarine hull + propeller + fin, all single solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_prop_hull_fin_solid.png)
 
 Important parameters in main.cpp
 ================================
@@ -185,7 +188,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Submarine from parts : speeding it up with space partitioning, threads and SIMD.<br /> 
+Submarine from parts : making wings.<br /> 
 
 
 

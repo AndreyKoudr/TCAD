@@ -143,9 +143,21 @@ public:
     std::vector<T> x,y,z;
     splitXYZ(this->cpoints,x,y,z);
 
+    // tolerance
+    T len = calculateLength<T>(this->cpoints);
+    T tolerance = len * PARM_TOLERANCE;
+
     // make fittings
     _fx.alpha = _fy.alpha = _fz.alpha = alpha;
     _fx.beta = _fy.beta = _fz.beta = beta;
+
+    // 0.5 aplha/beta is allowed only if start y == end y
+    if (std::abs(x.front() - x.back()) > tolerance)
+      _fx.alpha = _fx.beta = 0.0;
+    if (std::abs(y.front() - y.back()) > tolerance)
+      _fy.alpha = _fy.beta = 0.0;
+    if (std::abs(z.front() - z.back()) > tolerance)
+      _fz.alpha = _fz.beta = 0.0;
 
     _ok =
       _fx.fit(power,parms,x,integration) && 

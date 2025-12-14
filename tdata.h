@@ -293,4 +293,15 @@ template <class T> std::vector<std::vector<TPoint<T>>> KiloHull = {
   }
 };
 
+/** Kilo fin base in X-Y coordinates at Z = 0. */
+template <class T> std::vector<TPoint<T>> KiloFinBase = {
+  TPoint<T>(-24.0 * KHCOEF,  0.0 * KHCOEF),
+  TPoint<T>(-22.0 * KHCOEF,  2.0 * KHCOEF),
+  TPoint<T>(-14.0 * KHCOEF,  4.0 * KHCOEF),
+  TPoint<T>(  0.0 * KHCOEF,  5.5 * KHCOEF),
+  TPoint<T>(  6.0 * KHCOEF,  5.0 * KHCOEF),
+  TPoint<T>( 16.0 * KHCOEF,  2.4 * KHCOEF),
+  TPoint<T>( 18.0 * KHCOEF,  0.0 * KHCOEF)
+};
+
 }

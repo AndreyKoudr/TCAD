@@ -116,14 +116,14 @@ template <class T> bool removeDuplicateNodes(std::vector<TPoint<T>> &points, T t
   from the smoothed points. */
 template <class T> void smoothPointsByOrtho(std::vector<TPoint<T>> &points, 
   CurveEndType start, CurveEndType end, int power = 8, int integration = GAUSSINT_8, 
-  bool keependpoints = true, int numnewpoints = -1)
+  bool keependpoints = true, int numnewpoints = -1, T refinestartU = 1.0, T refineendU = 1.0)
 {
   // (1) prepare parameters by length to place new smoothed points to original 
   // parameteric positions
   std::vector<T> parms;
   if (numnewpoints > 1)
   {
-    prepareUniformParameters(numnewpoints,parms);
+    prepareUniformParameters(numnewpoints,parms,refinestartU,refineendU);
   } else
   {
     prepareParameters(points,parms,true,false);
@@ -132,14 +132,15 @@ template <class T> void smoothPointsByOrtho(std::vector<TPoint<T>> &points,
   // (2) create orthogonal polynomial from points, it smoothes points by poly, makes many new points
   TOrthoSegment<T> ssegment(points,start,end,power,integration);
   std::vector<TPoint<T>> spoints;
-  ssegment.createPoints(spoints);
+  ssegment.createPoints(spoints,(numnewpoints > 1) ? numnewpoints : MANY_POINTS);
+
+  std::vector<TPoint<T>> newpoints;
 
   // (3) make smoothed point curve, it has many points
   TPointCurve<T> smoothed(spoints);
 
   // (4) reparameterise (redivide) into a desired number of points, here we
   // take the original number of points
-  std::vector<TPoint<T>> newpoints;
   for (int i = 0; i < int(parms.size()); i++)
   {
     TPoint<T> p = smoothed.derivative(parms[i],0);
@@ -321,6 +322,28 @@ template <class T> void deleteSurfaces(std::vector<TSplineSurface<T> *> &surface
   }
 
   surfaces.clear();
+}
+
+/** Copy and transform list of surfaces. */
+template <class T> void copySurfaces(std::vector<TSplineSurface<T> *> &surfaces, 
+  TTransform<T> *t, bool reverseU, bool reverseV, std::vector<TSplineSurface<T> *> &newsurfaces)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    // copy
+    TSplineSurface<T> *newsurface = new TSplineSurface<T>(*surfaces[i]);
+
+    // transform
+    newsurface->makeTransform(t);
+
+    // reverseU/V
+    if (reverseU)
+      newsurface->reverseU();
+    if (reverseV)
+      newsurface->reverseV();
+
+    newsurfaces.push_back(newsurface);
+  }
 }
 
 }

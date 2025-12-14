@@ -86,6 +86,41 @@ template <class T> void getBoundaryPartXYZ(std::vector<tcad::TSplineSurface<T> *
   }
 }
 
+/** Remove degenerated pieces of boundary. */
+template <class T> int removeDegeneratedBoundaryPieces(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+//surface     loop        part        points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  T tolerance)
+{
+  assert(surfaces.size() == boundariesUV.size());
+
+  int count = 0;
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    for (int j = 0; j < int(boundariesUV[i].size()); j++)
+    {
+      for (int k = 0; k < int(boundariesUV[i][j].size()); k++)
+      {
+        // this curve should be XYZ, not UV
+        std::vector<TPoint<T>> points;
+        getBoundaryPartXYZ<T>(surfaces,boundariesUV,i,j,k,points);
+
+        TPointCurve<T> curve(points);
+
+        if (curve.length() < tolerance) 
+        {
+          // remove this degenerated piece of boundary, only ONE! piece of boundary can 
+          // be degenerated //!!!!!! - not sure
+          boundariesUV[i][j].erase(boundariesUV[i][j].begin() + k);
+          count++;
+        }
+      }
+    } 
+  }
+
+  return count;
+}
+
 /** Create solid model as edges; each edge has two end nodes (from vertices) 
   plus one middle node (from middlevertices)
   and two surfaces from left and right; the first has right edge direction 
@@ -126,24 +161,16 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
 
         TPointCurve<T> curve(points);
 
-        if (curve.length() > tolerance) 
-        {
-          TPoint<T> s = curve.start();
-          TPoint<T> e = curve.end();
-          TPoint<T> m = curve.middle();
+        TPoint<T> s = curve.start();
+        TPoint<T> e = curve.end();
+        TPoint<T> m = curve.middle();
 
-          vertices.push_back(s);
-          vertices.push_back(e);
-          middlevertices.push_back(m);
+        vertices.push_back(s);
+        vertices.push_back(e);
+        middlevertices.push_back(m);
 
-          edges.push_back(std::array<LINT,3>{(LINT) vertices.size() - 2,(LINT) vertices.size() - 1,(LINT) middlevertices.size() - 1});
-          edgelocations.push_back(std::array<LINT,4>{i,j,count++,0});
-        } else
-        {
-          // remove this degenerated piece of boundary, only ONE! piece of boundary can 
-          // be degenerated //!!!!!!
-          boundariesUV[i][j].erase(boundariesUV[i][j].begin() + k);
-        }
+        edges.push_back(std::array<LINT,3>{(LINT) vertices.size() - 2,(LINT) vertices.size() - 1,(LINT) middlevertices.size() - 1});
+        edgelocations.push_back(std::array<LINT,4>{i,j,count++,0});
       } // boundary part (curve)
     } // loops
   } // surfaces
@@ -271,7 +298,7 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, 
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 10)
+  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 40)
 {
   edges.clear();
 
@@ -280,8 +307,12 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   bool ok = false;
   T atolerance = tolerance;
 
+  removeDegeneratedBoundaryPieces(surfaces,boundariesUV,tolerance);
+
   for (int i = 0; i < attempts; i++)
   {
+//outputDebugString("i " + to_string(i) + " atolerance " + to_string(atolerance,12)); //!!!!!!!
+
     ok = createSolidEdges<T>(surfaces,boundariesUV,vertices,middlevertices,edgemap,atolerance,pbadedges);
     if (ok)
       break;

@@ -115,6 +115,7 @@ public:
     for (int i = 0; i < numpoints; i++)
     {
       T U = T(i) / T(numpoints - 1);
+
       TPoint<T> p = this->derivative(U,0);
       p.W = U; //!!! important for some procedures, e.g. intersectByPlane()
       points.push_back(p);

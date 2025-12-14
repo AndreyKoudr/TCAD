@@ -96,10 +96,6 @@ namespace tcad {
 // parametric tolerance
 #define PARM_TOLERANCE 0.0000001 
 
-// this big is used to make tolerance = L * PARM_BIGTOLERANCE to
-// substitute into saveSolidIges()
-#define PARM_BIGTOLERANCE 0.0000001
-
 // round
 #define ROUND(x)  (int) (floor(x + .5))
 #define ROUND_LINT(x)  (LINT) (floor(x + .5))

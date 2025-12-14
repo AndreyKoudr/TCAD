@@ -248,10 +248,12 @@ template <class T> bool prepareParameters(std::vector<TPoint<T>> &points,
 
   if (points.size() < 2)
     return false;
-  if (points.size() == 2 && !(points[1] - points[0]) < tolerance)
-  {
-    return false;
-  }
+
+//!!!!!!! very important
+  //if (points.size() == 2 && !(points[1] - points[0]) < tolerance)
+  //{
+  //  return false;
+  //}
 
   T len = calculateLength(points);
   if (len < tolerance)
@@ -297,13 +299,17 @@ template <class T> bool prepareParameters(std::vector<TPoint<T>> &points,
 }
 
 /** Get uniform parameters [0..1]. */
-template <class T> void prepareUniformParameters(int numpoints, std::vector<T> &parms)
+template <class T> void prepareUniformParameters(int numpoints, 
+  std::vector<T> &parms, T refinestartU = 1.0, T refineendU = 1.0)
 {
   parms.clear();
 
   for (int i = 0; i < numpoints; i++)
   {
     T U = T(i) / T(numpoints - 1);
+
+    U = refineParameter(U,refinestartU,refineendU);
+
     parms.push_back(U);
   }
 }
@@ -1668,6 +1674,187 @@ template <class T> void extend(std::vector<TPoint<T>> &points, bool extendstart,
 
     extendByLength(points,extendstart,dlen);
   }
+}
+
+/** Get direction at node. */
+template <class T> TPoint<T> direction(std::vector<TPoint<T>> &points, int index, bool normalise = true)
+{
+  int i0 = index - 1;
+  int i1 = index + 1;
+  if (i0 < 0)
+  {
+    i0++;
+    i1++;
+  }
+  if (i1 > int(points.size()) - 1)
+  {
+    i1--;
+    i0--;
+  }
+
+  if (i0 >= 0 && i0 < int(points.size()) &&
+    i1 >= 0 && i1 < int(points.size()) && i1 > i0)
+  {
+    TPoint<T> p0 = points[i0];
+    TPoint<T> p1 = points[i1];
+    TPoint<T> d = normalise ? (+(p1 - p0)) : (p1 - p0);
+    return d;
+  } else
+  {
+    assert(false);
+    return TPoint<T>();
+  }
+}
+
+/** Get plane on three points. */
+template <class T> bool getPlanePrim(std::vector<TPoint<T>> &points, 
+  int i0, int i, int i1, TPlane<T> &plane)
+{
+  if (points.size() < 3)
+    return false;
+
+  assert(i > i0 && i1 > i);
+
+  if (i0 >= 0 && i0 < int(points.size()) &&
+    i1 >= 0 && i1 < int(points.size()) && i1 > i0)
+  {
+    bool ok = true;
+    plane = TPlane<T>(points[i0],points[i],points[i1],ok);
+    return ok;
+  } else
+  {
+    assert(false);
+    return false;
+  }
+}
+
+/** Get plane on three neighbour points. */
+template <class T> bool getPlane(std::vector<TPoint<T>> &points, int index, TPlane<T> &plane)
+{
+  if (points.size() < 3)
+    return false;
+
+  int i = index;
+  int i0 = index - 1;
+  int i1 = index + 1;
+  if (i0 < 0)
+  {
+    i0++;
+    i++;
+    i1++;
+  }
+  if (i1 > int(points.size()) - 1)
+  {
+    i1--;
+    i--;
+    i0--;
+  }
+
+  return getPlanePrim(points,i0,i,i1,plane);
+}
+
+/** Get plane on three points around index which make a plane. */
+template <class T> bool getClosestPlane(std::vector<TPoint<T>> &points, int index, TPlane<T> &plane)
+{
+  if (points.size() < 3)
+    return false;
+
+  int i = index;
+  int i0 = index - 1;
+  int i1 = index + 1;
+  if (i0 < 0)
+  {
+    i0++;
+    i++;
+    i1++;
+  }
+  if (i1 > int(points.size()) - 1)
+  {
+    i1--;
+    i--;
+    i0--;
+  }
+
+  if (getPlanePrim(points,i0,i,i1,plane))
+  {
+    return true;
+  }
+
+  bool done = false;
+  do {
+    i0--;
+    LIMIT_MIN(i0,0);
+    i1++;
+    LIMIT_MAX(i1,int(points.size()) - 1);
+
+    if (getPlanePrim(points,i0,i,i1,plane))
+    {
+      done = true;
+    } else
+    {
+      if (i0 <= 0 && i1 >= int(points.size()) - 1)
+        break;
+    }
+  } while (!done);
+
+  return done;
+}
+
+/** Inflate/deflate curve in normal direction by dist. Plane on curve points
+  is calculated for all points (impossible for a straight curve). */
+template <class T> bool inflatePoints(std::vector<TPoint<T>> &points, T dist)
+{
+  assert(points.size() > 2);
+
+  // go to along the curve and move all points "to the right"
+  std::vector<TPoint<T>> newpoints;
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    // get plane on neighbour points
+    TPlane<T> plane;
+    if (!getClosestPlane(points,i,plane))
+      return false;
+
+    // get normalised direction along the curve
+    TPoint<T> dir = direction(points,i);
+
+    // move direction, both normal and dir are normalised
+    TPoint<T> movedir = dir ^ plane.normal;
+
+    // new position
+    TPoint<T> p = points[i] + movedir * dist;
+
+    newpoints.push_back(p);
+  }
+
+  points = newpoints;
+  return true;
+}
+
+/** Make a straight line. */
+template <class T> void makeStraightLine(TPoint<T> p0, TPoint<T> p1, int numpoints,
+  std::vector<TPoint<T>> &points)
+{
+  points.clear();
+
+  TPoint<T> d = p1 - p0;
+  for (int i = 0; i < numpoints; i++)
+  {
+    T U = T(i) / T (numpoints - 1);
+    TPoint<T> p = p0 + d * U;
+    points.push_back(p);
+  }
+}
+
+/** Divide into two halves. */
+template <class T> void divideHalf(std::vector<TPoint<T>> &points,
+  std::vector<TPoint<T>> &left, std::vector<TPoint<T>> &right)
+{
+  left.clear();
+  right.clear();
+
+  left.insert(left.end(),points.begin(),points.begin() + points.size() / 2 + 1);
+  right.insert(right.end(),points.begin() + points.size() / 2,points.end());
 }
 
 }

@@ -447,6 +447,19 @@ public:
   {
     int i0 = index - 1;
     int i1 = index + 1;
+
+#if 0 //!!! not good, it makes small hooks at curve ends, keep as before
+    if (i0 < 0)
+    {
+      i0 = 0;
+      i1 = i0 + 1;
+    }
+    if (i1 > int(this->cpoints.size()) - 1)
+    {
+      i1 = int(this->cpoints.size()) - 1;
+      i0 = i1 - 1;
+    }
+#else
     if (i0 < 0)
     {
       i0++;
@@ -457,6 +470,7 @@ public:
       i0--;
       i1--;
     }
+#endif
 
     if (i0 >= 0 && i0 < int(this->cpoints.size()) &&
       i1 >= 0 && i1 < int(this->cpoints.size()))
