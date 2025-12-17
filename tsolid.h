@@ -54,16 +54,16 @@ namespace tcad {
 
 /** Find all bad edges in the map which do not have exactly two neightbour faces. 
   Returns number of bad edges. */
-template <class T> int findBadEdges(std::map<std::array<LINT,3>,std::vector<std::array<LINT,4>>,TEdgeCompare<T>> &edgemap,
+template <class T> int findBadEdges(std::vector<std::vector<std::array<LINT,3>>> &edgepairs,
   std::vector<std::array<LINT,3>> &badedges)
 {
   badedges.clear();
 
-  for (auto &e : edgemap)
+  for (auto &e : edgepairs)
   {
-    if (e.second.size() != 2)
+    if (e.size() != 2)
     {
-      badedges.push_back(e.first);
+      badedges.push_back(e[0]);
     }
   }
 
@@ -224,11 +224,13 @@ template <class T> bool findClosestPiece(
     }
   }
 
-if (mindist >= bigtolerance) //!!!!!!!
-{
-  outputDebugString(std::string("failure! ") +
-    " mindist " + to_string(mindist) +  " bigtolerance " + to_string(bigtolerance));
-}
+#ifdef DEBUG_SOLID
+  if (mindist >= bigtolerance)
+  {
+    outputDebugString(std::string("failure! ") +
+      " mindist " + to_string(mindist) +  " bigtolerance " + to_string(bigtolerance));
+  }
+#endif
 
   return (mindist < bigtolerance);
 }
@@ -280,7 +282,8 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices, 
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
+  T closestcoef = 0.1)
 {
   // step 1 : make vertices and middlevertices
   vertices.clear();
@@ -347,7 +350,7 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
     std::vector<TPoint<T>> pieceUV = boundariesUV[start[0]][start[1]][start[2]];
 
     T len = calculateLength(pieceXYZ);
-    T bigtolerance = len * 0.1; //!!!!!!!
+    T bigtolerance = len * closestcoef;
 
     // mark as busy, find a second piece
     busy[start[0]][start[1]][start[2]] = true;
@@ -364,6 +367,7 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
     {
       // single location, not good
 
+#ifdef DEBUG_SOLID
       std::vector<TPoint<T>> piece = piecesXYZ[location[0]][location[1]][location[2]];
       T dist0 = !(piece.front() - pieceXYZ.front());
       T dist1 = !(piece.back() - pieceXYZ.back());
@@ -373,8 +377,8 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
         " dist 0 " + to_string(dist0) +
         " dist 1 " + to_string(dist1) +
         " dist 2 " + to_string(dist2) +
-        " dist 3 " + to_string(dist3) 
-      ); //!!!!!!!
+        " dist 3 " + to_string(dist3)); 
+#endif
     }
   } while (1);
 
@@ -434,22 +438,16 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   // list of bad edges which do not have two face neighbours
   std::vector<std::array<LINT,3>> badedges;
 
-  int n = 0;
+  int n = findBadEdges<T>(edgepairs,badedges);
 
-  //int n = findBadEdges(edgemap,badedges);
-
-  //if (n && pbadedges != nullptr)
-  //{
-  //  for (int k = 0; k < int(badedges.size()); k++)
-  //  {
-  //    std::vector<TPoint<T>> points;
-  //    points.push_back(vertices[badedges[k][0]]);
-  //    points.push_back(middlevertices[badedges[k][2]]);
-  //    points.push_back(vertices[badedges[k][1]]);
-  //    
-  //    pbadedges->push_back(points);
-  //  }
-  //}
+  if (n && pbadedges != nullptr)
+  {
+    for (int k = 0; k < int(badedges.size()); k++)
+    {
+      std::vector<TPoint<T>> points = piecesXYZ[badedges[k][0]][badedges[k][1]][badedges[k][2]];
+      pbadedges->push_back(points);
+    }
+  }
 
 #ifdef DEBUG_SOLID
   outputDebugString(std::string("num bad edges ") + to_string(n));

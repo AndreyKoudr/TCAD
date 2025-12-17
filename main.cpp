@@ -1621,7 +1621,6 @@ int main(int argc, char* argv[])
 
     saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "solid box surfaces trimmed.iges");
 
-    std::map<unsigned int,unsigned int> connections;
     bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "solid box.iges",NACAtolerance);
 
     ASSERT(ok);
@@ -1689,7 +1688,6 @@ int main(int argc, char* argv[])
     std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> boundariesUV;
     closeOuterBoundary<T>(surfaces,boundariesUV);
 
-    std::map<unsigned int,unsigned int> connections;
     bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller hub solid.iges",
       tolerance);
 
@@ -1705,7 +1703,7 @@ int main(int argc, char* argv[])
   cout << "5.7 Blocks : propeller, trimmed and solid" << endl;
 
 #ifdef _DEBUG
-  errorMessage("This thing (makeSolid()) may be slow in Debug, try Release instead.");
+  errorMessage("This thing (makeTrimming()) may be slow in Debug, try Release instead.");
 #endif
 
   // keep them for submarine, propeller surfaces
@@ -1810,10 +1808,7 @@ int main(int argc, char* argv[])
 
     // mutual intersections between faces, in process, estimate big tolerance as max
     // difference between boundary curves
-    T bigtolerance = 0.0;
-    std::map<unsigned int,unsigned int> connections;
-
-    makeSolid(surfaces,hsurfaces,boundariesUV,boundariesUV1,connections,tolerance,bigtolerance);
+    makeTrimming(surfaces,hsurfaces,boundariesUV,boundariesUV1,tolerance);
 
     saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces 1 trimmed.iges");
     saveTrimmedSurfacesIges(hsurfaces,boundariesUV1,DEBUG_DIR + "Kilo propeller surfaces 2 trimmed.iges");
@@ -1881,7 +1876,6 @@ int main(int argc, char* argv[])
 
     saveTrimmedSurfacesIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull trimmed.iges");
 
-    std::map<unsigned int,unsigned int> connections;
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull solid.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
@@ -1948,14 +1942,9 @@ int main(int argc, char* argv[])
 
     // make a solid from shaft and propeller+hull
 
-    // mutual intersections between faces, in peocess, estimate big tolerance as max
-    // difference between boundaty curves
-    T bigtolerance = 0.0;
-    std::map<unsigned int,unsigned int> connections;
-
     // make solid, do not clear old boundaries
-    makeSolid(shaftsurfaces,subsurfaces,shaftboundariesUV,subboundariesUV,connections,
-      tolerance,bigtolerance,PARM_TOLERANCE,false);
+    makeTrimming(shaftsurfaces,subsurfaces,shaftboundariesUV,subboundariesUV,
+      tolerance,PARM_TOLERANCE,false);
 
     // whole submarine
     subsurfaces.insert(subsurfaces.end(),shaftsurfaces.begin(),shaftsurfaces.end());
@@ -2070,14 +2059,9 @@ int main(int argc, char* argv[])
 
     // make a solid from fin and propeller + hull
 
-    // mutual intersections between faces, in peocess, estimate big tolerance as max
-    // difference between boundaty curves
-    T bigtolerance = 0.0;
-    std::map<unsigned int,unsigned int> connections;
-
     // make solid, do not clear old boundaries
-    makeSolid(subfinsurfaces,subsurfaces,subfinboundariesUV,subboundariesUV,connections,
-      tolerance,bigtolerance,PARM_TOLERANCE,false);
+    makeTrimming(subfinsurfaces,subsurfaces,subfinboundariesUV,subboundariesUV,
+      tolerance,PARM_TOLERANCE,false);
 
     // whole submarine
     subsurfaces.insert(subsurfaces.end(),subfinsurfaces.begin(),subfinsurfaces.end());
@@ -2188,16 +2172,9 @@ int main(int argc, char* argv[])
 
     // make a solid from hump and propeller + hull
 
-    // mutual intersections between faces, in peocess, estimate big tolerance as max
-    // difference between boundaty curves
-    T bigtolerance = 0.0;
-    std::map<unsigned int,unsigned int> connections;
-
     // make solid, do not clear old boundaries
-    makeSolid(subhumpsurfaces,subsurfaces,subhumpboundariesUV,subboundariesUV,connections,
-      tolerance,bigtolerance,PARM_TOLERANCE,false);
-
-//outputDebugString("bigtolerance " + to_string(bigtolerance,10));
+    makeTrimming(subhumpsurfaces,subsurfaces,subhumpboundariesUV,subboundariesUV,
+      tolerance,PARM_TOLERANCE,false);
 
     // whole submarine
     subsurfaces.insert(subsurfaces.end(),subhumpsurfaces.begin(),subhumpsurfaces.end());

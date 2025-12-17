@@ -729,18 +729,7 @@ template <class T> bool curvesFromPieces(std::vector<std::vector<TPoint<T>>> &pi
 
   bool ok = false;
 
-//!!!!!!!
-#if 1
   ok = makeUpCurves(edges,maxedge,lines,true);
-#else
-  if (degenerateedges)
-  {
-    ok = makeUpCurves(edges,maxedge + tolerance,lines,true); 
-  } else
-  {
-    ok = makeUpCurves(edges,tolerance,lines,true); 
-  }
-#endif
 
   return ok;
 }
@@ -1871,6 +1860,106 @@ template <class T> unsigned int setChecksum(std::vector<TPoint<T>> &points, bool
     points.front().W = sum;
 
   return sum;
+}
+
+/** Two starting points coincident? */
+template <class T> bool startCoincident(std::vector<TPoint<T>> &points, T parmtolerance = PARM_TOLERANCE)
+{
+  if (points.size() < 2)
+    return false;
+
+  TPoint<T> p0 = points[0];
+  TPoint<T> p1 = points[1];
+  T d = !(p1 - p0);
+  return (d < parmtolerance);
+}
+
+/** Two ending points coincident? */
+template <class T> bool endCoincident(std::vector<TPoint<T>> &points, T parmtolerance = PARM_TOLERANCE)
+{
+  if (points.size() < 2)
+    return false;
+
+  TPoint<T> p0 = points[points.size() - 1];
+  TPoint<T> p1 = points[points.size() - 2];
+  T d = !(p1 - p0);
+  return (d < parmtolerance);
+}
+
+/** Correct coincident (it happens after improvement) parametric values at ends by moving 
+  the second point to the middle between neighbours. */
+template <class T> void correctEndingParms(std::vector<TPoint<T>> &points,
+  bool correctstart, bool correctend)
+{
+  if (points.size() < 3)
+    return;
+
+  if (correctstart)
+  {
+    TPoint<T> p0 = points[0];
+    TPoint<T> p1 = points[1];
+    points[1] = (points[0] + points[2]) * 0.5;
+  }
+
+  if (correctend)
+  {
+    TPoint<T> p0 = points[points.size() - 1];
+    TPoint<T> p1 = points[points.size() - 2];
+    points[points.size() - 2] = (points[points.size() - 1] + points[points.size() - 3]) * 0.5;
+  }
+}
+
+/** Set parm value as middle between neighbours. */
+template <class T> void correctParm(std::vector<TPoint<T>> &points, int index)
+{
+  if (index > 0 && index < int(points.size()) - 1)
+  {
+    points[index] = (points[index - 1] + points[index + 1]) * 0.5;
+  }
+}
+
+/** Distance between points. */
+template <class T> inline T distanceBwPoints(std::vector<TPoint<T>> &points, int i0, int i1)
+{
+  TPoint<T> p0 = points[i0];
+  TPoint<T> p1 = points[i1];
+  T d = !(p1 - p0);
+  return d;
+}
+
+/** Correct coincident (it happens after improvement) parametric values by moving 
+  the second point to the middle between neighbours. All changes are applied to
+  both equal-size parametric arrays at once. */
+template <class T> bool correctParmsParallel(std::vector<TPoint<T>> &points0, std::vector<TPoint<T>> &points1,
+  T parmtolerance)
+{
+  assert(points0.size() == points1.size());
+  if (points0.size() != points1.size())
+    return false;
+
+  for (int i = 1; i < points0.size(); i++)
+  {
+    int i0 = i - 1;
+    int i1 = i;
+
+    T d0 = distanceBwPoints(points0,i0,i1);
+    T d1 = distanceBwPoints(points1,i0,i1);
+
+    if (d0 < parmtolerance || d1 < parmtolerance)
+    {
+      if (i < int(points0.size()) / 2)
+      {
+        correctParm<T>(points0,i);
+        correctParm<T>(points1,i);
+      } else
+      {
+        correctParm<T>(points0,i - 1);
+        correctParm<T>(points1,i - 1);
+      }
+    }
+  }
+
+  return true;
 }
 
 }

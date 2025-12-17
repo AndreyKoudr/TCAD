@@ -609,18 +609,16 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
 
 #if 1 //!!! More memory, a little bit faster ~10%
 
-/** Intersect surfaces to make a solid. */
-template <class T> bool makeSolid(
+/** Intersect surfaces, make trimming curves to make a solid. */
+template <class T> bool makeTrimming(
   std::vector<TSplineSurface<T> *> &surfaces0,
   std::vector<TSplineSurface<T> *> &surfaces1,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV0,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV1,
   // the same edge on another surface (defined by intersections), 100% reliable, no tolerances
-  std::map<unsigned int,unsigned int> &connections,
-  T tolerance, T &bigtolerance, T parmtolerance = PARM_TOLERANCE, 
+  T tolerance, T parmtolerance = PARM_TOLERANCE, 
   bool clearboundaries = true, int manypoints = MANY_POINTS2D,
-  bool improveintersection = false, int maxiter = 20, T relaxcoef = 0.5,
-//!!!!!!!  bool improveintersection = true, int maxiter = 20, T relaxcoef = 0.5,
+  bool improveintersection = true, int maxiter = 20, T relaxcoef = 0.5,
   T refinestartU = 1.0, T refineendU = 1.0, 
   T refinestartV = 1.0, T refineendV = 1.0,
   int maxcoef = 1) //!!!
@@ -632,8 +630,6 @@ template <class T> bool makeSolid(
 
     closeOuterBoundary(surfaces0,boundariesUV0);
     closeOuterBoundary(surfaces1,boundariesUV1);
-
-    connections.clear();
   }
 
   // prepare triangles
@@ -715,7 +711,7 @@ template <class T> bool makeSolid(
 
   // estmate big tolerance as max difference between boundary lines to be used in making
   // a solid downstream
-  bigtolerance = 0.0;
+  T bigtolerance = 0.0; //!!! removed from parameters
   T maxseglen = 0.0;
 
   // min/max of all surfaces
@@ -892,12 +888,38 @@ template <class T> bool makeSolid(
               }
               if (!improve)
                 break;
+
+              // this improvement near boundaries tends to go to it and
+              // make duplicate points
+#if 1
+              correctParmsParallel(iboundary0[k],iboundary1[k],parmtolerance);
+#else
+              if (k == 0)
+              {
+                if (startCoincident(iboundary0[k],parmtolerance) || 
+                  startCoincident(iboundary1[k],parmtolerance))
+                {
+                  correctEndingParms(iboundary0[k],true,false);
+                  correctEndingParms(iboundary1[k],true,false);
+                }
+              }
+              if (k == int(iboundary0.size()) - 1)
+              {
+                if (endCoincident(iboundary0[k],parmtolerance) || 
+                  endCoincident(iboundary1[k],parmtolerance))
+                {
+                  correctEndingParms(iboundary0[k],false,true);
+                  correctEndingParms(iboundary1[k],false,true);
+                }
+              }
+#endif
             }
           }
 
           // if still improve
           if (improve)
           {
+
             boundary0 = iboundary0;
             boundary1 = iboundary1;
           }
@@ -943,16 +965,6 @@ template <class T> bool makeSolid(
 
         if (ok)
         {
-          // set check sums at start of boundaries
-          for (int k = 0; k < int(boundary0.size()); k++)
-          {
-            unsigned int sum0 = setChecksum(boundary0[k],true);
-            unsigned int sum1 = setChecksum(boundary1[k],true);
-            // link them together
-            connections[sum0] = sum1;
-            connections[sum1] = sum0;
-          }
-
           // close boundary on first surface
           bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
             maxseglen * 2.0,parmtolerance,manypoints);
@@ -1020,7 +1032,7 @@ template <class T> bool makeSolid(
 #else
 
 /** Intersect surfaces to make a solid. */
-template <class T> bool makeSolid(
+template <class T> bool makeTrimming(
   std::vector<TSplineSurface<T> *> &surfaces0,
   std::vector<TSplineSurface<T> *> &surfaces1,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV0,
