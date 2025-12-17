@@ -1497,76 +1497,73 @@ template <class T> bool makeTrimming(
 
 #endif
 
-/** Make two walls (symmetric around XZ plane) defined by contours of points from 
-  bottom to top along Z (points.back() has the highest Z). All the contours in points 
-  must have the same size and be symmetric around XZ plane. */
-template <class T> void makeTwoWallsAndFlatTop(std::vector<std::vector<TPoint<T>>> &points,
+/** Make flat top between two curves. U = 0 and U = 1 edges are degenerated. points0 are on V = 0,
+  points1 - on V = 1. */
+template <class T> TSplineSurface<T> *makeFlatTop(std::vector<TPoint<T>> &points0, std::vector<TPoint<T>> &points1,
+  int K1, int K2, int degree = SPLINE_DEGREE,
+  CurveEndType startU = END_FREE, CurveEndType endU = END_FREE,
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
+{
+  // make flat top
+  std::vector<std::vector<TPoint<T>>> flatpoints;
+  flatpoints.push_back(points0);
+  flatpoints.push_back(points1);
+
+  TSplineSurface<T> *flat = new TSplineSurface<T>(flatpoints,K1,degree,K2,degree,
+    startU,endU,startV,endV); 
+
+  return flat;
+}
+
+/** Make two walls defined by contours of points from bottom to top along Z (points.back() 
+  has the highest Z). All the contours in points must have the same size. wall0 is "upper" 
+  airfoil surcae, wall1 is lower. */
+template <class T> void makeTwoWallsAndFlatBottomTop(
+  std::vector<std::vector<TPoint<T>>> &wall0points,
+  std::vector<std::vector<TPoint<T>>> &wall1points,
   std::vector<TSplineSurface<T> *> &surfaces, bool coverbottom, bool covertop, 
   int K1 = 40, int K2 = 40, int K2top = 8, int degree = SPLINE_DEGREE,
   CurveEndType startU = END_FREE, CurveEndType endU = END_FREE,
   CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
 {
-  // make first original wall
-  TSplineSurface<T> *wall0 = new TSplineSurface<T>(points,K1,degree,K2,degree,
+  //===== make first wall 0 (upper surface) =====
+  TSplineSurface<T> *wall0 = new TSplineSurface<T>(wall0points,K1,degree,K2,degree,
     startU,endU,startV,endV);
 
   // one boundary for flat top
-  std::vector<TPoint<T>> points0 = points.back();
-  std::vector<TPoint<T>> bpoints0 = points.front();
+  std::vector<TPoint<T>> points0 = wall0points.back();
+  std::vector<TPoint<T>> bpoints0 = wall0points.front();
 
   // make correct normal
   wall0->reverseU();
-  std::reverse(points0.begin(),points0.end());
-  std::reverse(bpoints0.begin(),bpoints0.end());
 
-  // transform for symmetric part arounf XZ plane
-  TTransform<T> t;
-  t.LoadIdentity();
-  t.Resize(TPoint<T>(1.0,-1.0,1.0));
+  //===== make second wall 1 (lower surface) =====
+  TSplineSurface<T> *wall1 = new TSplineSurface<T>(wall1points,K1,degree,K2,degree,
+    startU,endU,startV,endV);
 
-  // another boundary for flat top
-  std::vector<TPoint<T>> points1 = points0;
-  std::vector<TPoint<T>> bpoints1 = bpoints0;
-  makeTransform<T>(points1,&t);
-  makeTransform<T>(bpoints1,&t);
+  // one boundary for flat top
+  std::vector<TPoint<T>> points1 = wall1points.back();
+  std::vector<TPoint<T>> bpoints1 = wall1points.front();
 
-  // make another symmetric part
-  TSplineSurface<T> *wall1 = new TSplineSurface<T>(*wall0);
-  wall1->makeTransform(&t);
-
-  wall1->reverseU();
-
+  //===== flat bottom/top =====
   TSplineSurface<T> *flattop = nullptr;
   TSplineSurface<T> *flatbottom = nullptr;
 
   if (coverbottom)
   {
-    // make flat top
-    std::vector<std::vector<TPoint<T>>> flatpoints;
-    flatpoints.push_back(bpoints0);
-    flatpoints.push_back(bpoints1);
-
-    std::reverse(bpoints0.begin(),bpoints0.end());
-    std::reverse(bpoints1.begin(),bpoints1.end());
-
-    flatbottom = new TSplineSurface<T>(flatpoints,K1,degree,K2top,degree,
-      startU,endU,startV,endV); 
-
-    flatbottom->reverseU();
+    // make flat bottom
+    flatbottom = makeFlatTop(bpoints0,bpoints1,K1,K2top,degree,
+      startU,endU,startV,endV);
   }
 
   if (covertop)
   {
     // make flat top
-    std::vector<std::vector<TPoint<T>>> flatpoints;
-    flatpoints.push_back(points0);
-    flatpoints.push_back(points1);
-
     std::reverse(points0.begin(),points0.end());
     std::reverse(points1.begin(),points1.end());
 
-    flattop = new TSplineSurface<T>(flatpoints,K1,degree,K2top,degree,
-      startU,endU,startV,endV); 
+    flattop = makeFlatTop(points0,points1,K1,K2top,degree,
+      startU,endU,startV,endV);
   }
 
   if (flatbottom)
@@ -1575,6 +1572,29 @@ template <class T> void makeTwoWallsAndFlatTop(std::vector<std::vector<TPoint<T>
   surfaces.push_back(wall1);
   if (flattop)
     surfaces.push_back(flattop);
+}
+
+/** Make two walls (symmetric around XZ plane) defined by contours of points from 
+  bottom to top along Z (points.back() has the highest Z). All the contours in points 
+  must have the same size and be symmetric around XZ plane. */
+template <class T> void makeTwoWallsAndFlatBottomTop(std::vector<std::vector<TPoint<T>>> &points,
+  std::vector<TSplineSurface<T> *> &surfaces, bool coverbottom, bool covertop, 
+  int K1 = 40, int K2 = 40, int K2top = 8, int degree = SPLINE_DEGREE,
+  CurveEndType startU = END_FREE, CurveEndType endU = END_FREE,
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
+{
+  // another symmetric wall
+  std::vector<std::vector<TPoint<T>>> points1 = points;
+
+  // transform for symmetric part arounf XZ plane
+  TTransform<T> t;
+  t.LoadIdentity();
+  t.Resize(TPoint<T>(1.0,-1.0,1.0));
+
+  makeTransform<T>(points1,&t);
+
+  makeTwoWallsAndFlatBottomTop(points,points1,surfaces,coverbottom,covertop, 
+    K1,K2,K2top,degree,startU,endU,startV,endV);
 }
 
 }

@@ -1518,6 +1518,18 @@ template <class T> void makeTransform(std::vector<TPoint<T>> &points, TTransform
   }
 }
 
+/** Make transform. */
+template <class T> void makeTransform(std::vector<std::vector<TPoint<T>>> &points, TTransform<T> *transform)
+{
+  for (auto &list : points)
+  {
+    for (auto &p : list)
+    {
+      p = transform->applyTransform(p);
+    }
+  }
+}
+
 /** Make circle in XY plane. */
 template <class T> void makeCircleXY(int numpoints, TPoint<T> centre, T R, std::vector<TPoint<T>> &points,
   T adegfrom = 0.0, T adegto = 360.0)

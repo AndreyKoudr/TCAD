@@ -2028,7 +2028,7 @@ int main(int argc, char* argv[])
     points.push_back(toppoints);
 
     // make two symmetric (around XZ) walls and ceiling
-    makeTwoWallsAndFlatTop<T>(points,subfinsurfaces,false,true,40,40,8,SPLINE_DEGREE,
+    makeTwoWallsAndFlatBottomTop<T>(points,subfinsurfaces,false,true,40,40,8,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
 
     // move walls and ceiling to its position
@@ -2148,7 +2148,7 @@ int main(int argc, char* argv[])
     points.push_back(toppoints);
 
     // make two symmetric (around XZ) walls and ceiling
-    makeTwoWallsAndFlatTop<T>(points,subhumpsurfaces,false,true,40,40,8,SPLINE_DEGREE, 
+    makeTwoWallsAndFlatBottomTop<T>(points,subhumpsurfaces,false,true,40,40,8,SPLINE_DEGREE, 
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
 
     saveSurfacesIges(subhumpsurfaces,DEBUG_DIR + "Sub hump surfaces.iges");
