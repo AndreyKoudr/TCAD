@@ -884,6 +884,52 @@ public:
     // DO NOT call update() here, cpoints are ready
   }
 
+  /** Reverse U. Normal is changed to opposite. */
+  virtual void reverseU()
+  {
+    // reverse rows of control poins
+    for (int i = 0; i <= this->K2; i++)
+    {
+      std::vector<TPoint<T>> row;
+      this->getRow(i,row);
+      std::reverse(row.begin(),row.end());
+      this->setRow(i,row);
+    }
+
+    for (int i = 0; i < int(points.size()); i++)
+    {
+      std::vector<TPoint<T>> row;
+      getRow(points,i,row);
+      std::reverse(row.begin(),row.end());
+      setRow(points,i,row);
+    }
+
+    SWAP(bool,clampedstartU,clampedendU);
+  }
+
+  /** Reverse V. Normal is changed to opposite. */
+  virtual void reverseV()
+  {
+    // reverse columns of control poins
+    for (int i = 0; i <= this->K1; i++)
+    {
+      std::vector<TPoint<T>> col;
+      this->getColumn(i,col);
+      std::reverse(col.begin(),col.end());
+      this->setColumn(i,col);
+    }
+
+    for (int i = 0; i < int(points[0].size()); i++)
+    {
+      std::vector<TPoint<T>> col;
+      getColumn(points,i,col);
+      std::reverse(col.begin(),col.end());
+      setColumn(points,i,col);
+    }
+
+    SWAP(bool,clampedstartV,clampedendV);
+  }
+
 protected:
 
   /** Set main parameters. */

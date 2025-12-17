@@ -50,6 +50,9 @@
     <ClCompile Include="ttriangles.cpp">
       <Filter>SURFACES</Filter>
     </ClCompile>
+    <ClCompile Include="memory.cpp">
+      <Filter>AUXILIARY</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tbasics.h">
@@ -165,6 +168,9 @@
     </ClInclude>
     <ClInclude Include="tdata.h">
       <Filter>OPERATIONS</Filter>
+    </ClInclude>
+    <ClInclude Include="memory.h">
+      <Filter>AUXILIARY</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

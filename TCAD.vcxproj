@@ -126,6 +126,7 @@
   <ItemGroup>
     <ClCompile Include="export.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="memory.cpp" />
     <ClCompile Include="strings.cpp" />
     <ClCompile Include="tmisc.cpp" />
     <ClCompile Include="ttriangles.cpp" />
@@ -134,6 +135,7 @@
     <ClInclude Include="export.h" />
     <ClInclude Include="FFD.h" />
     <ClInclude Include="import.h" />
+    <ClInclude Include="memory.h" />
     <ClInclude Include="obackground.h" />
     <ClInclude Include="strings.h" />
     <ClInclude Include="tbasecurve.h" />

@@ -43,7 +43,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tjacobipoly.h"
 #include "tsplinesurface.h"
 #include "toperations.h"
+#include "tedge.h"
 
+#include <map>
 
 //#define DEBUG_BLOCKS
 //#ifdef NDEBUG
@@ -613,9 +615,12 @@ template <class T> bool makeSolid(
   std::vector<TSplineSurface<T> *> &surfaces1,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV0,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV1,
+  // the same edge on another surface (defined by intersections), 100% reliable, no tolerances
+  std::map<unsigned int,unsigned int> &connections,
   T tolerance, T &bigtolerance, T parmtolerance = PARM_TOLERANCE, 
   bool clearboundaries = true, int manypoints = MANY_POINTS2D,
-  bool improveintersection = true, int maxiter = 20, T relaxcoef = 0.5,
+  bool improveintersection = false, int maxiter = 20, T relaxcoef = 0.5,
+//!!!!!!!  bool improveintersection = true, int maxiter = 20, T relaxcoef = 0.5,
   T refinestartU = 1.0, T refineendU = 1.0, 
   T refinestartV = 1.0, T refineendV = 1.0,
   int maxcoef = 1) //!!!
@@ -625,23 +630,10 @@ template <class T> bool makeSolid(
     boundariesUV0.clear();
     boundariesUV1.clear();
 
-    // step 1 : make outer boundaries
-    for (int i = 0; i < int(surfaces0.size()); i++)
-    {
-      std::vector<std::vector<TPoint<T>>> loop;
-      surfaces0[i]->closeOuterBoundaryLoop(loop,manypoints);
+    closeOuterBoundary(surfaces0,boundariesUV0);
+    closeOuterBoundary(surfaces1,boundariesUV1);
 
-      boundariesUV0.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
-      boundariesUV0.back().push_back(loop);
-    }
-    for (int i = 0; i < int(surfaces1.size()); i++)
-    {
-      std::vector<std::vector<TPoint<T>>> loop;
-      surfaces1[i]->closeOuterBoundaryLoop(loop,manypoints);
-
-      boundariesUV1.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
-      boundariesUV1.back().push_back(loop);
-    }
+    connections.clear();
   }
 
   // prepare triangles
@@ -868,6 +860,7 @@ template <class T> bool makeSolid(
         outputDebugString("");
   #endif
 
+        // most important part in the whole play
         bool ok = tris0[i]->intersect(*tris1[j],tboxes0[i],tboxes1[j],
           intersections,parmtolerance,&boundary0,&boundary1,NUM_THREADS); 
 
@@ -950,6 +943,16 @@ template <class T> bool makeSolid(
 
         if (ok)
         {
+          // set check sums at start of boundaries
+          for (int k = 0; k < int(boundary0.size()); k++)
+          {
+            unsigned int sum0 = setChecksum(boundary0[k],true);
+            unsigned int sum1 = setChecksum(boundary1[k],true);
+            // link them together
+            connections[sum0] = sum1;
+            connections[sum1] = sum0;
+          }
+
           // close boundary on first surface
           bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
             maxseglen * 2.0,parmtolerance,manypoints);
@@ -1481,5 +1484,85 @@ template <class T> bool makeSolid(
 }
 
 #endif
+
+/** Make two walls (symmetric around XZ plane) defined by contours of points from 
+  bottom to top along Z (points.back() has the highest Z). All the contours in points 
+  must have the same size and be symmetric around XZ plane. */
+template <class T> void makeTwoWallsAndFlatTop(std::vector<std::vector<TPoint<T>>> &points,
+  std::vector<TSplineSurface<T> *> &surfaces, bool coverbottom, bool covertop, 
+  int K1 = 40, int K2 = 40, int K2top = 8, int degree = SPLINE_DEGREE,
+  CurveEndType startU = END_FREE, CurveEndType endU = END_FREE,
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
+{
+  // make first original wall
+  TSplineSurface<T> *wall0 = new TSplineSurface<T>(points,K1,degree,K2,degree,
+    startU,endU,startV,endV);
+
+  // one boundary for flat top
+  std::vector<TPoint<T>> points0 = points.back();
+  std::vector<TPoint<T>> bpoints0 = points.front();
+
+  // make correct normal
+  wall0->reverseU();
+  std::reverse(points0.begin(),points0.end());
+  std::reverse(bpoints0.begin(),bpoints0.end());
+
+  // transform for symmetric part arounf XZ plane
+  TTransform<T> t;
+  t.LoadIdentity();
+  t.Resize(TPoint<T>(1.0,-1.0,1.0));
+
+  // another boundary for flat top
+  std::vector<TPoint<T>> points1 = points0;
+  std::vector<TPoint<T>> bpoints1 = bpoints0;
+  makeTransform<T>(points1,&t);
+  makeTransform<T>(bpoints1,&t);
+
+  // make another symmetric part
+  TSplineSurface<T> *wall1 = new TSplineSurface<T>(*wall0);
+  wall1->makeTransform(&t);
+
+  wall1->reverseU();
+
+  TSplineSurface<T> *flattop = nullptr;
+  TSplineSurface<T> *flatbottom = nullptr;
+
+  if (coverbottom)
+  {
+    // make flat top
+    std::vector<std::vector<TPoint<T>>> flatpoints;
+    flatpoints.push_back(bpoints0);
+    flatpoints.push_back(bpoints1);
+
+    std::reverse(bpoints0.begin(),bpoints0.end());
+    std::reverse(bpoints1.begin(),bpoints1.end());
+
+    flatbottom = new TSplineSurface<T>(flatpoints,K1,degree,K2top,degree,
+      startU,endU,startV,endV); 
+
+    flatbottom->reverseU();
+  }
+
+  if (covertop)
+  {
+    // make flat top
+    std::vector<std::vector<TPoint<T>>> flatpoints;
+    flatpoints.push_back(points0);
+    flatpoints.push_back(points1);
+
+    std::reverse(points0.begin(),points0.end());
+    std::reverse(points1.begin(),points1.end());
+
+    flattop = new TSplineSurface<T>(flatpoints,K1,degree,K2top,degree,
+      startU,endU,startV,endV); 
+  }
+
+  if (flatbottom)
+    surfaces.push_back(flatbottom);
+  surfaces.push_back(wall0);
+  surfaces.push_back(wall1);
+  if (flattop)
+    surfaces.push_back(flattop);
+}
 
 }

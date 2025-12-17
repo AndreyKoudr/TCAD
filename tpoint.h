@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "tbasics.h"
+#include "memory.h"
 
 namespace tcad {
 
@@ -340,6 +341,12 @@ public:
 
 		return a;
 	}
+
+  /** Calculate Adler checksum for the three components (W is omitted) */
+  unsigned int checksum()
+  {
+    return ::AdlerChecksum(this,sizeof(T) * 3);
+  }
 
   /** tolerance. */
   static T tolerance()

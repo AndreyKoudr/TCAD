@@ -1857,4 +1857,20 @@ template <class T> void divideHalf(std::vector<TPoint<T>> &points,
   right.insert(right.end(),points.begin() + points.size() / 2,points.end());
 }
 
+/** Calculate Adler checksum. setInFront - set this value in W od the first element. */
+template <class T> unsigned int setChecksum(std::vector<TPoint<T>> &points, bool setInFront)
+{
+  unsigned int sum = 0;
+
+  for (auto &p : points)
+  {
+    sum += p.checksum();
+  }
+
+  if (setInFront)
+    points.front().W = sum;
+
+  return sum;
+}
+
 }

@@ -304,4 +304,21 @@ template <class T> std::vector<TPoint<T>> KiloFinBase = {
   TPoint<T>( 18.0 * KHCOEF,  0.0 * KHCOEF)
 };
 
+/** Kilo hump base line. */
+template <class T> std::vector<TPoint<T>> KiloHumpBase = {
+  TPoint<T>(-60.0 * KHCOEF,  0.0 * KHCOEF,  0.0 * KHCOEF),
+  TPoint<T>(-50.0 * KHCOEF,  3.5 * KHCOEF,  2.2 * KHCOEF),
+  TPoint<T>(-40.0 * KHCOEF,  5.0 * KHCOEF,  3.8 * KHCOEF),
+  TPoint<T>(-20.0 * KHCOEF,  7.8 * KHCOEF,  6.0 * KHCOEF),
+  TPoint<T>(  0.0 * KHCOEF,  9.0 * KHCOEF,  8.0 * KHCOEF),
+  TPoint<T>( 20.0 * KHCOEF,  9.0 * KHCOEF,  8.0 * KHCOEF),
+  TPoint<T>( 40.0 * KHCOEF,  9.0 * KHCOEF,  8.0 * KHCOEF),
+  TPoint<T>( 60.0 * KHCOEF,  9.0 * KHCOEF,  8.0 * KHCOEF),
+  TPoint<T>( 80.0 * KHCOEF,  9.0 * KHCOEF,  8.0 * KHCOEF),
+  TPoint<T>( 90.0 * KHCOEF,  8.5 * KHCOEF,  8.0 * KHCOEF),
+  TPoint<T>(100.0 * KHCOEF,  8.0 * KHCOEF,  7.5 * KHCOEF),
+  TPoint<T>(110.0 * KHCOEF,  5.0 * KHCOEF,  5.7 * KHCOEF),
+  TPoint<T>(118.0 * KHCOEF,  0.0 * KHCOEF,  4.0 * KHCOEF)
+};
+
 }

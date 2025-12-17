@@ -403,7 +403,7 @@ template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> 
 /** Entity 508. */
 template <class T> void addIges508(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
-  std::vector<TPoint<T>> &vertices, std::vector<TPoint<T>> &middlevertices, T tolerance,
+  std::vector<TPoint<T>> &vertices, T tolerance,
   std::vector<std::string> &lines, 
   std::vector<std::array<LINT,11>> &edges, 
   int surface, int loop, int loopsize, int edgeDE, 
@@ -422,7 +422,7 @@ template <class T> void addIges508(std::vector<tcad::TSplineSurface<T> *> &surfa
 
 #if 1 //!!!!!!!
   std::vector<std::vector<TPoint<T>>> dloop0,dloop1;
-  loopOK(surfaces,boundariesUV,vertices,middlevertices,edges,surface,loop,loopsize,
+  loopOK(surfaces,boundariesUV,vertices,edges,surface,loop,loopsize,
     iedges,tolerance,dloop0,dloop1);
 
   #ifdef DEBUG_SOLID
@@ -833,16 +833,22 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     return false;
 
   // unique vertices
-  std::vector<TPoint<T>> vertices,middlevertices;
+  std::vector<TPoint<T>> vertices;
 
   // edges mapping to faces and face boundaries
   // straight list of edges, "compressed" edgemap
   std::vector<std::array<LINT,11>> edges;
 
+  // remove denerate edges
+  auto oldboundariesUV = boundariesUV;
+  removeDegeneratedBoundaryPieces(surfaces,boundariesUV,tolerance);
+
   // Create non-manifold solid model
-  if (!createSolidEdges(surfaces,boundariesUV,vertices,middlevertices,edges,
-    tolerance,pbadedges,attempts))
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,pbadedges,attempts))
+  {
+    boundariesUV = oldboundariesUV;
     return false;
+  }
 
   // calculate size
   double msize = 0.0;
@@ -1051,7 +1057,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 
       before = int(lines.size());
 
-      addIges508<T>(surfaces,boundariesUV,vertices,middlevertices,tolerance,
+      addIges508<T>(surfaces,boundariesUV,vertices,tolerance,
         lines,edges,i,j,int(boundariesUV[i][j].size()),edgeDE,dcount - 1,&pcount);
 
       loopDEs.push_back(dcount - 1);
@@ -1109,6 +1115,8 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     "                                        " +
     std::string("T") + to_string(tlines,7) + CRLF;
   lines.push_back(s);
+
+  boundariesUV = oldboundariesUV;
 
   return true;
 }

@@ -273,7 +273,7 @@ public:
   }
 
   /** Reverse U. Normal is changed to opposite. */
-  void reverseU()
+  virtual void reverseU()
   {
     // reverse rows of control poins
     for (int i = 0; i <= K2; i++)
@@ -286,7 +286,7 @@ public:
   }
 
   /** Reverse V. Normal is changed to opposite. */
-  void reverseV()
+  virtual void reverseV()
   {
     // reverse columns of control poins
     for (int i = 0; i <= K1; i++)
@@ -1110,6 +1110,9 @@ public:
       TPoint<T> nextUV = cornerUV<T>[i1];
 
       TPointCurve<T> line(UV,nextUV,numdivisions);
+
+      // we shall keep a checksum at fronts of boundary pieces
+      line.controlPoints().front().W = 0.0;
 
       closedboundary.push_back(line.controlPoints());
     }

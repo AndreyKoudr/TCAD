@@ -153,6 +153,9 @@ Blocks
 - 5.10 Blocks : submarine fin<br />
 - 5.11 Blocks : submarine hull + propeller + fin, all single solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_prop_hull_fin_solid.png)
+- 5.12 Blocks : sub hump<br />
+- 5.13 Blocks : submarine hull + propeller + fin + hump, all single solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_solid.png)
 
 Important parameters in main.cpp
 ================================
@@ -188,7 +191,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Submarine from parts : making wings.<br /> 
+Submarine from parts : making wings, maybe with booleans. Cleaning up.<br /> 
 
 
 

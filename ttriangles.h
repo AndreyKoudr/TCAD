@@ -172,7 +172,6 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   oedges[1] = std::pair<TPoint<T>,TPoint<T>>(other[1],other[2]);
   oedges[2] = std::pair<TPoint<T>,TPoint<T>>(other[2],other[0]);
 
-//!!!!!!!
 //bool stop = false;
 //TPoint<T> err0(-29.799847932004926,0.14142135623730948,0.14142135623730764);
 //TPoint<T> err1(-29.802149779470824,0.14142135623730953,0.14142135623730767);
@@ -2728,17 +2727,42 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
 
   if (makeboundaries)
   {
+    std::vector<std::vector<TPoint<T>>> newlines;
+
     for (int i = 0; i < int(lines.size()); i++)
     {
+      newlines.push_back(std::vector<TPoint<T>>());
       boundary0->push_back(std::vector<TPoint<T>>());
       boundary1->push_back(std::vector<TPoint<T>>());
       for (int j = 0; j < int(lines[i].size()); j++)
       {
+        // avoid duplicates
+        TPoint<T> p = lines[i][j];
         int pointno = ROUND(lines[i][j].W);
-        boundary0->back().push_back(TPoint<T>(UVintrs[pointno].X,UVintrs[pointno].Y));
-        boundary1->back().push_back(TPoint<T>(UVintrs[pointno].Z,UVintrs[pointno].W));
+        TPoint<T> uv0 = TPoint<T>(UVintrs[pointno].X,UVintrs[pointno].Y);
+        TPoint<T> uv1 = TPoint<T>(UVintrs[pointno].Z,UVintrs[pointno].W);
+
+        if (j > 0)
+        {
+          T d0 = !(uv0 - boundary0->back().back());
+          T d1 = !(uv1 - boundary1->back().back());
+
+          if (d0 > parmtolerance && d1 > parmtolerance)
+          {
+            newlines.back().push_back(p);
+            boundary0->back().push_back(uv0);
+            boundary1->back().push_back(uv1);
+          }
+        } else
+        {
+          newlines.back().push_back(p);
+          boundary0->back().push_back(uv0);
+          boundary1->back().push_back(uv1);
+        }
       }
     }
+
+    lines = newlines;
   }
 
   return ok;
@@ -3215,17 +3239,42 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
 
   if (makeboundaries)
   {
+    std::vector<std::vector<TPoint<T>>> newlines;
+
     for (int i = 0; i < int(lines.size()); i++)
     {
+      newlines.push_back(std::vector<TPoint<T>>());
       boundary0->push_back(std::vector<TPoint<T>>());
       boundary1->push_back(std::vector<TPoint<T>>());
       for (int j = 0; j < int(lines[i].size()); j++)
       {
+        // avoid duplicates
+        TPoint<T> p = lines[i][j];
         int pointno = ROUND(lines[i][j].W);
-        boundary0->back().push_back(TPoint<T>(UVintrs[pointno].X,UVintrs[pointno].Y));
-        boundary1->back().push_back(TPoint<T>(UVintrs[pointno].Z,UVintrs[pointno].W));
+        TPoint<T> uv0 = TPoint<T>(UVintrs[pointno].X,UVintrs[pointno].Y);
+        TPoint<T> uv1 = TPoint<T>(UVintrs[pointno].Z,UVintrs[pointno].W);
+
+        if (j > 0)
+        {
+          T d0 = !(uv0 - boundary0->back().back());
+          T d1 = !(uv1 - boundary1->back().back());
+
+          if (d0 > parmtolerance && d1 > parmtolerance)
+          {
+            newlines.back().push_back(p);
+            boundary0->back().push_back(uv0);
+            boundary1->back().push_back(uv1);
+          }
+        } else
+        {
+          newlines.back().push_back(p);
+          boundary0->back().push_back(uv0);
+          boundary1->back().push_back(uv1);
+        }
       }
     }
+
+    lines = newlines;
   }
 
   return ok;
