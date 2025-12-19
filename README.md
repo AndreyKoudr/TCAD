@@ -1,5 +1,8 @@
 # TCAD - templated CAD, full 3D CAD in source code
 
+See updates at the bottom!
+==========================
+
 - (1) C++ templates
 - (2) As simple as all STLs
 - (3) All in front of you, no first-, second- or third-party libs, no millions of foreign dlls
@@ -191,7 +194,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Submarine from parts : making wings, maybe with booleans. Cleaning up.<br /> 
+Combining all into TBrep<T> class with booleans, simple in use.<br /> 
 
 
 

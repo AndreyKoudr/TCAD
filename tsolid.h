@@ -480,29 +480,13 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices,  
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 40)
+  T tolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   edges.clear();
 
-  bool ok = false;
-  T atolerance = tolerance;
+  bool ok = createSolidEdgesPrim<T>(surfaces,boundariesUV,vertices,edges,tolerance,pbadedges);
 
-  for (int i = 0; i < attempts; i++)
-  {
-//outputDebugString("i " + to_string(i) + " atolerance " + to_string(atolerance,12)); 
-
-    ok = createSolidEdgesPrim<T>(surfaces,boundariesUV,vertices,edges,atolerance,pbadedges);
-    if (ok)
-      break;
-    atolerance *= 2.0;
-  }
-
-  if (!ok)
-  {
-    return false;
-  }
-
-  return true;
+  return ok;
 }
 
 /** Get a list of edges for surface and its loop. */

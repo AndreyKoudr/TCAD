@@ -252,6 +252,7 @@ public:
     for (int i = 0; i < numpoints; i++)
     {
       T U = Ufrom + T(i) * DU;
+
       TPoint<T> p = derivative(U,0);
       points.push_back(p);
     }

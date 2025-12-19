@@ -100,6 +100,9 @@ namespace tcad {
 #define ROUND(x)  (int) (floor(x + .5))
 #define ROUND_LINT(x)  (LINT) (floor(x + .5))
 
+// Bezier segment node position for a quarter of circle
+#define BEZIER_CIRCLECOEF 0.551915024494
+
 //===== PI - associated ========================================================
 
 #ifndef M_PI

@@ -217,6 +217,80 @@ template <class T> std::vector<TPoint<T>> NACA1410 = {
 //  {1.00000, -0.00105}
 };
 
+/** NACA0009 points, these points start from TE, go around LE along 
+  the upper surface and then back to TE. */
+template <class T> std::vector<TPoint<T>> NACA0009 = {
+  TPoint<T>(1.00000, 0.0),
+  TPoint<T>(0.99572, 0.00057),
+  TPoint<T>(0.98296, 0.00218),
+  TPoint<T>(0.96194, 0.00463),
+  TPoint<T>(0.93301, 0.00770),
+  TPoint<T>(0.89668, 0.01127),
+  TPoint<T>(0.85355, 0.01522),
+  TPoint<T>(0.80438, 0.01945),
+  TPoint<T>(0.75000, 0.02384),
+  TPoint<T>(0.69134, 0.02823),
+  TPoint<T>(0.62941, 0.03247),
+  TPoint<T>(0.56526, 0.03638),
+  TPoint<T>(0.50000, 0.03978),
+  TPoint<T>(0.43474, 0.04248),
+  TPoint<T>(0.37059, 0.04431),
+  TPoint<T>(0.33928, 0.04484),
+  TPoint<T>(0.30866, 0.04509),
+  TPoint<T>(0.27886, 0.04504),
+  TPoint<T>(0.25000, 0.04466),
+  TPoint<T>(0.22221, 0.04397),
+  TPoint<T>(0.19562, 0.04295),
+  TPoint<T>(0.17033, 0.04161),
+  TPoint<T>(0.14645, 0.03994),
+  TPoint<T>(0.12408, 0.03795),
+  TPoint<T>(0.10332, 0.03564),
+  TPoint<T>(0.08427, 0.03305),
+  TPoint<T>(0.06699, 0.03023),
+  TPoint<T>(0.05156, 0.02720),
+  TPoint<T>(0.03806, 0.02395),
+  TPoint<T>(0.02653, 0.02039),
+  TPoint<T>(0.01704, 0.01646),
+  TPoint<T>(0.00961, 0.01214),
+  TPoint<T>(0.00428, 0.00767),
+  TPoint<T>(0.00107, 0.00349),
+  TPoint<T>(0.0,     0.0),
+  TPoint<T>(0.00107, -0.00349),
+  TPoint<T>(0.00428, -0.00767),
+  TPoint<T>(0.00961, -0.01214),
+  TPoint<T>(0.01704, -0.01646),
+  TPoint<T>(0.02653, -0.02039),
+  TPoint<T>(0.03806, -0.02395),
+  TPoint<T>(0.05156, -0.02720),
+  TPoint<T>(0.06699, -0.03023),
+  TPoint<T>(0.08427, -0.03305),
+  TPoint<T>(0.10332, -0.03564),
+  TPoint<T>(0.12408, -0.03795),
+  TPoint<T>(0.14645, -0.03994),
+  TPoint<T>(0.17033, -0.04161),
+  TPoint<T>(0.19562, -0.04295),
+  TPoint<T>(0.22221, -0.04397),
+  TPoint<T>(0.25000, -0.04466),
+  TPoint<T>(0.27886, -0.04504),
+  TPoint<T>(0.30866, -0.04509),
+  TPoint<T>(0.33928, -0.04484),
+  TPoint<T>(0.37059, -0.04431),
+  TPoint<T>(0.43474, -0.04248),
+  TPoint<T>(0.50000, -0.03978),
+  TPoint<T>(0.56526, -0.03638),
+  TPoint<T>(0.62941, -0.03247),
+  TPoint<T>(0.69134, -0.02823),
+  TPoint<T>(0.75000, -0.02384),
+  TPoint<T>(0.80438, -0.01945),
+  TPoint<T>(0.85355, -0.01522),
+  TPoint<T>(0.89668, -0.01127),
+  TPoint<T>(0.93301, -0.00770),
+  TPoint<T>(0.96194, -0.00463),
+  TPoint<T>(0.98296, -0.00218),
+  TPoint<T>(0.99572, -0.00057),
+  TPoint<T>(1.00000, 0.0)
+};
+
 /** Middle line of contour of Kilo propeller blade in metres. Every point contains :
   X - Z along span
   Y - X(Z) of middle line 
@@ -320,5 +394,23 @@ template <class T> std::vector<TPoint<T>> KiloHumpBase = {
   TPoint<T>(110.0 * KHCOEF,  5.0 * KHCOEF,  5.7 * KHCOEF),
   TPoint<T>(118.0 * KHCOEF,  0.0 * KHCOEF,  4.0 * KHCOEF)
 };
+
+/** Wing 1, single stem wing below hull. Blade contour of left-right 
+  points in XY plane. All coordinates to be multiplied by KHCOEF to 
+  convert into metres. Z coordinate is along span. */
+template <class T> std::vector<std::array<TPoint<T>,2>> KiloWing1Contour = {
+#if 0
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  0.0 * KHCOEF), TPoint<T>(20.0 * KHCOEF, 0.0, 0.0 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0, 14.0 * KHCOEF), TPoint<T>(15.0 * KHCOEF, 0.0, 14.0 * KHCOEF) }
+#else
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  0.0 * KHCOEF), TPoint<T>(22.0 * KHCOEF, 0.0, 5.5 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  2.5 * KHCOEF), TPoint<T>(18.0 * KHCOEF, 0.0, 7.5 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  4.0 * KHCOEF), TPoint<T>(17.0 * KHCOEF, 0.0, 9.0 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  8.5 * KHCOEF), TPoint<T>(16.0 * KHCOEF, 0.0, 11.5 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0, 12.5 * KHCOEF), TPoint<T>(15.5 * KHCOEF, 0.0, 13.0 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0, 14.0 * KHCOEF), TPoint<T>(15.0 * KHCOEF, 0.0, 14.0 * KHCOEF) }
+#endif
+};
+
 
 }

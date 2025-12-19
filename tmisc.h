@@ -756,7 +756,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
       if (projectPointOnSegment(intersection,p0,p1,&intr,&t,parmtolerance))
       {
         T dist = !(intersection - intr);
-//!!!!!!!        if (dist < tolerance)
+//!!! important        if (dist < tolerance)
         if (dist < TOLERANCE(T))
         {
           onedge = true;

@@ -420,7 +420,7 @@ template <class T> void addIges508(std::vector<tcad::TSplineSurface<T> *> &surfa
   // find edge numbers for this surface and this loop
   std::vector<std::pair<int,bool>> iedges;
 
-#if 1 //!!!!!!!
+#if 1 //!!!
   std::vector<std::vector<TPoint<T>>> dloop0,dloop1;
   loopOK(surfaces,boundariesUV,vertices,edges,surface,loop,loopsize,
     iedges,tolerance,dloop0,dloop1);
@@ -825,7 +825,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<std::string> &lines, T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
-  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 40)
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   lines.clear();
 
@@ -844,7 +844,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   removeDegeneratedBoundaryPieces(surfaces,boundariesUV,tolerance);
 
   // Create non-manifold solid model
-  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,pbadedges,attempts))
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,pbadedges))
   {
     boundariesUV = oldboundariesUV;
     return false;
@@ -1256,12 +1256,12 @@ template <class T> bool saveSolidIges(std::vector<tcad::TSplineSurface<T> *> &su
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, 
   const std::string &filename,
   T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
-  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr, int attempts = 40)
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   std::vector<std::string> lines;
 
   if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree,
-    numdigits,pbadedges,attempts))
+    numdigits,pbadedges))
   {
     bool ok = writeLines(lines,filename);
     return ok;

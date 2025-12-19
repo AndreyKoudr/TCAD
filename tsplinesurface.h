@@ -929,6 +929,30 @@ public:
 
     SWAP(bool,clampedstartV,clampedendV);
   }
+  
+  /** Clamped start U? */
+  bool clampedStartU()
+  {
+    return clampedstartU;
+  }
+  
+  /** Clamped end U? */
+  bool clampedEndU()
+  {
+    return clampedendU;
+  }
+  
+  /** Clamped start V? */
+  bool clampedStartV()
+  {
+    return clampedstartV;
+  }
+  
+  /** Clamped end V? */
+  bool clampedEndV()
+  {
+    return clampedendV;
+  }
 
 protected:
 
