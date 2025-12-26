@@ -424,6 +424,4 @@ template <typename T> void makeBox(TPoint<T> min, TPoint<T> max, std::array<TPoi
   box[7] = TPoint<T>(min.X,max.Y,max.Z);
 }
 
-
-
 }

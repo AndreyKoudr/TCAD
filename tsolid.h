@@ -382,7 +382,15 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
     }
   } while (1);
 
-  //!!!!!!! remove abnormal pairs
+  // remove abnormal pairs //!!!!!!!
+  for (int i = 0; i < int(edgepairs.size()); i++)
+  {
+    if (edgepairs[i].size() == 1)
+    {
+      std::array<LINT,3> loc0 = edgepairs[i][0];
+      std::array<LINT,3> loc1 = edgepairs[i][1];
+    }
+  }
 
   // fill edges array
   for (int i = 0; i < int(edgepairs.size()); i++)

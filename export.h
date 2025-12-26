@@ -280,7 +280,7 @@ template <class T> void addIges504(std::vector<std::string> &lines,
 
 /** Make the whole collection of lines to save them. */
 template <class T> bool makeCurveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
-  std::vector<std::string> &lines, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+  std::vector<std::string> &lines, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 {
   lines.clear();
 
@@ -386,7 +386,7 @@ template <class T> bool makeCurveLinesIges(std::vector<std::vector<tcad::TPoint<
 
 /** Save curves as points. */
 template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
-  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 {
   std::vector<std::string> lines;
 
@@ -640,16 +640,16 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
   int dir128line = int(lines.size());
   for (int i = 0; i < int(surfaces.size()); i++)
   {
-    char name[32] = { 0 };
-    
-    s = makeIgesDirectoryLine0(dirline1280,-1,-1,&dcount);
-    lines.push_back(s);
-    s = makeIgesDirectoryLine1(dirline1281,-1,-1,&dcount,name);
-    lines.push_back(s);
-    dlines++;
-    
     if (!boundariesUV[i].empty())
     {
+      char name[32] = { 0 };
+    
+      s = makeIgesDirectoryLine0(dirline1280,-1,-1,&dcount);
+      lines.push_back(s);
+      s = makeIgesDirectoryLine1(dirline1281,-1,-1,&dcount,name);
+      lines.push_back(s);
+      dlines++;
+    
       // loops
       for (int il = 0; il < int(boundariesUV[i].size()); il++)
       {
@@ -703,26 +703,26 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
 
   for (int i = 0; i < int(surfaces.size()); i++)
   {
-    tcad::TSplineSurface<T> *surface = surfaces[i];
-
-    // patch name
-    char name[32] = { 0 };
-    
-    // modify directory
-    lines[dir128line] = makeIgesDirectoryLine0(dirline1280,pcount,-1,&dcount);
-    dir128line++;
-
-    // add lines
-    int before = int(lines.size());
-    addIgesSurfaceLines(lines,surface,dcount - 1,&pcount);
-    int after = int(lines.size());
-
-    // modify directory
-    lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,"");
-    dir128line++;
-
     if (!boundariesUV[i].empty())
     {
+      tcad::TSplineSurface<T> *surface = surfaces[i];
+
+      // patch name
+      char name[32] = { 0 };
+    
+      // modify directory
+      lines[dir128line] = makeIgesDirectoryLine0(dirline1280,pcount,-1,&dcount);
+      dir128line++;
+
+      // add lines
+      int before = int(lines.size());
+      addIgesSurfaceLines(lines,surface,dcount - 1,&pcount);
+      int after = int(lines.size());
+
+      // modify directory
+      lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,"");
+      dir128line++;
+
       // loops
       std::vector<int> list141;
       int surfacedir = 0;
@@ -911,32 +911,35 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   // 128 curves each with 508 and 510
   for (int i = 0; i < int(surfaces.size()); i++)
   {
-    // patch name
-    char name[32] = { 0 };
-
-    // for entity 128
-    s = makeIgesDirectoryLine0(sdirline1280,-1,-1,&dcount);
-    lines.push_back(s);
-    s = makeIgesDirectoryLine1(sdirline1281,-1,-1,&dcount,name);
-    lines.push_back(s);
-    dlines++;
-
-    // 508 loops
-    for (int j = 0; j < int(boundariesUV[i].size()); j++) 
+    if (!boundariesUV[i].empty())
     {
-      s = makeIgesDirectoryLine0(sdirline5080,-1,-1,&dcount);
+      // patch name
+      char name[32] = { 0 };
+
+      // for entity 128
+      s = makeIgesDirectoryLine0(sdirline1280,-1,-1,&dcount);
       lines.push_back(s);
-      s = makeIgesDirectoryLine1(sdirline5081,-1,-1,&dcount,name);
+      s = makeIgesDirectoryLine1(sdirline1281,-1,-1,&dcount,name);
+      lines.push_back(s);
+      dlines++;
+
+      // 508 loops
+      for (int j = 0; j < int(boundariesUV[i].size()); j++) 
+      {
+        s = makeIgesDirectoryLine0(sdirline5080,-1,-1,&dcount);
+        lines.push_back(s);
+        s = makeIgesDirectoryLine1(sdirline5081,-1,-1,&dcount,name);
+        lines.push_back(s);
+        dlines++;
+      }
+
+      // 510
+      s = makeIgesDirectoryLine0(sdirline5100,-1,-1,&dcount);
+      lines.push_back(s);
+      s = makeIgesDirectoryLine1(sdirline5101,-1,-1,&dcount,name);
       lines.push_back(s);
       dlines++;
     }
-
-    // 510
-    s = makeIgesDirectoryLine0(sdirline5100,-1,-1,&dcount);
-    lines.push_back(s);
-    s = makeIgesDirectoryLine1(sdirline5101,-1,-1,&dcount,name);
-    lines.push_back(s);
-    dlines++;
   }
 
   // for entity 514
@@ -1027,59 +1030,62 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 
   for (int i = 0; i < int(surfaces.size()); i++)
   {
-    // patch name
-    char name[32] = { 0 };
-
-    TSplineSurface<T> *surface = surfaces[i];
-
-    int surfaceDE = -1;
-
-    // modify directory
-    lines[sdirline] = makeIgesDirectoryLine0(sdirline1280,pcount,-1,&dcount);
-    sdirline++;
-
-    // add lines
-    int before = int(lines.size());
-    addIgesSurfaceLines(lines,surface,dcount - 1,&pcount);
-    surfaceDE = dcount - 1;
-    int after = int(lines.size());
-
-    // modify directory
-    lines[sdirline] = makeIgesDirectoryLine1(sdirline1281,-1,(after - before),&dcount,name);
-    sdirline++;
-
-    // 508
-    std::vector<int> loopDEs;
-    for (int j = 0; j < int(boundariesUV[i].size()); j++) 
+    if (!boundariesUV[i].empty())
     {
-      lines[sdirline] = makeIgesDirectoryLine0(sdirline5080,pcount,-1,&dcount);
+      // patch name
+      char name[32] = { 0 };
+
+      TSplineSurface<T> *surface = surfaces[i];
+
+      int surfaceDE = -1;
+
+      // modify directory
+      lines[sdirline] = makeIgesDirectoryLine0(sdirline1280,pcount,-1,&dcount);
+      sdirline++;
+
+      // add lines
+      int before = int(lines.size());
+      addIgesSurfaceLines(lines,surface,dcount - 1,&pcount);
+      surfaceDE = dcount - 1;
+      int after = int(lines.size());
+
+      // modify directory
+      lines[sdirline] = makeIgesDirectoryLine1(sdirline1281,-1,(after - before),&dcount,name);
+      sdirline++;
+
+      // 508
+      std::vector<int> loopDEs;
+      for (int j = 0; j < int(boundariesUV[i].size()); j++) 
+      {
+        lines[sdirline] = makeIgesDirectoryLine0(sdirline5080,pcount,-1,&dcount);
+        sdirline++;
+
+        before = int(lines.size());
+
+        addIges508<T>(surfaces,boundariesUV,vertices,tolerance,
+          lines,edges,i,j,int(boundariesUV[i][j].size()),edgeDE,dcount - 1,&pcount);
+
+        loopDEs.push_back(dcount - 1);
+        after = int(lines.size());
+
+        // modify directory
+        lines[sdirline] = makeIgesDirectoryLine1(sdirline5081,-1,(after - before),&dcount,name);
+        sdirline++;
+      }
+
+      // 510
+      lines[sdirline] = makeIgesDirectoryLine0(sdirline5100,pcount,-1,&dcount);
       sdirline++;
 
       before = int(lines.size());
-
-      addIges508<T>(surfaces,boundariesUV,vertices,tolerance,
-        lines,edges,i,j,int(boundariesUV[i][j].size()),edgeDE,dcount - 1,&pcount);
-
-      loopDEs.push_back(dcount - 1);
+      addIges510<T>(lines,surfaceDE,loopDEs,dcount - 1,&pcount);
+      faceDEs.push_back(dcount - 1);
       after = int(lines.size());
 
       // modify directory
-      lines[sdirline] = makeIgesDirectoryLine1(sdirline5081,-1,(after - before),&dcount,name);
+      lines[sdirline] = makeIgesDirectoryLine1(sdirline5101,-1,(after - before),&dcount,name);
       sdirline++;
     }
-
-    // 510
-    lines[sdirline] = makeIgesDirectoryLine0(sdirline5100,pcount,-1,&dcount);
-    sdirline++;
-
-    before = int(lines.size());
-    addIges510<T>(lines,surfaceDE,loopDEs,dcount - 1,&pcount);
-    faceDEs.push_back(dcount - 1);
-    after = int(lines.size());
-
-    // modify directory
-    lines[sdirline] = makeIgesDirectoryLine1(sdirline5101,-1,(after - before),&dcount,name);
-    sdirline++;
   }
 
   lines[sdirline] = makeIgesDirectoryLine0(sdirline5140,pcount,-1,&dcount);
@@ -1125,7 +1131,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 
 ///** Save curves as points. DECLARED ABOVE. */
 //template <class T> bool saveLinesIges(std::vector<std::vector<tcad::TPoint<T>>> &curves, 
-//  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+//  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 //{
 //  std::vector<std::string> lines;
 //
@@ -1141,7 +1147,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 
 /** Save curve as points. */
 template <class T> bool saveLinesIges(std::vector<tcad::TPoint<T>> &curve, 
-  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 {
   std::vector<std::vector<tcad::TPoint<T>>> curves;
   curves.push_back(curve);
@@ -1151,7 +1157,7 @@ template <class T> bool saveLinesIges(std::vector<tcad::TPoint<T>> &curve,
 
 /** Save any curve (based on TBaseCurve) as points. */
 template <class T> bool saveCurveIges(tcad::TBaseCurve<T> &curve, const std::string &filename,
-  int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+  int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 {
   std::vector<tcad::TPoint<T>> points;
   curve.createPoints(points);
@@ -1161,7 +1167,7 @@ template <class T> bool saveCurveIges(tcad::TBaseCurve<T> &curve, const std::str
 
 /** Save any TWO curve (based on TBaseCurve) as points e,g, to compare. */
 template <class T> bool saveTwoCurvesIges(tcad::TBaseCurve<T> &curve0, tcad::TBaseCurve<T> &curve1, 
-  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 {
   std::vector<tcad::TPoint<T>> points0,points1;
   curve0.createPoints(points0);
@@ -1176,7 +1182,7 @@ template <class T> bool saveTwoCurvesIges(tcad::TBaseCurve<T> &curve0, tcad::TBa
 
 /** Save any THREE curve (based on TBaseCurve) as points e,g, to compare. */
 template <class T> bool saveThreeCurvesIges(tcad::TBaseCurve<T> &curve0, tcad::TBaseCurve<T> &curve1, 
-  tcad::TBaseCurve<T> &curve2, const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = 6)
+  tcad::TBaseCurve<T> &curve2, const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
 {
   std::vector<tcad::TPoint<T>> points0,points1,points2;
   curve0.createPoints(points0);

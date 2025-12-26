@@ -108,3 +108,7 @@ void outputDebugString(const std::string &str);
 void errorMessage(std::string s);
                               // start console output
 bool startConsole();
+
+// assert issues red error message in release
+#define ASSERT(condition) if (!(condition)) { errorMessage(std::string("Assertion failure in line ") + \
+  to_string(__LINE__)); }; assert(condition)

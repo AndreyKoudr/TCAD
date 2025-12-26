@@ -178,5 +178,8 @@ namespace tcad {
 // use SIMD
 //#define USE_SIMD
 
+// Min number of points for an export curve
+#define EXPORT_MINPOINTS 8
+
 }
 

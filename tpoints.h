@@ -526,7 +526,7 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
   }
 
   // remove all duplicates
-  removeDuplicates(UV,true,parmtolerance * 4.0);
+  removeDuplicates(UV,true,parmtolerance * 4.0); //!!!!!!!
 
   return int(UV.size());
 }
@@ -1972,6 +1972,153 @@ template <class T> bool correctParmsParallel(std::vector<TPoint<T>> &points0, st
   }
 
   return true;
+}
+
+/** Calculate number of duplicates. */
+template <class T> int numDuplicates(std::vector<TPoint<T>> &points, T tolerance = PARM_TOLERANCE)
+{
+  int count = 0;
+  for (int i = 0; i < int(points.size()) - 1; i++)
+  {
+    T d = !(points[i + 1] - points[i]);
+
+    if (d < tolerance)
+      count++;
+  }
+
+  return count;
+}
+
+/** Calculate number of triplicates. */
+template <class T> int numTriplicates(std::vector<TPoint<T>> &points, T tolerance = PARM_TOLERANCE)
+{
+  int count = 0;
+  for (int i = 1; i < int(points.size()) - 1; i++)
+  {
+    int i0 = i - 1;
+    int i1 = i;
+    int i2 = i + 1;
+
+    T d0 = !(points[i1] - points[i0]);
+    T d1 = !(points[i2] - points[i1]);
+
+    if (d0 < tolerance && d1 < tolerance)
+      count++;
+  }
+
+  return count;
+}
+
+/** Cut out newpoints from points by going round the contour from newpoints end to 
+  newpoints start. */
+template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
+  std::vector<TPoint<T>> &newpoints, T parmtolerance = PARM_TOLERANCE)
+{
+  TPoint<T> startUV = newpoints.back();
+  TPoint<T> endUV = newpoints.front();
+
+  bool found = false;
+
+  // starting point must be duplicate
+  newpoints.push_back(startUV);
+
+  // go from seg0 + 1 to the end, look for endUV inside intervals
+  for (int i = seg0 + 1; i < points.size() - 1; i++)
+  {
+    TPoint<T> p0 = points[i];
+    TPoint<T> p1 = points[i + 1];
+    TPoint<T> dp = p1 - p0;
+    T len = !dp;
+
+    if (len > parmtolerance)
+    {
+      // find end point between p0 and p1
+      TPoint<T> intr;
+      T t = 0.5;
+      if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
+      {
+        T dist = !(endUV - intr);
+
+        if (dist < parmtolerance)
+        {
+          newpoints.push_back(endUV);
+          found = true;
+          break;
+        } else
+        {
+          newpoints.push_back(p0);
+        }
+      } else
+      {
+        newpoints.push_back(p0);
+      }
+    } else
+    {
+      newpoints.push_back(p0);
+    }
+  }
+
+  // another part
+  if (!found)
+  {
+    // add a duplicate to the end
+    newpoints.push_back(points.back());
+
+    // test starting part of points from 0 to seg0
+    for (int i = 0; i <= seg0; i++)
+    {
+      TPoint<T> p0 = points[i];
+      TPoint<T> p1 = points[i + 1];
+      TPoint<T> dp = p1 - p0;
+      T len = !dp;
+
+      if (len > parmtolerance)
+      {
+        // find end point between p0 and p1
+        TPoint<T> intr;
+        T t = 0.5;
+        if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
+        {
+          T dist = !(endUV - intr);
+
+          if (dist < parmtolerance)
+          {
+            newpoints.push_back(endUV);
+            found = true;
+            break;
+          } else
+          {
+            newpoints.push_back(p0);
+          }
+        } else
+        {
+          newpoints.push_back(p0);
+        }
+      } else
+      {
+        newpoints.push_back(p0);
+      }
+    }
+  }
+
+#if _DEBUG
+  int n2 = numDuplicates(newpoints);
+  int n3 = numTriplicates(newpoints);
+
+  assert(n3 == 0);
+#endif
+
+  return found;
+}
+
+/** Reverse two layers of points. */
+template <class T> void reverse(std::vector<std::vector<TPoint<T>>> &points)
+{
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    std::reverse(points[i].begin(),points[i].end());
+  }
+  std::reverse(points.begin(),points.end());
 }
 
 }

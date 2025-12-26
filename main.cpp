@@ -61,6 +61,7 @@
 #include "tsplinevolume.h" 
 #include "tdata.h" 
 #include "FFD.h" 
+#include "tbrep.h" 
 
 // this stuff is for export and debugging
 #include "strings.h"
@@ -76,11 +77,6 @@ using namespace tcad;
 
 // Let us choose double as our basic real type
 #define T double
-
-//===== assert issues red error message in release =============================
-
-#define ASSERT(condition) if (!(condition)) { errorMessage(std::string("Assertion failure in line ") + \
-  to_string(__LINE__)); }; assert(condition)
 
 //===== Random generator for running examples ==================================
 
@@ -861,7 +857,7 @@ int main(int argc, char* argv[])
   saveTrianglesStl(fuselage1,DEBUG_DIR + "fuselage rotated.stl");
 
   std::vector<std::vector<TPoint<T>>> fcutpoints;
-  bool iok = fuselage.intersect(fuselage1,fcutpoints,PARM_TOLERANCE); 
+  bool iok = fuselage.intersect(fuselage1,true,fcutpoints,PARM_TOLERANCE); 
 
   ASSERT(iok);
 
@@ -1021,7 +1017,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> boundary0,boundary1;
 
   // intersect is here
-  bool wcok = apsurface.intersect(cylsurface,wcintersections,boundary0,boundary1,
+  bool wcok = apsurface.intersect(cylsurface,true,wcintersections,boundary0,boundary1,
     PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
@@ -1181,7 +1177,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> tr3boundary0,tr3boundary1;
 
   // intersect is here
-  bool tr3ok = apsurface.intersect(cylsurface,tr3intersections,tr3boundary0,tr3boundary1,
+  bool tr3ok = apsurface.intersect(cylsurface,true,tr3intersections,tr3boundary0,tr3boundary1,
     PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
@@ -1222,7 +1218,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> tr4intersections; 
   std::vector<std::vector<TPoint<T>>> tr4boundary0,tr4boundary1;
 
-  bool tr4ok = apsurface.intersect(cylsurface,tr4intersections,tr4boundary0,tr4boundary1,
+  bool tr4ok = apsurface.intersect(cylsurface,true,tr4intersections,tr4boundary0,tr4boundary1,
     PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
@@ -1240,7 +1236,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> tr5intersections; 
   std::vector<std::vector<TPoint<T>>> tr5boundary0,tr5boundary1;
 
-  bool tr5ok = apsurfacelower.intersect(cylsurface,tr5intersections,tr5boundary0,tr5boundary1,
+  bool tr5ok = apsurfacelower.intersect(cylsurface,true,tr5intersections,tr5boundary0,tr5boundary1,
     PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
@@ -1260,7 +1256,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> tr6boundary0,tr6boundary1;
 
   // intersect with upper surface...
-  bool tr6ok = cylsurface.intersect(apsurface,tr6intersections,tr6boundary0,tr6boundary1,
+  bool tr6ok = cylsurface.intersect(apsurface,true,tr6intersections,tr6boundary0,tr6boundary1,
     PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
@@ -1268,7 +1264,7 @@ int main(int argc, char* argv[])
   ASSERT(tr6ok);
 
   // intersect with lower surface...
-  bool tr7ok = cylsurface.intersect(apsurfacelower,tr6intersections,tr6boundary0,tr6boundary1,
+  bool tr7ok = cylsurface.intersect(apsurfacelower,true,tr6intersections,tr6boundary0,tr6boundary1,
     PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
@@ -1777,10 +1773,14 @@ int main(int argc, char* argv[])
     makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 #else
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+    //!!!!!!! makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
+    //makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 #endif
 
     t.LoadIdentity();
@@ -1808,23 +1808,19 @@ int main(int argc, char* argv[])
 
     // mutual intersections between faces, in process, estimate big tolerance as max
     // difference between boundary curves
-    makeTrimming(surfaces,hsurfaces,boundariesUV,boundariesUV1,tolerance);
-
-    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces 1 trimmed.iges");
-    saveTrimmedSurfacesIges(hsurfaces,boundariesUV1,DEBUG_DIR + "Kilo propeller surfaces 2 trimmed.iges");
-
-    surfaces.insert(surfaces.end(),hsurfaces.begin(),hsurfaces.end());
-    boundariesUV.insert(boundariesUV.end(),boundariesUV1.begin(),boundariesUV1.end());
+    makeTrimming(surfaces,hsurfaces,boundariesUV,boundariesUV1,UNITE, //!!!!!!!
+      propsurfaces,propboundariesUV,
+      tolerance,PARM_TOLERANCE,true);
 
     // move propeller to hull position
     t.LoadIdentity();
     t.Translate(TPoint<T>(-0.3 - 0.1 - 29.7,0.0,0.0)); 
-    makeTransform<T>(surfaces,&t);
+    makeTransform<T>(propsurfaces,&t);
 
-    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces trimmed.iges");
+    saveTrimmedSurfacesIges(propsurfaces,propboundariesUV,DEBUG_DIR + "Kilo propeller surfaces trimmed.iges");
 
     std::vector<std::vector<TPoint<T>>> badedges;
-    bool ok = saveSolidIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller solid.iges",
+    bool ok = saveSolidIges(propsurfaces,propboundariesUV,DEBUG_DIR + "Kilo propeller solid.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
@@ -1833,12 +1829,6 @@ int main(int argc, char* argv[])
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
-
-    // keep for further use in submarine
-    propsurfaces = surfaces;
-    propboundariesUV = boundariesUV;
-
-    saveTrimmedSurfacesIges(surfaces,boundariesUV,DEBUG_DIR + "Kilo propeller surfaces trimmed 1.iges");
   }
 
   /*****************************************************************************
@@ -1880,12 +1870,12 @@ int main(int argc, char* argv[])
     bool ok = saveSolidIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull solid.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
 
+    ASSERT(ok);
+
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
-
-    ASSERT(ok);
   }
 
   /*****************************************************************************
@@ -1943,12 +1933,9 @@ int main(int argc, char* argv[])
     // make a solid from shaft and propeller+hull
 
     // make solid, do not clear old boundaries
-    makeTrimming(shaftsurfaces,subsurfaces,shaftboundariesUV,subboundariesUV,
+    makeTrimming(shaftsurfaces,subsurfaces,shaftboundariesUV,subboundariesUV,UNITE,
+      subsurfaces,subboundariesUV,
       tolerance,PARM_TOLERANCE,false);
-
-    // whole submarine
-    subsurfaces.insert(subsurfaces.end(),shaftsurfaces.begin(),shaftsurfaces.end());
-    subboundariesUV.insert(subboundariesUV.end(),shaftboundariesUV.begin(),shaftboundariesUV.end());
 
     saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub surfaces trimmed.iges");
 
@@ -1956,12 +1943,12 @@ int main(int argc, char* argv[])
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub solid with propeller.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
 
+    ASSERT(ok);
+
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
-
-    ASSERT(ok);
   }
 
   /*****************************************************************************
@@ -2055,12 +2042,9 @@ int main(int argc, char* argv[])
     // make a solid from fin and propeller + hull
 
     // make solid, do not clear old boundaries
-    makeTrimming(subfinsurfaces,subsurfaces,subfinboundariesUV,subboundariesUV,
+    makeTrimming(subfinsurfaces,subsurfaces,subfinboundariesUV,subboundariesUV,UNITE,
+      subsurfaces,subboundariesUV,
       tolerance,PARM_TOLERANCE,false);
-
-    // whole submarine
-    subsurfaces.insert(subsurfaces.end(),subfinsurfaces.begin(),subfinsurfaces.end());
-    subboundariesUV.insert(subboundariesUV.end(),subfinboundariesUV.begin(),subfinboundariesUV.end());
 
     saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+propeller surfaces trimmed.iges");
 
@@ -2068,12 +2052,12 @@ int main(int argc, char* argv[])
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+propeller solid.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
 
+    ASSERT(ok);
+
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
-
-    ASSERT(ok);
   }
 
   /*****************************************************************************
@@ -2165,12 +2149,9 @@ int main(int argc, char* argv[])
     // make a solid from hump and propeller + hull
 
     // make solid, do not clear old boundaries
-    makeTrimming(subhumpsurfaces,subsurfaces,subhumpboundariesUV,subboundariesUV,
+    makeTrimming(subhumpsurfaces,subsurfaces,subhumpboundariesUV,subboundariesUV,UNITE,
+      subsurfaces,subboundariesUV,
       tolerance,PARM_TOLERANCE,false);
-
-    // whole submarine
-    subsurfaces.insert(subsurfaces.end(),subhumpsurfaces.begin(),subhumpsurfaces.end());
-    subboundariesUV.insert(subboundariesUV.end(),subhumpboundariesUV.begin(),subhumpboundariesUV.end());
 
     saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller surfaces trimmed.iges");
 
@@ -2178,21 +2159,21 @@ int main(int argc, char* argv[])
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller solid.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
 
+    ASSERT(ok);
+
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
-
-    ASSERT(ok);
   }
 
 #endif
 
   /*****************************************************************************
-    5.14 Blocks : submarine wings
+    5.14 Blocks : filleted submarine wings
   *****************************************************************************/
 
-  cout << "5.14 Blocks : sub wings" << endl;
+  cout << "5.14 Blocks : filleted sub wings" << endl;
 
   // sub wing
   std::vector<TSplineSurface<T> *> subwingsurfaces;
@@ -2257,12 +2238,9 @@ int main(int argc, char* argv[])
     closeOuterBoundary<T>(subwingsurfaces,subwingboundariesUV);
 
     // make solid, do not clear old boundaries
-    makeTrimming(subwingsurfaces,subsurfaces,subwingboundariesUV,subboundariesUV,
+    makeTrimming(subwingsurfaces,subsurfaces,subwingboundariesUV,subboundariesUV,UNITE,
+      subsurfaces,subboundariesUV,
       tolerance,PARM_TOLERANCE,false);
-
-    // whole submarine
-    subsurfaces.insert(subsurfaces.end(),subwingsurfaces.begin(),subwingsurfaces.end());
-    subboundariesUV.insert(subboundariesUV.end(),subwingboundariesUV.begin(),subwingboundariesUV.end());
 
     saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings surfaces trimmed.iges");
 
@@ -2270,12 +2248,12 @@ int main(int argc, char* argv[])
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings solid.iges",
       tolerance,SPLINE_DEGREE,18,&badedges);
 
+    ASSERT(ok);
+
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
-
-    ASSERT(ok);
   }
 
   double endtime = GetTime();

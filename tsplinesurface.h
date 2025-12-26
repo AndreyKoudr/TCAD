@@ -1038,4 +1038,15 @@ template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &sur
   }
 }
 
+/** Prepare empty outer boundary. */
+template <class T> void prepareOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
+  // surface  // loop 0   // 4 pieces // piece contents
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+  }
+}
+
 }

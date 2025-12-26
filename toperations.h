@@ -325,8 +325,13 @@ template <class T> void deleteSurfaces(std::vector<TSplineSurface<T> *> &surface
 }
 
 /** Copy and transform list of surfaces. */
-template <class T> void copySurfaces(std::vector<TSplineSurface<T> *> &surfaces, 
-  TTransform<T> *t, bool reverseU, bool reverseV, std::vector<TSplineSurface<T> *> &newsurfaces)
+template <class T> void copySurfaces(
+  // input
+  std::vector<TSplineSurface<T> *> &surfaces,
+  // output 
+  std::vector<TSplineSurface<T> *> &newsurfaces,
+  // parms
+  TTransform<T> *t = nullptr, bool reverseU = false, bool reverseV = false)
 {
   for (int i = 0; i < int(surfaces.size()); i++)
   {
@@ -334,7 +339,8 @@ template <class T> void copySurfaces(std::vector<TSplineSurface<T> *> &surfaces,
     TSplineSurface<T> *newsurface = new TSplineSurface<T>(*surfaces[i]);
 
     // transform
-    newsurface->makeTransform(t);
+    if (t)
+      newsurface->makeTransform(t);
 
     // reverseU/V
     if (reverseU)
@@ -343,6 +349,28 @@ template <class T> void copySurfaces(std::vector<TSplineSurface<T> *> &surfaces,
       newsurface->reverseV();
 
     newsurfaces.push_back(newsurface);
+  }
+}
+
+/** Make surface duplicates to make no more than one loop to keep Rhino happy. */
+template <class T> void makeSingleLoop(std::vector<TSplineSurface<T> *> &surfaces, 
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
+{
+  int n = int(surfaces.size());
+  for (int i = 0; i < n; i++)
+  {
+    if (boundariesUV[i].size() > 1)
+    {
+      for (int j = 1; j < int(boundariesUV[i].size()); j++)
+      {
+        TSplineSurface<T> *copy = new TSplineSurface<T>(*surfaces[i]);
+        surfaces.push_back(copy);
+        boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+        boundariesUV.back().push_back(boundariesUV[i][j]);
+      }
+      
+      boundariesUV[i].resize(1);
+    }
   }
 }
 

@@ -161,7 +161,8 @@ bool findFreeEdge(std::map<std::pair<LINT,LINT>,std::vector<LINT>,EdgeCompare> &
 
 /** Cut triangle by triangle. tri and other being corner coordinates. */
 template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
-  std::array<TPoint<T>,3> &other, std::vector<TPoint<T>> &intrs, T tolerance, T parmtolerance = PARM_TOLERANCE)
+  std::array<TPoint<T>,3> &other, bool bodyleft, // body to the left, part to the right is thrown off
+  std::vector<TPoint<T>> &intrs, T tolerance, T parmtolerance = PARM_TOLERANCE)
 {
   std::pair<TPoint<T>,TPoint<T>> edges[3];
   std::pair<TPoint<T>,TPoint<T>> oedges[3];
@@ -171,19 +172,6 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   oedges[0] = std::pair<TPoint<T>,TPoint<T>>(other[0],other[1]);
   oedges[1] = std::pair<TPoint<T>,TPoint<T>>(other[1],other[2]);
   oedges[2] = std::pair<TPoint<T>,TPoint<T>>(other[2],other[0]);
-
-//bool stop = false;
-//TPoint<T> err0(-29.799847932004926,0.14142135623730948,0.14142135623730764);
-//TPoint<T> err1(-29.802149779470824,0.14142135623730953,0.14142135623730767);
-//T d0 = !(tri[1] - err0);
-//T d1 = !(tri[2] - err0);
-//T d2 = !(tri[1] - err1);
-//T d3 = !(tri[2] - err1);
-//if (d0 < 0.0000001 || d1 < 0.0000001 || d2 < 0.0000001 || d3 < 0.0000001)
-//{
-//  int gsgsg = 0;
-//  stop = true;
-//}
 
   intrs.clear();
 
@@ -213,7 +201,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
 
   removeDuplicates(intrs,true,tolerance); // true is correct here
 
-  //!!! important : set correct orientation of intersection curve : part to the right is
+  //!!!!!!! important : set correct orientation of intersection curve : part to the right is
   // thrown off
   if (intrs.size() == 2)
   {
@@ -222,9 +210,20 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
     TPoint<T> d = intrs[1] - intrs[0];
     TPoint<T> cross = d ^ normal;
 
-    if (cross > onormal)
+    bool codirected = cross > onormal;
+
+    if (bodyleft)
     {
-      std::reverse(intrs.begin(),intrs.end());
+      if (!codirected)
+      {
+        std::reverse(intrs.begin(),intrs.end());
+      }
+    } else
+    {
+      if (codirected)
+      {
+        std::reverse(intrs.begin(),intrs.end());
+      }
     }
   }
 
@@ -451,7 +450,8 @@ public:
   /** Intersect with other tris. boundary0,1 contain in U,V parameters in X,Y for 
     first and second surfaces for trimming. Set BOTH boundaries to null or not null 
     at the same time. */
-  bool intersect(TTriangles<T> &other, std::vector<std::vector<TPoint<T>>> &lines, 
+  bool intersect(TTriangles<T> &other, int bodyleft, 
+    std::vector<std::vector<TPoint<T>>> &lines, 
     T parmtolerance = TOLERANCE(T),
     std::vector<std::vector<TPoint<T>>> *boundary0 = nullptr,
     std::vector<std::vector<TPoint<T>>> *boundary1 = nullptr,
@@ -460,7 +460,7 @@ public:
   /** Intersect with other tris. boundary0,1 contain in U,V parameters in X,Y for 
     first and second surfaces for trimming. Set BOTH boundaries to null or not null 
     at the same time. boxes are ready for every triangle. */
-  bool intersect(TTriangles<T> &other, 
+  bool intersect(TTriangles<T> &other, int bodyleft,
     std::vector<std::array<TPoint<T>,8>> &boxes,
     std::vector<std::array<TPoint<T>,8>> &oboxes,
     std::vector<std::vector<TPoint<T>>> &lines, T parmtolerance,
@@ -2150,7 +2150,9 @@ template <class T> bool TTriangles<T>::intersectByPlane(TPlane<T> &plane,
 }
 
 /** Intersect tris which are in one cell cellindex. */
-template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other, LINT cellindex,
+template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other, 
+  // body to the left
+  int bodyleft, LINT cellindex,
   std::vector<std::vector<LINT>> *celltris, int i0, int i1,
   std::vector<std::vector<LINT>> *ocelltris, int j0, int j1,
   std::vector<TPoint<T>> *centres, std::vector<TPoint<T>> *ocentres,
@@ -2183,7 +2185,7 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
       std::array<TPoint<T>,3> ocorners = other->threeCorners(index1);
 
       std::vector<TPoint<T>> intrs;
-      if (intersectTriangleByTriangle(corners,ocorners,intrs,tolerance,parmtolerance))
+      if (intersectTriangleByTriangle(corners,ocorners,bool(bodyleft),intrs,tolerance,parmtolerance))
       {
         if (intrs.size() == 2)
         {
@@ -2227,7 +2229,7 @@ template <class T> void intersectCells(TTriangles<T> *tris, TTriangles<T> *other
 
 /** Intersect range of cells. */
 template <class T> void intersectMultiCells(std::vector<LINT> *activecells, LINT cell0, LINT cell1,
-  TTriangles<T> *tris, TTriangles<T> *other, 
+  TTriangles<T> *tris, TTriangles<T> *other, int bodyleft,
   std::vector<std::vector<LINT>> *celltris, std::vector<std::vector<LINT>> *ocelltris,
   std::vector<TPoint<T>> *centres, std::vector<TPoint<T>> *ocentres,
   // output :
@@ -2238,22 +2240,14 @@ template <class T> void intersectMultiCells(std::vector<LINT> *activecells, LINT
   for (LINT i = cell0; i <= cell1; i++)
   {
     LINT index = (*activecells)[i];
-    intersectCells(tris,other,index,
-
-#if 0
-// THIS COMPILES! celltris is a pointer
-      celltris,0,int(celltris[index].size()) - 1,
-      ocelltris,0,int(ocelltris[index].size()) - 1,
-#else
-// it should be :
+    intersectCells(tris,other,bodyleft,index,
       celltris,0,int((*celltris)[index].size()) - 1,
       ocelltris,0,int((*ocelltris)[index].size()) - 1,
       centres,ocentres,intersected,UVintrs,edges,tolerance,parmtolerance);
-#endif
   }
 }
 
-template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, 
+template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyleft,
   std::vector<std::vector<TPoint<T>>> &lines, T parmtolerance,
   std::vector<std::vector<TPoint<T>>> *boundary0,
   std::vector<std::vector<TPoint<T>>> *boundary1,
@@ -2404,7 +2398,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     {
       LINT index = activecells[i];
 
-      intersectCells(this,&other,index,
+      intersectCells(this,&other,bodyleft,index,
         &celltris,0,int(celltris[index].size()) - 1,
         &ocelltris,0,int(ocelltris[index].size()) - 1,
         &centres,&ocentres,
@@ -2479,7 +2473,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
             j2 = int(ncells) - 1;
 
           std::thread th;
-          th = std::thread(intersectCells<T>,this,&other,index,
+          th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
             &celltris,j1,j2,
             &ocelltris,0,ncells1 - 1,
             &centres,&ocentres,
@@ -2505,7 +2499,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
             j2 = int(ncells) - 1;
 
           std::thread th;
-          th = std::thread(intersectCells<T>,this,&other,index,
+          th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
             &celltris,0,ncells0 - 1,
             &ocelltris,j1,j2,
             &centres,&ocentres,
@@ -2563,7 +2557,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
           j2 = int(numactive) - 1;
 
         std::thread th;
-        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,
+        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,bodyleft,
           &celltris,&ocelltris,&centres,&ocentres,
           &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
           &tedges[t],tolerance,parmtolerance);
@@ -2768,7 +2762,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
   return ok;
 }
 
-template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, 
+template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyleft,
   std::vector<std::array<TPoint<T>,8>> &boxes,
   std::vector<std::array<TPoint<T>,8>> &oboxes,
   std::vector<std::vector<TPoint<T>>> &lines, T parmtolerance,
@@ -2916,7 +2910,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
     {
       LINT index = activecells[i];
 
-      intersectCells(this,&other,index,
+      intersectCells(this,&other,bodyleft,index,
         &celltris,0,int(celltris[index].size()) - 1,
         &ocelltris,0,int(ocelltris[index].size()) - 1,
         &centres,&ocentres,
@@ -2991,7 +2985,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
             j2 = int(ncells) - 1;
 
           std::thread th;
-          th = std::thread(intersectCells<T>,this,&other,index,
+          th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
             &celltris,j1,j2,
             &ocelltris,0,ncells1 - 1,
             &centres,&ocentres,
@@ -3017,7 +3011,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
             j2 = int(ncells) - 1;
 
           std::thread th;
-          th = std::thread(intersectCells<T>,this,&other,index,
+          th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
             &celltris,0,ncells0 - 1,
             &ocelltris,j1,j2,
             &centres,&ocentres,
@@ -3075,7 +3069,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other,
           j2 = int(numactive) - 1;
 
         std::thread th;
-        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,
+        th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,bodyleft,
           &celltris,&ocelltris,&centres,&ocentres,
           &intersected[t],makeboundaries ? &tUVintrs[t] : nullptr,
           &tedges[t],tolerance,parmtolerance);

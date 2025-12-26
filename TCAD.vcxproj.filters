@@ -172,5 +172,8 @@
     <ClInclude Include="memory.h">
       <Filter>AUXILIARY</Filter>
     </ClInclude>
+    <ClInclude Include="tbrep.h">
+      <Filter>BLOCKS</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

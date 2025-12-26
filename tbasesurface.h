@@ -71,6 +71,13 @@ enum Parameter {
   PARAMETER_WV     
 };
 
+// booleans
+enum Boolean {
+  UNITE,
+  SUBTRACT,
+  INTERSECT
+};
+
 /** Surface corner UV values. 
 
                         side 2      
@@ -115,10 +122,16 @@ public:
 
   //===== Operations ===========================================================
 
-  /** Same as 0-th derivative*/
+  /** Same as 0-th derivative. */
   virtual TPoint<T> position(T U, T V)
   {
     return this->derivative(U,V,PARAMETER_ANY,0);
+  }
+
+  /** Normal (not normalised). */
+  virtual TPoint<T> normal(T U, T V)
+  {
+    return this->derivative(U,V,PARAMETER_U,1) ^ this->derivative(U,V,PARAMETER_V,1);
   }
 
   /** Get control points. */
@@ -490,7 +503,7 @@ public:
 
   /** Find intersection curve(s) with another surface. Returns number of intersection curves. 
     boundary0/1 contain U,V in X,Y for every intersection curve for both surfaces. */
-  template <class T> int intersect(TBaseSurface<T> &other, std::vector<std::vector<TPoint<T>>> &intersections, 
+  template <class T> int intersect(TBaseSurface<T> &other, bool bodyleft, std::vector<std::vector<TPoint<T>>> &intersections, 
     std::vector<std::vector<TPoint<T>>> &boundary0, std::vector<std::vector<TPoint<T>>> &boundary1,
     T parmtolerance = PARM_TOLERANCE, 
     int numpointsU0 = MANY_POINTS2D, int numpointsV0 = MANY_POINTS2D,
@@ -516,7 +529,7 @@ public:
       }
 #endif
 
-      if (tris.intersect(othertris,intersections,parmtolerance,&boundary0,&boundary1))
+      if (tris.intersect(othertris,bodyleft,intersections,parmtolerance,&boundary0,&boundary1))
       {
         return int(intersections.size());
       } else
@@ -733,6 +746,19 @@ public:
     // all pieces must have a correct direction set during intersection
     while (!allBusy(busy))
     {
+      // success : delete this ordered piece from cuts
+      if (boundaryPoint(ordered.back().back(),parmtolerance))
+      {
+        // cleanup cut
+        for (int i = int(busy.size()) - 1; i >= 0; i--)
+        {
+          if (busy[i])
+            cut.erase(cut.begin() + i);
+        }
+
+        return true;
+      }
+
       // find closest piece to the current ordered end among not busy
       int closest = findClosest(cut,busy,ordered.back().back(),tolerance);
 
@@ -937,38 +963,41 @@ public:
     return count;
   }
 
-  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
+  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. cutFromOuter is true
+    for unions. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
     std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
+    bool cutFromOuter = true, 
     T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
     T maxparmgap = 0.001)
   {
     if (cutUV.empty())
       return false;
 
-    // step 1 : make first outer loop if not yet done
+    // step 1 : make first outer loop if not yet done. if (!cutFromOuter),
+    // this is a fake loop not added to loops
     std::vector<std::vector<TPoint<T>>> outerloop;
-    if (loops.empty())
+
+    if (cutFromOuter)
     {
-      closeOuterBoundaryLoop(outerloop,numdivisions);
-      loops.push_back(outerloop);
+      if (loops.empty())
+      {
+        closeOuterBoundaryLoop(outerloop,numdivisions);
+        loops.push_back(outerloop);
+      } else
+      {
+        outerloop = loops[0];
+      }
     } else
     {
-      outerloop = loops[0];
+      closeOuterBoundaryLoop(outerloop,numdivisions);
     }
 
     // step 2 : combine cut pieces into a single line
     std::vector<std::vector<TPoint<T>>> cut = cutUV;
 
-    // extract all closed loops
-    int n = extractLoops(cut,loops,bigtolerance,parmtolerance);
-
-    if (n && cut.empty())
-    {
-      return true;
-    }
-
-    // cut not empty
+    std::vector<std::vector<std::vector<TPoint<T>>>> innerloops;
+    int n = extractLoops(cut,innerloops,bigtolerance,parmtolerance);
 
     std::vector<std::vector<std::vector<TPoint<T>>>> allordered;
     if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
@@ -995,8 +1024,14 @@ public:
       // again
       if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
       {
-        return false;
+        if (n == 0)
+          return false;
       }
+    }
+
+    if (n)
+    {
+      allordered.insert(allordered.end(),innerloops.begin(),innerloops.end());
     }
 
     // step 4 : embed cut into existing outer loop;
@@ -1040,8 +1075,32 @@ public:
       // cut curve specifies a correct direction of the loop, it must go first here
       int numintrs = findIntersections(cutpoints,allpoints,UV,parmtolerance); 
 
-      if (numintrs == 2)
+      // new loop
+      if (numintrs == 0)
       {
+        T dist = !(cut.front().front() - cut.back().back());
+        if (dist < parmtolerance)
+        {
+          cut.front().front() = cut.back().back() = (cut.front().front() + cut.back().back()) * 0.5;
+
+//!!!!!!!
+          //for (int k = 0; k < int(cut.size()); k++)
+          //{
+          //  std::reverse(cut[k].begin(),cut[k].end());
+          //}
+          //std::reverse(cut.begin(),cut.end());
+
+          loops.push_back(cut);
+        } else
+        {
+          // skip it 
+        }
+      } else if (numintrs == 2)
+      {
+        // first intersection point is from cutpoints start, cutpoints direction from
+        // first to second intersection point defines cutting direction : void is to
+        // the right, surface is to the left
+
         // all points
         int Useg0 = int(UV[0].X);
         T U0 = UV[0].X - T(Useg0);
@@ -1054,43 +1113,49 @@ public:
         int Vseg1 = int(UV[1].Y);
         T V1 = UV[1].Y - T(Vseg1);
 
-        // take all cut points
+        // take all cut points void is to the right, surface is to the left
         cutOut(cutpoints,Useg0,U0,Useg1,U1,newpoints);
 
-        // take all points from cut end to second intersection point
-        // if passes through (0,0)
-        if (Vseg0 < Vseg1)
+        // we need to proceed from newpoints last point to newpoints first
+        // point
+        bool ok = cutOutGoingRound<T>(allpoints,Vseg1,V1,newpoints,parmtolerance);
+
+        // it must be always ok
+        assert(ok);
+
+        if (!ok)
+          return false;
+
+        // divide outer loop back into parts
+        std::vector<std::vector<TPoint<T>>> newouterloop; 
+        divideByDuplicates<T>(newpoints,newouterloop,parmtolerance);
+
+        // correct points on the boundary
+        for (int i = 0; i < int(newouterloop.size()); i++)
         {
-          cutOut(allpoints,Vseg1,V1,int(allpoints.size()) - 2,1.0,newpoints);
-          cutOut(allpoints,0,0.0,Vseg0,V0,newpoints);
+          if (boundaryPoint(newouterloop[i].front(),parmtolerance))
+          {
+            correctBoundaryPoint(newouterloop[i].front(),parmtolerance);
+          }
+          if (boundaryPoint(newouterloop[i].back(),parmtolerance))
+          {
+            correctBoundaryPoint(newouterloop[i].back(),parmtolerance);
+          }
+        }
+
+        // update the changed outer loop
+        if (cutFromOuter)
+        {
+          loops[0] = outerloop = newouterloop;
         } else
         {
-          cutOut(allpoints,Vseg1,V1,Vseg0,V0,newpoints);
+      //    reverse(newouterloop); //!!!!!!!
+          loops.push_back(newouterloop);
         }
       } else
       {
-        return false;
+        continue;
       }
-
-      // divide outer loop back into parts
-      std::vector<std::vector<TPoint<T>>> newouterloop; 
-      divideByDuplicates<T>(newpoints,newouterloop,parmtolerance);
-
-      // correct points on the boundary
-      for (int i = 0; i < int(newouterloop.size()); i++)
-      {
-        if (boundaryPoint(newouterloop[i].front(),parmtolerance))
-        {
-          correctBoundaryPoint(newouterloop[i].front(),parmtolerance);
-        }
-        if (boundaryPoint(newouterloop[i].back(),parmtolerance))
-        {
-          correctBoundaryPoint(newouterloop[i].back(),parmtolerance);
-        }
-      }
-
-      // update the changed outer loop
-      loops[0] = outerloop = newouterloop;
     }
 
     return true;

@@ -159,6 +159,10 @@ Blocks
 - 5.12 Blocks : sub hump<br />
 - 5.13 Blocks : submarine hull + propeller + fin + hump, all single solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_solid.png)
+- 5.14 Blocks : filleted sub wings<br />
+- 5.15 Blocks : sub with wings<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_rudder_solid.png)
+
 
 Important parameters in main.cpp
 ================================
