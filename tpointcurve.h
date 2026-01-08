@@ -321,9 +321,7 @@ public:
     }
   }
 
-  /** Get max distance from other by projecting this this->cpoints on other (the other must be not shorter). 
-    If exact, only exact projection (no distance to line ends) is considered. Returns -1 if
-    such projection not found. */
+  /** Get max distance from other by projecting this this->cpoints on other (the other must be not shorter). */
   T diff(TPointCurve<T> &other, T *maxdeflection = nullptr, T parmtolerance = PARM_TOLERANCE)
   {
     T maxdiff = 0.0;
@@ -332,7 +330,7 @@ public:
     for (int i = 0; i < int(this->cpoints.size()); i++)
     {
       TPoint<T> proj;
-      bool ok = projectPointOnPoints(other.controlPoints(),this->cpoints[i],proj,nullptr,nullptr,parmtolerance);
+      bool ok = projectPointOnPoints<T>(other.controlPoints(),this->cpoints[i],proj,nullptr,nullptr,parmtolerance);
       if (!ok)
         return -1.0;
 
@@ -565,5 +563,94 @@ private:
   // point parameters [0..1] parameterised by length
   std::vector<T> parms;
 };
+
+/** Do lines overlap?. returns 1 if second longer, 2 if first longer and 0 in failure. */
+template <class T> int pointsOverlap(TPointCurve<T> &points, TPointCurve<T> &opoints, T tolerance, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  T maxdefl0 = 0.0;
+  T diff0 = points.diff(opoints,&maxdefl0,parmtolerance);
+  T maxdefl1 = 0.0;
+  T diff1 = opoints.diff(points,&maxdefl1,parmtolerance);
+
+  if (diff0 >= 0.0 && diff0 < tolerance)
+  {
+    return 1;
+  } else if (diff1 >= 0.0 && diff1 < tolerance)
+  {
+    return 2;
+  } else
+  {
+    return 0;
+  }
+}
+
+/** Do lines overlap?. returns 1 if second longer, 2 if first longer and 0 in failure. */
+template <class T> bool pointsOverlap(TPointCurve<T> &points, TPointCurve<T> &opoints, bool directandreverse, 
+  T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  int i0 = pointsOverlap(points,opoints,tolerance,parmtolerance);
+
+  if (i0)
+    return true;
+
+  if (directandreverse)
+  {
+    opoints.reverse();
+    int i1 = pointsOverlap(points,opoints,tolerance,parmtolerance);
+    opoints.reverse();
+
+    if (i1)
+      return true;
+  }
+
+  return false;
+}
+
+/** Find lines overlapping a line index among not busy. */
+template <class T> int findOverlapping(std::vector<std::vector<TPoint<T>>> &lines, int lineindex, 
+   std::vector<bool> &busy, std::vector<int> &list, double tolerance, double parmtolerance)
+{
+  list.clear();
+
+  assert(lines.size() == busy.size());
+
+  TPointCurve<T> points(lines[lineindex]);
+
+  for (int i = 0; i < lines.size(); i++)
+  {
+    if (i == lineindex)
+      continue;
+    if (!busy.empty() && busy[i])
+      continue;
+
+    TPointCurve<T> opoints(lines[i]);
+    if (pointsOverlap<T>(points,opoints,tolerance,parmtolerance))
+    {
+      list.push_back(i);
+    }
+  }
+
+  return int(list.size());
+}
+
+/** Find line inside line list. */
+template <class T> int findOverlapping(std::vector<std::vector<TPoint<T>>> &lines, std::vector<TPoint<T>> &line, 
+   bool directandreverse, std::vector<int> &list, double tolerance, double parmtolerance)
+{
+  list.clear();
+
+  TPointCurve<T> curve0(line);
+  for (int i = 0; i < int(lines.size()); i++)
+  {
+    TPointCurve<T> curve1(lines[i]);
+    if (pointsOverlap<T>(curve0,curve1,directandreverse,tolerance,parmtolerance))
+    {
+      list.push_back(i);
+    }
+  }
+
+  return int(list.size());
+}
 
 }

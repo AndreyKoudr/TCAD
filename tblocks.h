@@ -41,6 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tpoints.h"
 #include "tmisc.h"
 #include "tjacobipoly.h"
+#include "tbasesurface.h"
 #include "tsplinesurface.h"
 #include "toperations.h"
 #include "tedge.h"
@@ -685,42 +686,44 @@ template <class T> void makeBladeCamberThickness(std::vector<TPoint<T>> &upperlo
   }
 }
 
-/** Make surface of revolution points with elliptical cross-sections in XY plane 
-  with axis along Z. The contour must be defined in Z-X coordinates, normally
-  with decreasing Z. numpoints is that along circumference. 
-  U is along circumference from adegfrom to adegto, V along axis of symmetry Z. */
+/** Make points for surfaces of revolution around Z. 
+  The contour has axial coordinate in countourAxisCoord and radial coordinate in countourRadialCoord.
+  numpoints is that along circumference. */
 template <class T> void makeSurfaceOfRevolution(std::vector<TPoint<T>> &contour, 
+  Axes countourAxialCoord, Axes countourRadialCoord,
   int numpoints, T adegfrom, T adegto, std::vector<std::vector<TPoint<T>>> &points)
 {
   int numsections = int(contour.size());
 
   for (int i = 0; i < numsections; i++)
   {
-    T r = contour[i].X;
+    T r = contour[i][countourRadialCoord];
 
     std::vector<TPoint<T>> section;
     makeEllipseXY(numpoints,TPoint<T>(),r,r,section,adegfrom,adegto);
 
     TTransform<T> t;
-    t.Translate(TPoint<T>(0.0,0.0,contour[i].Z));
+    t.Translate(TPoint<T>(0.0,0.0,contour[i][countourAxialCoord]));
     makeTransform(section,&t);
 
     points.push_back(section);
   }
 }
 
-/** Make surface of revolution around Z (single face). 
-  The contour must be defined in Z-X coordinates,
-  normally with decreasing Z. numpoints is that along circumference. 
-  U is circumferential, V - along Z axis. */
+/** Make single face of a surface of revolution around Z. 
+  The contour has axial coordinate in countourAxisCoord and radial coordinate in countourRadialCoord.
+  numfaces and pointsperface are those along circumference. 
+  Resulting faces have U as circumferential and V - parametric axial coordinate. */
 template <class T> TSplineSurface<T> *makeSurfaceOfRevolution(std::vector<TPoint<T>> &contour,
+  Axes countourAxialCoord, Axes countourRadialCoord,
   int numpoints, T adegfrom, T adegto, int K1, int K2, 
   int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
   CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
   CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
 {
+  // make points
   std::vector<std::vector<TPoint<T>>> points;
-  makeSurfaceOfRevolution(contour,numpoints,adegfrom,adegto,points);
+  makeSurfaceOfRevolution(contour,countourAxialCoord,countourRadialCoord,numpoints,adegfrom,adegto,points);
 
   // create cylindrical surface
   TSplineSurface<T> *surface = new TSplineSurface<T>(points,K1,M1,K2,M2,
@@ -729,11 +732,13 @@ template <class T> TSplineSurface<T> *makeSurfaceOfRevolution(std::vector<TPoint
   return surface;
 }
 
-/** Make surfaces of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
-  The contour must be defined in Z-X coordinates,
-  normally with decreasing Z. numfaces is that along circumference. 
-  U is circumferential, V - along Z axis. */
+/** Make surfaces of revolution around Z. 
+  The contour has axial coordinate in countourAxisCoord and radial 
+  coordinate in countourRadialCoord.
+  numfaces and pointsperface are those along circumference. 
+  Resulting faces have U as circumferential and V - parametric axial coordinate. */
 template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour,
+  Axes countourAxialCoord, Axes countourRadialCoord,
   int numfaces, int pointsperface, int K1, int K2, 
   std::vector<TSplineSurface<T> *> &surfaces, 
   int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
@@ -746,7 +751,7 @@ template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour
     T a0 = T(i) * da;
     T a1 = T(i + 1) * da;
 
-    TSplineSurface<T> *surface = makeSurfaceOfRevolution(contour,
+    TSplineSurface<T> *surface = makeSurfaceOfRevolution(contour,countourAxialCoord,countourRadialCoord,
       pointsperface,a0,a1,K1,K2,M1,M2,startU,endU,startV,endV);
 
     surfaces.push_back(surface);
@@ -754,10 +759,11 @@ template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour
 }
 
 /** Make surfaces of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
-  The contour must be defined in Z-X coordinates,
-  normally with decreasing Z. numfaces is that along circumference. 
-  U is circumferential, V - along Z axis. */
+  The contour has axial coordinate in countourAxisCoord and radial coordinate in countourRadialCoord.
+  numfaces and pointsperface are those along circumference. 
+  Resulting faces have U as circumferential and V - parametric axial coordinate. */
 template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<T>>> &contour,
+  Axes countourAxialCoord, Axes countourRadialCoord,
   int numfaces, int pointsperface, int K1, int K2, 
   std::vector<TSplineSurface<T> *> &surfaces, 
   int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
@@ -766,7 +772,7 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
 {
   for (int i = 0; i < int(contour.size()); i++)
   {
-    makeSurfacesOfRevolution(contour[i],
+    makeSurfacesOfRevolution(contour[i],countourAxialCoord,countourRadialCoord,
       numfaces,pointsperface,K1,K2,surfaces,M1,M2,startU,endU,startV,endV);
   }
 }
@@ -774,7 +780,8 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
 #if 1 //!!! More memory, a little bit faster ~10%
 
 /** Intersect surfaces, make trimming curves to make a solid. It is a raw function to be used inside
-  TBrep<T>. It creates surfaces and boundary copies. Surfaces should be deleted by deleteSurfaces(). */
+  TBrep<T>. It creates surfaces and boundary copies. Surfaces should be deleted by deleteSurfaces(). 
+  Always returns true now. */
 template <class T> bool makeTrimming(
   // input
   std::vector<TSplineSurface<T> *> &surfaces0,
@@ -814,16 +821,18 @@ template <class T> bool makeTrimming(
   {
     tboundariesUV0.clear();
     tboundariesUV1.clear();
-    closeOuterBoundary(tsurfaces0,tboundariesUV0);
 
     if (operation == UNITE)
     {
+      closeOuterBoundary(tsurfaces0,tboundariesUV0);
       closeOuterBoundary(tsurfaces1,tboundariesUV1);
     } else if (operation == SUBTRACT)
     {
+      closeOuterBoundary(tsurfaces0,tboundariesUV0);
       prepareOuterBoundary(tsurfaces1,tboundariesUV1);
     } else if (operation == INTERSECT)
     {
+      prepareOuterBoundary(tsurfaces0,tboundariesUV0);
       prepareOuterBoundary(tsurfaces1,tboundariesUV1);
     }
   }
@@ -905,11 +914,6 @@ template <class T> bool makeTrimming(
   std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> boundaries0(tsurfaces0.size());
   std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> boundaries1(tsurfaces1.size());
 
-  // estmate big tolerance as max difference between boundary lines to be used in making
-  // a solid downstream
-  T bigtolerance = 0.0; //!!! removed from parameters
-  T maxseglen = 0.0;
-
   // min/max of all surfaces
   TPoint<T> min,max;
   T maxedge = 0.0;
@@ -929,7 +933,7 @@ template <class T> bool makeTrimming(
     } else
     {
       min = pointMin<T>(min,mm.first);
-      max = pointMin<T>(max,mm.second);
+      max = pointMax<T>(max,mm.second);
     }
 
     extendBox(mm,1.1); //!!!
@@ -945,15 +949,22 @@ template <class T> bool makeTrimming(
     maxedge = std::max<T>(maxedge,d);
 
     min = pointMin<T>(min,mm.first);
-    max = pointMin<T>(max,mm.second);
+    max = pointMax<T>(max,mm.second);
 
     extendBox(mm,1.1); //!!!
     boxes1.push_back(mm);
   }
 
   maxedge *= 1.1; //!!!!!!
+  // makeTrimming() always returns true (used in operators)
+#if 1
+  extendMinMax<T>(min,max,1.0,tolerance);
+#endif
+
   TPoint<T> dmm = max - min;
 
+  // makeTrimming() always returns true (used in operators)
+#if 0
   // no intersection possible
   if (dmm.X < tolerance || dmm.Y < tolerance || dmm.Z < tolerance)
   {
@@ -961,6 +972,7 @@ template <class T> bool makeTrimming(
     deleteTriangles<T>(tris1);
     return false;
   }
+#endif
 
   // cells big enough for spacial partitioning to identify if two triangles
   // may intersect, they can if they have a node in the same cell only
@@ -1017,6 +1029,9 @@ template <class T> bool makeTrimming(
   }
   int numactive = int(activecells.size());
 
+  // for tolerance
+  T maxseglen = 0.0;
+
   // now make intersections
   for (int cl = 0; cl < numactive; cl++)
   {
@@ -1058,8 +1073,45 @@ template <class T> bool makeTrimming(
 
         if (ok)
         {
+#if 0
           iboundary0 = boundary0;
           iboundary1 = boundary1;
+#else
+          for (int k = 0; k < int(boundary0.size()); k++) 
+          {
+            if (boundaryLine<T>(boundary0[k],parmtolerance))
+            {
+              TPoint<T> dir = midDirection<T>(boundary0[k]);
+              TPoint<T> middle = midPoint<T>(boundary0[k]);
+              int side = boundarySide<T>(middle,parmtolerance);
+              TPoint<T> sidedir = boundarySideDir<T>(side);
+
+              if (!(dir > sidedir)) 
+              {
+                iboundary0.push_back(boundary0[k]);
+              }
+            } else
+            {
+              iboundary0.push_back(boundary0[k]);
+            }
+
+            if (boundaryLine<T>(boundary1[k],parmtolerance))
+            {
+              TPoint<T> dir = midDirection<T>(boundary1[k]);
+              TPoint<T> middle = midPoint<T>(boundary1[k]);
+              int side = boundarySide<T>(middle,parmtolerance);
+              TPoint<T> sidedir = boundarySideDir<T>(side);
+
+              if (!(dir > sidedir)) 
+              {
+                iboundary1.push_back(boundary1[k]);
+              }
+            } else
+            {
+              iboundary1.push_back(boundary1[k]);
+            }
+          }
+#endif
 
           if (improve)
           {
@@ -1092,30 +1144,11 @@ template <class T> bool makeTrimming(
           }
 
           // if still improve
-          if (improve)
+          boundary0 = iboundary0;
+          boundary1 = iboundary1;
+
+          for (int k = 0; k < int(boundary0.size()); k++)
           {
-
-            boundary0 = iboundary0;
-            boundary1 = iboundary1;
-          }
-
-          // calculate difference in boundary lines
-          T maxdiff = 0.0;
-
-          for (int k = 0; k < boundary0.size(); k++)
-          {
-            std::vector<TPoint<T>> intr0,intr1;
-            for (int l = 0; l < int(boundary0[k].size()); l++)
-            {
-              TPoint<T> p0 = tsurfaces0[i]->position(boundary0[k][l].X,boundary0[k][l].Y);
-              TPoint<T> p1 = tsurfaces1[j]->position(boundary1[k][l].X,boundary1[k][l].Y);
-              intr0.push_back(p0);
-              intr1.push_back(p1);
-
-              T d = !(p1 - p0);
-              maxdiff = std::max<T>(maxdiff,d);
-            }
-
             T segmin = 0.0;
             T segmax = 0.0;
             segmentLenMinMax<T>(boundary0[k],segmin,segmax);
@@ -1123,12 +1156,17 @@ template <class T> bool makeTrimming(
             maxseglen = std::max(maxseglen,segmax);
           }
 
-          bigtolerance = std::max<T>(bigtolerance,maxdiff);
+          for (int k = 0; k < int(boundary1.size()); k++)
+          {
+            T segmin = 0.0;
+            T segmax = 0.0;
+            segmentLenMinMax<T>(boundary1[k],segmin,segmax);
+
+            maxseglen = std::max(maxseglen,segmax);
+          }
 
   #ifdef DEBUG_BLOCKS
-          outputDebugString(std::string("maxdiff = ") + to_string(maxdiff) + 
-            std::string(" bigtolerance = ") + to_string(bigtolerance) +
-            std::string(" maxseglen = ") + to_string(maxseglen));
+          outputDebugString(std::string(" maxseglen = ") + to_string(maxseglen));
   #endif
         }
 
@@ -1165,7 +1203,7 @@ template <class T> bool makeTrimming(
             std::reverse(boundary0.begin(),boundary0.end());
           }
 
-          bool reverse1 = (operation == SUBTRACT || operation == INTERSECT);
+          bool reverse1 = !reverse0;
 
           if (reverse1)
           {
@@ -1193,12 +1231,14 @@ template <class T> bool makeTrimming(
       {
         for (int k = 0; k < int(boundaries0[i][j].size()); k++)
         {
-          boundary.push_back(boundaries0[i][j][k]);
+          std::vector<int> list;
+          if (!findOverlapping(boundary,boundaries0[i][j][k],true,list,tolerance,parmtolerance))
+            boundary.push_back(boundaries0[i][j][k]);
         }
       }
 
-      bool ok = tsurfaces0[i]->closeBoundaryLoop(boundary,tboundariesUV0[i],true,
-        maxseglen * 2.0,parmtolerance,manypoints);
+      bool ok = tsurfaces0[i]->closeBoundaryLoop(boundary,tboundariesUV0[i],(operation != INTERSECT),
+        maxseglen * 2.0,parmtolerance,manypoints - 1);
     }
   }
 
@@ -1211,12 +1251,14 @@ template <class T> bool makeTrimming(
       {
         for (int k = 0; k < int(boundaries1[i][j].size()); k++)
         {
-          boundary.push_back(boundaries1[i][j][k]);
+          std::vector<int> list;
+          if (!findOverlapping(boundary,boundaries1[i][j][k],true,list,tolerance,parmtolerance))
+            boundary.push_back(boundaries1[i][j][k]);
         }
       }
 
       bool ok = tsurfaces1[i]->closeBoundaryLoop(boundary,tboundariesUV1[i],(operation == UNITE),
-        maxseglen * 2.0,parmtolerance,manypoints);
+        maxseglen * 2.0,parmtolerance,manypoints - 1);
     }
   }
 
@@ -1234,7 +1276,7 @@ template <class T> bool makeTrimming(
   ASSERT(surfaces.size() == boundariesUV.size());
 
   // make single loop everywhere to keep Rhino happy
-  makeSingleLoop(surfaces,boundariesUV);
+//!!!!!!!  makeSingleLoop(surfaces,boundariesUV); 
 
   return true;
 }
@@ -1515,13 +1557,13 @@ template <class T> bool makeTrimming(
         {
           // close boundary on first surface
           bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
-            maxseglen * 2.0,parmtolerance,manypoints);
+            maxseglen * 2.0,parmtolerance,manypoints - 1);
           if (!ok0)
           {
             boundaries0[i].push_back(boundary0);
           }
           bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],
-            maxseglen * 2.0,parmtolerance,manypoints);
+            maxseglen * 2.0,parmtolerance,manypoints - 1);
           if (!ok1)
           {
             boundaries1[j].push_back(boundary1);
@@ -1646,13 +1688,13 @@ template <class T> bool makeTrimming(
       {
         // close boundary on first surface
         bool ok0 = surfaces0[i]->closeBoundaryLoop(boundary0,boundariesUV0[i],
-          maxseglen * 2.0,parmtolerance,manypoints);
+          maxseglen * 2.0,parmtolerance,manypoints - 1);
         if (!ok0)
         {
           boundaries0[i].push_back(boundary0);
         }
         bool ok1 = surfaces1[j]->closeBoundaryLoop(boundary1,boundariesUV1[j],
-          maxseglen * 2.0,parmtolerance,manypoints);
+          maxseglen * 2.0,parmtolerance,manypoints - 1);
         if (!ok1)
         {
           boundaries1[j].push_back(boundary1);
@@ -1678,7 +1720,7 @@ template <class T> bool makeTrimming(
       }
 
       bool ok = surfaces0[i]->closeBoundaryLoop(boundary,boundariesUV0[i],
-        maxseglen * 2.0,parmtolerance,manypoints);
+        maxseglen * 2.0,parmtolerance,manypoints - 1);
     }
   }
 
@@ -1696,7 +1738,7 @@ template <class T> bool makeTrimming(
       }
 
       bool ok = surfaces1[i]->closeBoundaryLoop(boundary,boundariesUV1[i],
-        maxseglen * 2.0,parmtolerance,manypoints);
+        maxseglen * 2.0,parmtolerance,manypoints - 1);
     }
   }
 

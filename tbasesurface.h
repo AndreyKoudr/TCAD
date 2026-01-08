@@ -447,6 +447,22 @@ public:
     return TPoint<T>(U,V);
   }
 
+  /** Find approximate (linearised) UV for points. */
+  void findUVForPoints(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &UVs,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
+  {
+    std::vector<TPoint<T>> spoints,sUVpoints;
+    int k1 = 0;
+    int k2 = 0;
+    createPoints(spoints,&sUVpoints,&k1,&k2,numpointsU,numpointsV);
+
+    for (int i = 0; i < int(points.size()); i++)
+    {
+      TPoint<T> UV = findUVforPoint(spoints,sUVpoints,k1,k2,points[i]);
+      UVs.push_back(UV);
+    }
+  }
+
   /** Calculate min/max. */
   virtual bool calculateMinMax(TPoint<T> *min, TPoint<T> *max, TPoint<T> *imin = nullptr, 
     TPoint<T> *imax = nullptr, int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
@@ -684,29 +700,6 @@ public:
       (*busy)[closest] = true;
 
     return closest;
-  }
-
-  /** Is it a boundary point? */
-  template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
-  {
-    return (
-      std::abs(p.X - 0.0) < parmtolerance ||
-      std::abs(p.X - 1.0) < parmtolerance ||
-      std::abs(p.Y - 0.0) < parmtolerance ||
-      std::abs(p.Y - 1.0) < parmtolerance);
-  }
-
-  /** Ser accurate values for boundary point. */
-  template <class T> void correctBoundaryPoint(TPoint<T> &p, T parmtolerance = PARM_TOLERANCE)
-  {
-    if (std::abs(p.X - 0.0) < parmtolerance)
-      p.X = 0.0;
-    if (std::abs(p.X - 1.0) < parmtolerance)
-      p.X = 1.0;
-    if (std::abs(p.Y - 0.0) < parmtolerance)
-      p.Y = 0.0;
-    if (std::abs(p.Y - 1.0) < parmtolerance)
-      p.Y = 1.0;
   }
 
   /** Find a cut piece (except busy) close to p. p is "tail", cut front is "head" to be
@@ -996,8 +989,18 @@ public:
     // step 2 : combine cut pieces into a single line
     std::vector<std::vector<TPoint<T>>> cut = cutUV;
 
+    if (cut[0].empty()) //!!!!!!
+      return true;
+
     std::vector<std::vector<std::vector<TPoint<T>>>> innerloops;
     int n = extractLoops(cut,innerloops,bigtolerance,parmtolerance);
+  
+    // all done
+    if (cut.empty() && n && cutFromOuter)
+    {
+      loops.insert(loops.end(),innerloops.begin(),innerloops.end());
+      return true;
+    }
 
     std::vector<std::vector<std::vector<TPoint<T>>>> allordered;
     if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
@@ -1036,6 +1039,8 @@ public:
 
     // step 4 : embed cut into existing outer loop;
     // outerloop contains parts; cut is a single curve
+
+    bool cutreversed = false;
 
     for (int i = 0; i < int(allordered.size()); i++)
     {
@@ -1083,13 +1088,6 @@ public:
         {
           cut.front().front() = cut.back().back() = (cut.front().front() + cut.back().back()) * 0.5;
 
-//!!!!!!!
-          //for (int k = 0; k < int(cut.size()); k++)
-          //{
-          //  std::reverse(cut[k].begin(),cut[k].end());
-          //}
-          //std::reverse(cut.begin(),cut.end());
-
           loops.push_back(cut);
         } else
         {
@@ -1118,13 +1116,18 @@ public:
 
         // we need to proceed from newpoints last point to newpoints first
         // point
-        bool ok = cutOutGoingRound<T>(allpoints,Vseg1,V1,newpoints,parmtolerance);
-
-        // it must be always ok
-        assert(ok);
+        int n3 = 0;
+        bool ok = cutOutGoingRound<T>(allpoints,Vseg1,V1,newpoints,n3,parmtolerance);
+        if (n3 > 0)
+        {
+          ok = false;
+        }
 
         if (!ok)
           return false;
+
+        // it must be always ok
+        assert(ok);
 
         // divide outer loop back into parts
         std::vector<std::vector<TPoint<T>>> newouterloop; 
@@ -1149,7 +1152,6 @@ public:
           loops[0] = outerloop = newouterloop;
         } else
         {
-      //    reverse(newouterloop); //!!!!!!!
           loops.push_back(newouterloop);
         }
       } else
@@ -1656,5 +1658,18 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
   parms = bestparms;
   return false;
 } 
+
+/** Return correct boundary side direction. */
+template <class T> TPoint<T> boundarySideDir(int i)
+{
+  assert (i >= 0 && i <= 3);
+
+  int i1 = i + 1;
+  if (i1 > 3)
+    i1 = 0;
+
+  TPoint<T> dir = cornerUV<T>[i1] - cornerUV<T>[i];
+  return dir;
+}
 
 }

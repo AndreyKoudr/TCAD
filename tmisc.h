@@ -235,6 +235,10 @@ template <typename T> bool projectPointOnSegment(TPoint<T> p, TPoint<T> p0, TPoi
 {
   TPoint<T> v10 = p1 - p0;
   T len = !v10;
+
+  if (len < parmtolerance)
+    return false;
+
   TPoint<T> dir = v10 / len;
 
   TPoint<T> v00 = p - p0;
@@ -1028,18 +1032,21 @@ template <class T> bool nextBoundaryParm(T parm, T endparm, T &nextparm,
 }
 
 /** Extend min/max box by coef. */
-template <class T> void extendMinMax(TPoint<T> &min, TPoint<T> &max, T coef = 1.0)
+template <class T> void extendMinMax(TPoint<T> &min, TPoint<T> &max, T coef = 1.0, TPoint<T> minsizes = TPoint<T>())
 {
   TPoint<T> c = (min + max) * 0.5;
   TPoint<T> d = (max - min) * 0.5 * coef;
+  LIMIT_MIN(d.X,minsizes.X);
+  LIMIT_MIN(d.Y,minsizes.Y);
+  LIMIT_MIN(d.Z,minsizes.Z);
   min = c - d;
   max = c + d;
 }
 
 /** Extend min/max box by coef. */
-template <class T> void extendBox(std::pair<TPoint<T>,TPoint<T>> &box, T coef = 1.0)
+template <class T> void extendBox(std::pair<TPoint<T>,TPoint<T>> &box, T coef = 1.0, TPoint<T> minsizes = TPoint<T>())
 {
-  extendMinMax(box.first,box.second,coef);
+  extendMinMax<T>(box.first,box.second,coef,minsizes);
 }
 
 /** Boxes intersect? */
@@ -1532,6 +1539,66 @@ template <class T> void reverseColumns(std::vector<std::vector<TPoint<T>>> &poin
     std::reverse(temp.begin(),temp.end());
     setColumn(points,i,temp);
   }
+}
+
+/** Is it a boundary point? */
+template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
+{
+  return (
+    std::abs(p.X - 0.0) < parmtolerance ||
+    std::abs(p.X - 1.0) < parmtolerance ||
+    std::abs(p.Y - 0.0) < parmtolerance ||
+    std::abs(p.Y - 1.0) < parmtolerance);
+}
+
+/** Boundary piece number? */
+template <class T> int boundarySide(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
+{
+  if (std::abs(p.X - 0.0) < parmtolerance)
+  {
+    // U == 0
+    return 3;
+  } else if (std::abs(p.X - 1.0) < parmtolerance)
+  {
+    // U == 1
+    return 1;
+  } else if (std::abs(p.Y - 0.0) < parmtolerance)
+  {
+    // V == 0
+    return 0;
+  } else if (std::abs(p.Y - 1.0) < parmtolerance)
+  {
+    // V == 1
+    return 2;
+  } else
+  {
+    return -1;
+  }
+}
+
+/** Is it a boundary line? To check bad intersection lines along boundary. */
+template <class T> bool boundaryLine(std::vector<TPoint<T>> &boundary, T parmtolerance = PARM_TOLERANCE)
+{
+  for (auto &p : boundary)
+  {
+    if (!boundaryPoint(p))
+      return false;
+  }
+
+  return true;
+}
+
+/** Ser accurate values for boundary point. */
+template <class T> void correctBoundaryPoint(TPoint<T> &p, T parmtolerance = PARM_TOLERANCE)
+{
+  if (std::abs(p.X - 0.0) < parmtolerance)
+    p.X = 0.0;
+  if (std::abs(p.X - 1.0) < parmtolerance)
+    p.X = 1.0;
+  if (std::abs(p.Y - 0.0) < parmtolerance)
+    p.Y = 0.0;
+  if (std::abs(p.Y - 1.0) < parmtolerance)
+    p.Y = 1.0;
 }
 
 }

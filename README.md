@@ -135,7 +135,7 @@ Free form deformation (FFD)
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/FFD.png)
 
 Blocks
-===========================
+======
 
 - 5.1 Blocks : airfoil : preparing data to make an airfoil
 - 5.2 Blocks : airfoil : how to make an airfoil from camber surface and thickness
@@ -160,8 +160,15 @@ Blocks
 - 5.13 Blocks : submarine hull + propeller + fin + hump, all single solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_solid.png)
 - 5.14 Blocks : filleted sub wings<br />
-- 5.15 Blocks : sub with wings<br />
+- 5.15 Blocks : sub with rudder<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_rudder_solid.png)
+
+Booleans, not complete!
+=======================
+
+- 6.0 B-reps : booleans, box and sphere
+- 6.1 B-reps : booleans, box and sphere, union, subraction and intersection
+- 6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)
 
 
 Important parameters in main.cpp
@@ -198,7 +205,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Combining all into TBrep<T> class with booleans, simple in use.<br /> 
+Booleans, not complete!.<br /> 
 
 
 

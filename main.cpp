@@ -1659,9 +1659,9 @@ int main(int argc, char* argv[])
 
     cout << "5.5 Blocks : surfaces of revolution : propeller hub" << endl;
 
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 
     t.LoadIdentity();
@@ -1768,14 +1768,14 @@ int main(int argc, char* argv[])
 
     // + hub
 #if 0 //!!!!!!!
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 #else
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
     //!!!!!!! makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
     //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
@@ -1808,6 +1808,7 @@ int main(int argc, char* argv[])
 
     // mutual intersections between faces, in process, estimate big tolerance as max
     // difference between boundary curves
+ //   makeTrimming(hsurfaces,surfaces,boundariesUV1,boundariesUV,INTERSECT, //!!!!!!!
     makeTrimming(surfaces,hsurfaces,boundariesUV,boundariesUV1,UNITE, //!!!!!!!
       propsurfaces,propboundariesUV,
       tolerance,PARM_TOLERANCE,true);
@@ -1821,7 +1822,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(propsurfaces,propboundariesUV,DEBUG_DIR + "Kilo propeller solid.iges",
-      tolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -1849,7 +1850,7 @@ int main(int argc, char* argv[])
     // make axisymmetric hull
     smoothPointsByBezier(KiloHull<T>[1],END_FIXED,END_CLAMPED,50);
     smoothPointsByBezier(KiloHull<T>[3],END_CLAMPED,END_CLAMPED,50);
-    makeSurfacesOfRevolution<T>(KiloHull<T>,8,9,16,32,hullsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloHull<T>,AxisZ,AxisX,8,9,16,32,hullsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_CLAMPED); 
 
     TTransform<T> t;
@@ -1868,7 +1869,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(hullsurfaces,hullboundariesUV,DEBUG_DIR + "Kilo sub hull solid.iges",
-      tolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -1906,7 +1907,7 @@ int main(int argc, char* argv[])
     shaftcontour.push_back(TPoint<T>(0.2,0.0,-29.6));
 
     // make axisymmetric shaft
-    makeSurfacesOfRevolution<T>(shaftcontour,8,9,8,8,shaftsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(shaftcontour,AxisZ,AxisX,8,9,8,8,shaftsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_FREE,END_FREE,END_FREE,END_FREE); 
 
     TTransform<T> t;
@@ -1941,7 +1942,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub solid with propeller.iges",
-      tolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -2050,7 +2051,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+propeller solid.iges",
-      tolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -2157,7 +2158,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller solid.iges",
-      tolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -2166,8 +2167,6 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
-
-#endif
 
   /*****************************************************************************
     5.14 Blocks : filleted submarine wings
@@ -2246,7 +2245,7 @@ int main(int argc, char* argv[])
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings solid.iges",
-      tolerance,SPLINE_DEGREE,18,&badedges);
+      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
 
@@ -2255,6 +2254,132 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
+
+#endif
+
+  /*****************************************************************************
+    6.0 B-reps : booleans, box and sphere
+  *****************************************************************************/
+
+  cout << "6.0 B-reps : booleans, box and sphere" << endl;
+
+  {
+    T tolerance = 1.0 * PARM_TOLERANCE;
+
+    // two tests, second one is hard due to touching face borders
+#if 1 
+    for (int t = 0; t < 2; t++) //!!!!!!!
+#else
+    for (int t = 1; t < 2; t++) //!!!!!!!
+#endif
+    {
+      //===== Box =====
+
+      TBrep<T> box(tolerance);
+
+      if (t == 0)
+      {
+        cout << "6.1 B-reps : booleans, box and sphere, union, subraction and intersection" << endl;
+
+        box.makeBox(TPoint<T>(0.01,0.01,0.01),TPoint<T>(1.01,1.01,1.01));
+      } else
+      {
+        cout << "6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)" << endl;
+
+        box.makeBox(TPoint<T>(0.0,0.0,0.0),TPoint<T>(1.0,1.0,1.0));
+      }
+
+      bool ok0 = box.saveSurfacesIges(DEBUG_DIR + "Brep box surfaces.iges");
+
+      ASSERT(ok0);
+
+      std::vector<std::vector<TPoint<T>>> badedges;
+      bool ok1 = box.saveSolidIges(DEBUG_DIR + "Brep box solid.iges",
+        tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+      ASSERT(ok1);
+
+      if (!ok1)
+      {
+        saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+      }
+
+      //===== Sphere =====
+
+      TBrep<T> sphere(tolerance);
+      sphere.makeSphere(0.5);
+
+      bool ok2 = sphere.saveSurfacesIges(DEBUG_DIR + "Brep sphere surfaces.iges");
+
+      ASSERT(ok2);
+
+      bool ok3 = sphere.saveSolidIges(DEBUG_DIR + "Brep sphere solid.iges",
+        tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+      ASSERT(ok3);
+
+      if (!ok3)
+      {
+        saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+      }
+
+      //===== Union =====
+
+      TBrep<T> boxsphere0 = box + sphere;
+
+      bool ok4 = boxsphere0.saveSurfacesIges(DEBUG_DIR + "Brep+sphere surfaces.iges");
+
+      ASSERT(ok4);
+
+      bool ok5 = boxsphere0.saveSolidIges(DEBUG_DIR + "Brep+sphere solid.iges",
+        tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+      if (!ok5)
+      {
+        saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+      }
+
+      ASSERT(ok5);
+
+      //===== Subtraction =====
+
+      TBrep<T> boxsphere1 = box - sphere;
+
+      bool ok6 = boxsphere1.saveSurfacesIges(DEBUG_DIR + "Brep-sphere surfaces.iges");
+
+      ASSERT(ok6);
+
+      bool ok7 = boxsphere1.saveSolidIges(DEBUG_DIR + "Brep-sphere solid.iges",
+        tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+      if (!ok7)
+      {
+        saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+      }
+
+      ASSERT(ok7);
+
+      //===== Intersection =====
+
+      TBrep<T> boxsphere2 = box ^ sphere;
+
+      bool ok8 = boxsphere2.saveSurfacesIges(DEBUG_DIR + "Brep^sphere surfaces.iges");
+
+      ASSERT(ok8);
+
+      bool ok9 = boxsphere2.saveSolidIges(DEBUG_DIR + "Brep^sphere solid.iges",
+        tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+      if (!ok9)
+      {
+        saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+      }
+
+      ASSERT(ok7);
+    } // tests
+
+  }
+
 
   double endtime = GetTime();
 

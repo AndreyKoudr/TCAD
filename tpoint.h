@@ -124,11 +124,12 @@ public:
                               // get coordinate
   T& operator[](Axes A) {
     switch (A) {
-    case AxisX : return X ;
-    case AxisY : return Y ;
-    case AxisZ : return Z ;
-    case AxisW : return W ;
+    case AxisX : return X;
+    case AxisY : return Y;
+    case AxisZ : return Z;
+    case AxisW : return W;
     default : assert(false && "Wrong axis value");
+      return X;
     };
   }
                               // get coordinate

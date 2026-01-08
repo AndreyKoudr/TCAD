@@ -374,4 +374,26 @@ template <class T> void makeSingleLoop(std::vector<TSplineSurface<T> *> &surface
   }
 }
 
+/** Approximate surfaces min/max. */
+template <class T> std::pair<TPoint<T>,TPoint<T>> getMinMax(std::vector<TSplineSurface<T> *> &surfaces)
+{
+  std::pair<TPoint<T>,TPoint<T>> result;
+
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    std::pair<TPoint<T>,TPoint<T>> minmax = surfaces[i]->getMinMax();
+    if (i == 0)
+    {
+      result = minmax;
+    } else
+    {
+      result.first = pointMin<T>(result.first,minmax.first);
+      result.second = pointMax<T>(result.second,minmax.second);
+    }
+  }
+
+  return result;
+}
+
+
 }

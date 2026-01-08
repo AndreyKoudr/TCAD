@@ -824,7 +824,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
 template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
-  std::vector<std::string> &lines, T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
+  std::vector<std::string> &lines, T tolerance, T parmtolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
   std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   lines.clear();
@@ -844,7 +844,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   removeDegeneratedBoundaryPieces(surfaces,boundariesUV,tolerance);
 
   // Create non-manifold solid model
-  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,pbadedges))
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,parmtolerance,pbadedges))
   {
     boundariesUV = oldboundariesUV;
     return false;
@@ -1261,12 +1261,12 @@ template <class T> bool saveSolidIges(std::vector<tcad::TSplineSurface<T> *> &su
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, 
   const std::string &filename,
-  T tolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
+  T tolerance, T parmtolerance = PARM_TOLERANCE, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
   std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
 {
   std::vector<std::string> lines;
 
-  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,splinedegree,
+  if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,parmtolerance,splinedegree,
     numdigits,pbadedges))
   {
     bool ok = writeLines(lines,filename);

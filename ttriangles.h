@@ -201,7 +201,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
 
   removeDuplicates(intrs,true,tolerance); // true is correct here
 
-  //!!!!!!! important : set correct orientation of intersection curve : part to the right is
+  //!!!!!! important : set correct orientation of intersection curve : part to the right is
   // thrown off
   if (intrs.size() == 2)
   {
@@ -2132,7 +2132,7 @@ template <class T> bool TTriangles<T>::intersectByPlane(TPlane<T> &plane,
   }
 
   // order a curve from two-point pieces
-  ok = curvesFromPieces(pieces,lines,tolerance,false);
+  ok = curvesFromPieces(pieces,lines,tolerance,false,0.1,true);
 
   if (makeboundaries)
   {
@@ -2687,12 +2687,10 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 #endif
 
   // this tolerance must be big
-  T bigtolerance = maxedge * 0.1; //!!!!!!
+  T bigtolerance = maxedge * 0.1; //!!!!!!!
 
-//outputDebugString(std::string("edges ") + to_string(edges.size()) +
-//std::string(" bigtolerance ") + to_string(bigtolerance,18)); 
-
-  bool ok = makeUpCurves(edges,bigtolerance,lines,true); 
+  // order lines from pieces
+  bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true); 
 
 #if 0
   bool print = false;
@@ -3201,10 +3199,18 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   // this tolerance must be big
   T bigtolerance = maxedge * 0.1; //!!!!!!
 
-//outputDebugString(std::string("edges ") + to_string(edges.size()) +
-//std::string(" bigtolerance ") + to_string(bigtolerance,18)); 
+  // order lines from edges
+  bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true); 
 
-  bool ok = makeUpCurves(edges,bigtolerance,lines,true); 
+#if 0 
+  bool print = true; 
+
+  if (print)
+  {
+    saveSTL("this.STL","TDCAD",true);
+    other.saveSTL("other.STL","TDCAD",true);
+  }
+#endif
 
 #if 0
   bool print = false;
@@ -3266,6 +3272,8 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
           boundary1->back().push_back(uv1);
         }
       }
+
+//!!!!!! incorrect      removeDuplicates(newlines.back(),true,parmtolerance);
     }
 
     lines = newlines;
@@ -3516,7 +3524,7 @@ template <class T> bool TTriangles<T>::edgesIntoCurves(std::vector<std::pair<TPo
   if (edges.empty())
     return false;
 
-  bool ok = makeUpCurves(edges,tolerance,lines,true);
+  bool ok = makeUpCurves(edges,tolerance,lines,tolerance,true,true);
 
   return ok;
 }

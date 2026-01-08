@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tmisc.h"
 #include "tplane.h"
 #include "ttransform.h"
+#include "strings.h"
 
 #include <vector>
 #include <map>
@@ -137,6 +138,31 @@ template <class T> TPoint<T> endDirection(std::vector<TPoint<T>> &points)
   T DU = len / curvelen;
   TPoint<T> dir = (DU > PARM_TOLERANCE) ? (d / DU) : TPoint<T>();
   return dir;
+}
+
+/** Get normalised direction at the middle. */
+template <class T> TPoint<T> midDirection(std::vector<TPoint<T>> &points)
+{
+  assert(points.size() > 1);
+
+  int i0 = int(points.size() / 2);
+  LIMIT_MIN(i0,0);
+  int i1 = i0 + 1;
+  LIMIT_MAX(i1,int(points.size() - 1));
+
+  // suppose no duplicates
+  TPoint<T> dir = +(points[i1] - points[i0]);
+  return dir;
+}
+
+/** Get point at the middle. */
+template <class T> TPoint<T> midPoint(std::vector<TPoint<T>> &points)
+{
+  assert(points.size() > 0);
+
+  int i = int(points.size() / 2);
+
+  return points[i];
 }
 
 /** Calculate min/max among a list of points; imin, imax contain corresponding indices as reals. */
@@ -511,16 +537,21 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
       T t2 = 0.0;
       T dist = 0.0;
       TPoint<T> ip,iv;
-      if (intersectSegments(p0,p1,v0,v1,t1,t2,dist,&ip,&iv) &&
-        (t1 >= 0.0 - parmtolerance) && (t1 <= 1.0 + parmtolerance) && 
-        (t2 >= 0.0 - parmtolerance) && (t2 <= 1.0 + parmtolerance) && dist < tolerance) //!!!
+      if (intersectSegments(p0,p1,v0,v1,t1,t2,dist,&ip,&iv))
       {
-        LIMIT(t1,0.0,1.0);
-        LIMIT(t2,0.0,1.0);
+        if ((t1 >= 0.0 - parmtolerance) && (t1 <= 1.0 + parmtolerance) && 
+          (t2 >= 0.0 - parmtolerance) && (t2 <= 1.0 + parmtolerance))
+        { 
+          if (dist < tolerance) //!!!
+          {
+            LIMIT(t1,0.0,1.0);
+            LIMIT(t2,0.0,1.0);
 
-        T U1 = p0.W + (p1.W - p0.W) * t1;
-        T U2 = v0.W + (v1.W - v0.W) * t2;
-        UV.push_back(TPoint<T>(U1,U2));
+            T U1 = p0.W + (p1.W - p0.W) * t1;
+            T U2 = v0.W + (v1.W - v0.W) * t2;
+            UV.push_back(TPoint<T>(U1,U2));
+          }
+        }
       }
     }
   }
@@ -580,15 +611,49 @@ template <class T> bool findClosestNotBusy(std::vector<std::pair<TPoint<T>,TPoin
   return ok;
 }
 
+/** Edges are directed toward intersection line, so they are defined only by
+  coordinates of the first node. */
+template <class T> void removeEdgeDuplicates(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
+  T tolerance)
+{
+  // take only first points, they uniquely define a directed edge
+  std::vector<TPoint<T>> points;
+  for (auto &e : edges)
+  {
+    points.push_back(e.first);
+  }
+
+  // exclude duplicates, take replacement
+  std::vector<LINT> replacement;
+  removeDuplicates(points,true,tolerance,&replacement);
+
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> newedges = edges;
+
+  for (int i = 0; i < int(edges.size()); i++)
+  {
+    newedges[replacement[i]] = edges[i];
+  }
+
+  // cut out tail
+  newedges.resize(points.size());
+  edges = newedges;
+}
+
 /** Make up curve(s) from unordered pieces, like hanging edges on triangles boundary
   or intersection of curve pieces. maxedge and tolerance are usually big, like 0.01 
   of model size or 0.1 of max edge, this value to separate impossible cases while 
   the connection algorithm being "find the closest", not "take the first within tolerance". */
-template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges,
-  T maxedge, std::vector<std::vector<TPoint<T>>> &lines, bool bothways = true)
+template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &pedges,
+  T maxedge, std::vector<std::vector<TPoint<T>>> &lines, T tolerance, bool bothways = true, 
+  bool removeedgeduplicates = false)
 {
+  std::vector<std::pair<TPoint<T>,TPoint<T>>> edges = pedges;
+
   if (edges.empty())
     return false;
+
+  if (removeedgeduplicates)
+    removeEdgeDuplicates(edges,tolerance);
 
   std::vector<bool> busy(edges.size(),false);
 
@@ -688,7 +753,7 @@ template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>>
   it is unknown in case edges are points (degenerated edges). */
 template <class T> bool curvesFromPieces(std::vector<std::vector<TPoint<T>>> &pieces,
   std::vector<std::vector<TPoint<T>>> &lines, T tolerance, 
-  bool degenerateedges = false, T maxedgeratio = 0.1)
+  bool degenerateedges = false, T maxedgeratio = 0.1, bool removeedgeduplicates = false)
 {
   // make edges
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
@@ -727,9 +792,7 @@ template <class T> bool curvesFromPieces(std::vector<std::vector<TPoint<T>>> &pi
     }
   }
 
-  bool ok = false;
-
-  ok = makeUpCurves(edges,maxedge,lines,true);
+  bool ok = makeUpCurves(edges,maxedge,lines,tolerance,true,removeedgeduplicates);
 
   return ok;
 }
@@ -752,6 +815,25 @@ template <class T> bool curveFromPieces(std::vector<std::vector<TPoint<T>>> &pie
   {
     return false;
   }
+}
+
+/** Exclude duplicate pieces and order points. */
+template <class T> bool orderPoints(std::vector<TPoint<T>> &points,
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T maxedgeratio = 0.1)
+{
+  // step 1 : exclude duplicates
+  removeDuplicates(points,true,tolerance);
+
+  // step 2 : order points
+  std::vector<std::vector<TPoint<T>>> pieces(1);
+  for (auto &p : points)
+  {
+    pieces[0].push_back({p});
+  }
+
+  bool ok = curvesFromPieces(pieces,lines,tolerance,true,maxedgeratio);
+
+  return ok;
 }
 
 /** Closed? */
@@ -1563,6 +1645,27 @@ template <class T> void makeEllipseXY(int numpoints, TPoint<T> centre, T a, T b,
   makeTransform(points,&t1);
 }
 
+/** Make ellipse in XY plane. */
+template <class T> void makeEllipseXY(int numpoints, int numparts, TPoint<T> centre, T a, T b, 
+  std::vector<std::vector<TPoint<T>>> &points, T adegfrom = 0.0, T adegto = 360.0)
+{
+  assert(numparts >= 1);
+  LIMIT_MIN(numparts,1);
+
+  T da = (adegto - adegfrom) / T(numparts);
+
+  for (int i = 0; i < numparts; i++)
+  {
+    T a0 = T(i) * da;
+    T a1 = T(i + 1) * da;
+
+    std::vector<TPoint<T>> part;
+    makeEllipseXY(numpoints,centre,a,b,part,a0,a1);
+
+    points.push_back(part);
+  }
+}
+
 /** Cut out piece of points from 0 to 1. Last possible seg1 must be points.size() - 2. */
 template <class T> void cutOut(std::vector<TPoint<T>> &points, int seg0, T U0, int seg1, T U1,
   std::vector<TPoint<T>> &newpoints)
@@ -2012,7 +2115,7 @@ template <class T> int numTriplicates(std::vector<TPoint<T>> &points, T toleranc
 /** Cut out newpoints from points by going round the contour from newpoints end to 
   newpoints start. */
 template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
-  std::vector<TPoint<T>> &newpoints, T parmtolerance = PARM_TOLERANCE)
+  std::vector<TPoint<T>> &newpoints, int &n3, T parmtolerance = PARM_TOLERANCE)
 {
   TPoint<T> startUV = newpoints.back();
   TPoint<T> endUV = newpoints.front();
@@ -2101,11 +2204,12 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
     }
   }
 
+  n3 = numTriplicates(newpoints);
+
 #if _DEBUG
   int n2 = numDuplicates(newpoints);
-  int n3 = numTriplicates(newpoints);
 
-  assert(n3 == 0);
+  //assert(n3 == 0);
 #endif
 
   return found;
@@ -2119,6 +2223,36 @@ template <class T> void reverse(std::vector<std::vector<TPoint<T>>> &points)
     std::reverse(points[i].begin(),points[i].end());
   }
   std::reverse(points.begin(),points.end());
+}
+
+/** Divide points by into two by a divider. */
+template <class T> bool divide(std::vector<TPoint<T>> &points, TPoint<T> &divider,
+  std::vector<std::vector<TPoint<T>>> &newpoints)
+{
+  int index = findClosest<T>(points,divider);
+
+  // do not take front/backs
+  if (index < 0 || index == 0 || index == points.size() - 1)
+    return false;
+
+  newpoints.push_back(std::vector<TPoint<T>>(points.begin(),points.begin() + index + 1));
+  newpoints.push_back(std::vector<TPoint<T>>(points.begin() + index,points.end()));
+
+  return true;
+}
+
+/** Divide points by a divider. */
+template <class T> void divide(std::vector<std::vector<TPoint<T>>> &points, TPoint<T> &divider)
+{
+  for (int i = int(points.size()) - 1; i >= 0; i--)
+  {
+    std::vector<std::vector<TPoint<T>>> newpoints;
+    if (divide(points[i],divider,newpoints))
+    {
+      points.erase(points.begin() + i);
+      points.insert(points.begin() + i,newpoints.begin(),newpoints.end());
+    }
+  }
 }
 
 }
