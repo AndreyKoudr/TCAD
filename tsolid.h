@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tpointcurve.h"
 #include "tsplinesurface.h"
 #include "tedge.h"
+#include "toperations.h"
 #include <assert.h>
 
 //#define DEBUG_SOLID
@@ -68,22 +69,6 @@ template <class T> int findBadEdges(std::vector<std::vector<std::array<LINT,3>>>
   }
 
   return int(badedges.size());
-}
-
-/** Get piece of boundary curve in XYZ from parametric boundariesUV. */
-template <class T> void getBoundaryPartXYZ(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
-//surface     loop        part        points
-  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
-  int surface, int loop, int part, 
-  std::vector<TPoint<T>> &points)
-{
-  points.clear();
-
-  // this curve should be XYZ, not UV
-  for (auto &UV : boundariesUV[surface][loop][part])
-  {
-    points.push_back(surfaces[surface]->position(UV.X,UV.Y));
-  }
 }
 
 /** Remove degenerated pieces of boundary. */
@@ -351,193 +336,94 @@ template <class T> void makeEdgePairs(std::vector<tcad::TSplineSurface<T> *> &su
   } while (1);
 }
 
+/** Divide parametric piece of boundary by location and parameter U. */
+template <class T> void divideBoundary(std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::array<LINT,3> loc, std::vector<std::vector<TPoint<T>>> &newpointsUV)
+{
+  boundariesUV[loc[0]][loc[1]].erase(boundariesUV[loc[0]][loc[1]].begin() + loc[2]);
+  boundariesUV[loc[0]][loc[1]].insert(boundariesUV[loc[0]][loc[1]].begin() + loc[2],newpointsUV.begin(),newpointsUV.end());
+}
+
+/** Find an overlapping edge for a bad edge and divide either bad edge an overlapped edge. */
+template <class T> int fixBadEdge(std::array<LINT,3> badedge, 
+  std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &piecesXYZ,
+  T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  int fixed = 0;
+
+  std::vector<bool> busy;
+
+  // find overlapping edges 
+  std::vector<std::array<LINT,4>> list;
+  int count = findOverlapping(badedge,piecesXYZ,list,tolerance * 100.0,parmtolerance); //!!!!!!!
+
+  for (int i = 0; i < count; i++)
+  {
+    std::vector<tcad::TPoint<T>> badXYZ = piecesXYZ[badedge[0]][badedge[1]][badedge[2]];
+    std::vector<tcad::TPoint<T>> otherXYZ = piecesXYZ[list[i][0]][list[i][1]][list[i][2]];
+    std::vector<tcad::TPoint<T>> badUV = boundariesUV[badedge[0]][badedge[1]][badedge[2]];
+    std::vector<tcad::TPoint<T>> otherUV = boundariesUV[list[i][0]][list[i][1]][list[i][2]];
+
+    if (list[i][3] == 1) // bad edge is smaller, divide other edge
+    {
+      std::array<LINT,3> loc({list[i][0],list[i][1],list[i][2]});
+
+      std::vector<std::vector<TPoint<T>>> newpoints,newpointsUV;
+
+      // try both ends
+      if (divide<T>(otherXYZ,otherUV,badXYZ.front(),newpoints,newpointsUV,tolerance,parmtolerance))
+      {
+        divideBoundary(boundariesUV,loc,newpointsUV);
+        fixed++;
+      } else if (divide<T>(otherXYZ,otherUV,badXYZ.back(),newpoints,newpointsUV,tolerance,parmtolerance))
+      {
+        divideBoundary(boundariesUV,loc,newpointsUV);
+        fixed++;
+      }
+    } else if (list[i][3] == 2) // bad edge is larger, divide bad edge
+    {
+      std::array<LINT,3> loc = badedge;
+
+      std::vector<std::vector<TPoint<T>>> newpoints,newpointsUV;
+
+      // try both ends
+      if (divide<T>(badXYZ,badUV,otherXYZ.front(),newpoints,newpointsUV,tolerance,parmtolerance))
+      {
+        divideBoundary(boundariesUV,loc,newpointsUV);
+        fixed++;
+      } else if (divide<T>(badXYZ,badUV,otherXYZ.back(),newpoints,newpointsUV,tolerance,parmtolerance))
+      {
+        divideBoundary(boundariesUV,loc,newpointsUV);
+        fixed++;
+      }
+    }
+  }
+
+  return fixed;
+}
+
 /** Fix edge pairs. */
-template <class T> bool fixEdgePairs(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+template <class T> int fixEdgePairs(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
 //surface     loop        part        points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<std::vector<std::array<LINT,3>>> &edgepairs,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &piecesXYZ,
   T tolerance, T parmtolerance, T maxedgecoef = 0.001)
 {
-  bool fixed = false;
+  int fixed = 0;
 
   // these are locations as surface+loop+piece
-  std::vector<std::array<LINT,3>> badedges;
   for (int i = 0; i < int(edgepairs.size()); i++)
   {
     if (edgepairs[i].size() == 1)
     {
       std::array<LINT,3> loc = edgepairs[i][0];
-      badedges.push_back(loc);
+      int count = fixBadEdge(loc,surfaces,boundariesUV,piecesXYZ,tolerance,parmtolerance);
+      fixed += count;
     }
   }
-
-  if (badedges.empty())
-    return fixed;
-
-  // fix for overlapping edges, this actually must be < 3 (one long 
-  // and two over it)
-  if (badedges.size() < 2) 
-    return fixed;
-
-  // bad edge lines
-  std::vector<std::vector<TPoint<T>>> lines;
-  std::vector<std::vector<TPoint<T>>> uvlines;
-
-  T maxedge = 0.0;
-  for (int i = 0; i < int(badedges.size()); i++)
-  {
-    std::array<LINT,3> loc = badedges[i];
-    auto piece = piecesXYZ[loc[0]][loc[1]][loc[2]];
-    auto uvpiece = boundariesUV[loc[0]][loc[1]][loc[2]];
-
-    lines.push_back(piece);
-    uvlines.push_back(uvpiece);
-
-    T len = calculateLength<T>(piece);
-    maxedge = std::max<T>(maxedge,len);
-  }
-
-#if 0
-
-  // make edges and then sort them, keep bad edge index in W
-  std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
-
-  for (int i = 0; i < int(badedges.size()); i++)
-  {
-    std::array<LINT,3> loc = badedges[i];
-    auto piece = piecesXYZ[loc[0]][loc[1]][loc[2]];
-    auto uvpiece = boundariesUV[loc[0]][loc[1]][loc[2]];
-
-    TPoint<T> p0 = piece.front();
-    TPoint<T> p1 = piece.back();
-    p0.W = i; // keep bad edge index in W
-    p1.W = i + 1; // keep bad edge index in W
-
-    edges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p1));
-
-    //TPoint<T> uv0 = uvpiece.front();
-    //TPoint<T> uv1 = uvpiece.back();
-    //uv0.W = uv1.W = i; // keep bad edge index in W
-
-  }
-
-  std::vector<std::vector<TPoint<T>>> slines;
-  bool ok = makeUpCurves(edges,/*maxedge*/tolerance,slines,tolerance,true,false);
-
-  // it can be multiple closed "loops" here
-  for (int i = 0; i < int(slines.size()); i++)
-  {
-    std::vector<TPoint<T>> line = slines[i];
-
-    T min = 0.0;
-    T max = 0.0;
-    int imin = -1;
-    int imax = -1;
-    if (segmentLenMinMax(line,min,max,&imin,&imax))
-    {
-      // longest edge
-      int start = ROUND(line[imax].W);
-    }
-  }
-
-#else
-
-  std::vector<bool> busy(badedges.size(),false);
-
-  while (!allBusy(busy))
-  {
-    // find the longest not busy edge
-    int start = -1;
-    T maxlen = -std::numeric_limits<T>::max();
-    for (int i = 0; i < int(badedges.size()); i++)
-    {
-      if (busy[i])
-        continue;
-
-      std::array<LINT,3> loc = badedges[i];
-      T len = calculateLength<T>(piecesXYZ[loc[0]][loc[1]][loc[2]]);
-
-      if (len > maxlen)
-      {
-        maxlen = len;
-        start = i;
-      }
-    }
-
-    if (start < 0)
-      return fixed;
-
-    // starting long edge found
-    busy[start] = true;
-
-    // find overlapping edges (normally 2 over 1 long)
-    std::vector<int> list;
-    int count = findOverlapping<T>(lines,start,busy,list,maxedge * maxedgecoef,parmtolerance);
-
-    if (count > 1) // 1 means they are the same edge
-    {
-      // we need to divide badeges[start] by middle points projected from the list
-      // on badeges[start]
-
-      // order projected points to exclude start and end
-      std::vector<std::pair<TPoint<T>,TPoint<T>>> listedges;
-
-      for (int j = 0; j < int(list.size()); j++)
-      {
-        std::array<LINT,3> loc = badedges[list[j]];
-        auto piece = piecesXYZ[loc[0]][loc[1]][loc[2]];
-        auto uvpiece = boundariesUV[loc[0]][loc[1]][loc[2]];
-
-        TPoint<T> p0 = piece.front();
-        TPoint<T> p1 = piece.back();
-        p0.W = j; // keep index in W
-        p1.W = j + 1; // keep index in W
-
-        listedges.push_back(std::pair<TPoint<T>,TPoint<T>>(p0,p1));
-      }
-
-      std::vector<std::vector<TPoint<T>>> listlines;
-      bool ok = makeUpCurves(listedges,tolerance,listlines,tolerance,true,false);
-
-      // now add UV boundary points to badedges[start] boundary in reverse order
-      std::array<LINT,3> loc = badedges[start];
-      TSplineSurface<T> *surface = surfaces[loc[0]];
-
-      std::vector<TPoint<T>> listUVs;
-      surface->findUVForPoints(listlines[0],listUVs);
-
-      std::vector<TPoint<T>> newUVs;
-      for (int j = 1; j < listUVs.size() - 1; j++)
-      {
-        TPoint<T> UV = listUVs[j];
-        correctBoundaryPoint(UV,parmtolerance);
-        newUVs.push_back(UV);
-      }
-
-      // we will change this piece of loop
-      std::vector<TPoint<T>> boundary = boundariesUV[loc[0]][loc[1]][loc[2]];
-
-      // replace boundary by a number of new pieces
-      std::vector<std::vector<TPoint<T>>> newboundary = {boundary};
-      for (int j = int(newUVs.size()) - 1; j >= 0; j--)
-      {
-        divide<T>(newboundary,newUVs[j]);
-      }
-
-      boundariesUV[loc[0]][loc[1]].erase(boundariesUV[loc[0]][loc[1]].begin() + loc[2]);
-      boundariesUV[loc[0]][loc[1]].insert(boundariesUV[loc[0]][loc[1]].begin() + loc[2],newboundary.begin(),newboundary.end());
-
-      for (int j = 0; j < int(list.size()); j++)
-      {
-        busy[list[j]] = true;
-      }
-
-      fixed = true;
-    }
-  }
-
-#endif
 
   return fixed;
 }
@@ -567,7 +453,7 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   std::vector<TPoint<T>> &vertices, 
   std::vector<std::array<LINT,11>> &edges,
   T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
-  T closestcoef = 0.1)
+  T closestcoef = 0.1, bool makefix = true, int attempts = 50)
 {
   // step 1 : make vertices and middlevertices
   vertices.clear();
@@ -584,14 +470,19 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   // middle points of boundary pieces in XYZ coordinates
   std::vector<std::vector<std::vector<TPoint<T>>>> middlesXYZ;
 
-  // prepare edge pairs
-  makeEdgePairs(surfaces,boundariesUV,edgepairs,piecesXYZ,middlesXYZ,closestcoef);
-
-  // try to fix edge pairs (changes boundariesUV)
-  if (fixEdgePairs(surfaces,boundariesUV,edgepairs,piecesXYZ,tolerance,parmtolerance))
+  for (int a = 0; a < attempts; a++)
   {
-    // recreate edge pairs
+    // prepare edge pairs
     makeEdgePairs(surfaces,boundariesUV,edgepairs,piecesXYZ,middlesXYZ,closestcoef);
+
+    if (!makefix)
+      break;
+
+    // try to fix edge pairs (changes boundariesUV)
+    if (!fixEdgePairs(surfaces,boundariesUV,edgepairs,piecesXYZ,tolerance,parmtolerance))
+    {
+      break;
+    }
   }
 
   // fill edges array

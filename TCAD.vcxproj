@@ -148,6 +148,7 @@
     <ClInclude Include="tbeziersurface.h" />
     <ClInclude Include="tbeziervolume.h" />
     <ClInclude Include="tblocks.h" />
+    <ClInclude Include="tboundary.h" />
     <ClInclude Include="tbrep.h" />
     <ClInclude Include="tdata.h" />
     <ClInclude Include="tgaussint.h" />

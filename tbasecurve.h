@@ -233,7 +233,7 @@ public:
   } 
 
   /** Find all intersections with another curve. */
-  template <class T> int findIntersections(TBaseCurve<T> &other, std::vector<TPoint<T>> &UV, 
+  int findIntersections(TBaseCurve<T> &other, std::vector<TPoint<T>> &UV, 
     T tolerance, T parmtolerance = PARM_TOLERANCE, int numpoints = MANY_POINTS)
   {
     std::vector<TPoint<T>> points,otherpoints;
@@ -244,7 +244,7 @@ public:
   }
 
   /** Cut out a piece of curve from U0 to U1 into list of points. */
-  template <class T> void cutPiece(int numpoints, T Ufrom, T Uto, std::vector<TPoint<T>> &points)
+  void cutPiece(int numpoints, T Ufrom, T Uto, std::vector<TPoint<T>> &points)
   {
     points.clear();
     T DU = (Uto - Ufrom) / T(numpoints - 1);
@@ -256,6 +256,28 @@ public:
       TPoint<T> p = derivative(U,0);
       points.push_back(p);
     }
+  }
+
+  /** Divide into two parts by parameter U. No check for parameter value, it must be 
+    far enought from any end. */
+  bool divide(T U, std::vector<TPoint<T>> &part0, std::vector<TPoint<T>> &part1, 
+    T tolerance, int minpoints = 8)
+  {
+    assert(U > tolerance && U < 1.0 - tolerance);
+    LIMIT(U,0.0,1.0);
+
+    int numpoints0 = ROUND(T(this->cpoints.size()) * U);
+    LIMIT_MIN(numpoints0,minpoints);
+    int numpoints1 = ROUND(T(this->cpoints.size()) * (1.0 - U));
+    LIMIT_MIN(numpoints1,minpoints);
+
+    cutPiece(numpoints0,0.0,U,part0);
+    cutPiece(numpoints1,U,1.0,part1);
+
+    removeDuplicates<T>(part0,false,tolerance);
+    removeDuplicates<T>(part1,false,tolerance);
+
+    return (!part0.empty() && !part1.empty());
   }
 
 public:

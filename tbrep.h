@@ -277,8 +277,9 @@ public:
   void makeSphere(T R,
     std::string name = "",
     // for faces around
-    int numfaces = 2, int pointsperface = 8, //!!!!!!!
-//    int numfaces = 4, int pointsperface = 16, //!!!!!!!
+    int numfaces = 2, int pointsperface = 64, //!!!!!!!
+  //  int numfaces = 4, int pointsperface = 64,
+ //   int numfaces = 16, int pointsperface = 64,
     // for a countour along
     int numcontourpoints = MANY_POINTS2D, 
     int K1 = 32, int K2 = 32, 
@@ -291,11 +292,12 @@ public:
     // in XY, around (0,0)
     makeEllipseXY<T>(numcontourpoints,numfaces,TPoint<T>(),R,R,contour,0.0,180.0);
 
-    reverse(contour); //!!!!!!!
+    reverse(contour); //!!!
 
     // contour in XY
     makeAxisymmetricBody(contour,AxisX,AxisY,
-      name,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+      name,numfaces * 2,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+//!!!      name,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
   }
 
   /** Make ellipsoid with a,b,c as semiaxes. */

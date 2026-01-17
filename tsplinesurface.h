@@ -1024,6 +1024,19 @@ template <class T> void nameSurfaces(std::vector<TSplineSurface<T> *> &surfaces,
 }
 
 /** Close outer boundary. */
+template <class T> void closeOuterBoundary(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop)
+{
+  if (loop.empty())
+  {
+    loop.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
+  } else
+  {
+    loop[0].clear();
+  }
+  closeOuterBoundaryLoop<T>(loop[0]);
+}
+
+/** Close outer boundary. */
 template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
   // surface  // loop 0   // 4 pieces // piece contents
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
@@ -1031,10 +1044,21 @@ template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &sur
   for (int i = 0; i < int(surfaces.size()); i++)
   {
     std::vector<std::vector<TPoint<T>>> loop;
-    surfaces[i]->closeOuterBoundaryLoop(loop);
+    closeOuterBoundaryLoop<T>(loop);
 
     boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
     boundariesUV.back().push_back(loop);
+  }
+}
+
+/** Clear outer boundary. */
+template <class T> void clearOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
+  // surface  // loop 0   // 4 pieces // piece contents
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    boundariesUV[i].clear();
   }
 }
 

@@ -246,6 +246,23 @@ template <class T> T calculateLength(std::vector<TPoint<T>> &points)
   return len;
 }
 
+/** Calculate length TILL segment, i.e. length is 0 if seg = 0, the whole line length
+  if seg = points.size() - 1. */
+template <class T> T calculateLength(std::vector<TPoint<T>> &points, int seg)
+{
+  T len = 0.0;
+
+  if (points.size() > 0)
+  {
+    for (int i = 0; i < seg; i++)
+    {
+      len += !(points[i + 1] - points[i]);
+    }
+  }
+
+  return len;
+}
+
 /** Calculate max difference. */
 template <class T> T difference(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &other)
 {
@@ -645,7 +662,7 @@ template <class T> void removeEdgeDuplicates(std::vector<std::pair<TPoint<T>,TPo
   the connection algorithm being "find the closest", not "take the first within tolerance". */
 template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>> &pedges,
   T maxedge, std::vector<std::vector<TPoint<T>>> &lines, T tolerance, bool bothways = true, 
-  bool removeedgeduplicates = false)
+  bool removeedgeduplicates = false, bool checkdirection = false)
 {
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges = pedges;
 
@@ -682,20 +699,85 @@ template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>>
 
   while (!allBusy(busy))
   {
+#if 1
+    // this fails only if all edges are busy; if distance > maxedge, a negative index is returned
+    bool reversed0 = false;
+    int index0 = -1;
+    T mindist0 = 0.0;
+    bool ok0 = findClosestNotBusy(edges,line.back(),busy,index0,reversed0,maxedge,&mindist0);
+
+    bool reversed1 = false;
+    int index1 = -1;
+    T mindist1 = 0.0;
+    bool ok1 = findClosestNotBusy(edges,line.front(),busy,index1,reversed1,maxedge,&mindist1);
+
+    if (ok0 && ok1)
+    {
+      if (mindist0 < mindist1)
+      {
+        ok1 = false;
+      } else
+      {
+        ok0 = false;
+      }
+    }
+
+    if (!ok0)
+    {
+      if (!ok1)
+      {
+        // restart
+        lines.push_back(line);
+        line.clear();
+
+        startedge = findFirstNotBusy(busy);
+        if (startedge < 0)
+          break;
+
+        line.push_back(edges[startedge].first);
+        line.push_back(edges[startedge].second);
+        busy[startedge] = true;
+      } else
+      {
+        if (reversed1)
+        {
+          line.insert(line.begin(),edges[index1].first);
+          busy[index1] = true;
+        } else
+        {
+          line.insert(line.begin(),edges[index1].second);
+          busy[index1] = true;
+        }
+      }
+    } else
+    {
+      if (reversed0)
+      {
+        line.push_back(edges[index0].first);
+        busy[index0] = true;
+      } else
+      {
+        line.push_back(edges[index0].second);
+        busy[index0] = true;
+      }
+    }
+
+#else
     // this fails only if all edges are busy; if distance > maxedge, a negative index is returned
     bool reversed = false;
 
     int index = -1;
-    bool ok0 = findClosestNotBusy(edges,line.back(),busy,index,reversed,maxedge);
+    T mindist0 = 0.0;
+    bool ok0 = findClosestNotBusy(edges,line.back(),busy,index,reversed,maxedge,&mindist0);
 
-    if (!ok0)
+    if (!ok0 || (checkdirection && reversed))
     {
       if (bothways)
       {
         bool reversed1 = false;
         int index1 = -1;
         bool ok1 = findClosestNotBusy(edges,line.front(),busy,index1,reversed1,maxedge);
-        if (!ok1)
+        if (!ok1 || (checkdirection && reversed1))
         {
           // restart
           lines.push_back(line);
@@ -737,6 +819,7 @@ template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>>
         busy[index] = true;
       }
     }
+#endif
   }
 
   if (!line.empty())
@@ -1120,12 +1203,11 @@ template <class T> bool straightLine(std::vector<TPoint<T>> &line, T toleranceCo
 }
 
 /** Get mass centre for points. */
-template <class T> bool calculateCentre(std::vector<TPoint<T>> &points, TPoint<T> &centre)
+template <class T> TPoint<T> calculateCentre(std::vector<TPoint<T>> &points)
 {
-  centre = TPoint<T>(0.0,0.0,0.0);
+  assert(!points.empty());
 
-  if (points.size() < 1)
-    return false;
+  TPoint<T> centre = TPoint<T>(0.0,0.0,0.0);
 
   for (auto c : points)
   {
@@ -1134,7 +1216,49 @@ template <class T> bool calculateCentre(std::vector<TPoint<T>> &points, TPoint<T
 
   centre /= T(points.size());
 
-  return true;
+  return centre;
+}
+
+/** Get normal for curve orientation direction. https://en.wikipedia.org/wiki/Curve_orientation */
+template <class T> TPoint<T> calculateNormalXY(std::vector<TPoint<T>> &points)
+{
+  assert(points.size() > 2);
+
+  // find point with min X and min Y
+  int index = -1;
+  T xmin = std::numeric_limits<T>::max();
+  T ymin = std::numeric_limits<T>::max();
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    if (points[i].X < xmin)
+    {
+      xmin = points[i].X;
+      ymin = points[i].Y;
+      index = i;
+    } else if (points[i].X == xmin && points[i].Y < ymin)
+    {
+      xmin = points[i].X;
+      ymin = points[i].Y;
+      index = i;
+    }
+  }
+
+  int i0 = index - 1;
+  if (i0 < 0)
+    i0 = int(points.size()) - 1;
+  int i1 = index + 1;
+  if (i1 >= int(points.size()))
+    i1 = 0;
+
+  TPoint<T> d0 = points[index] - points[i0];
+  TPoint<T> d1 = points[i1] - points[index];
+
+  assert((!d0) > TOLERANCE(T));
+  assert((!d1) > TOLERANCE(T));
+
+  TPoint<T> normal = +(d0 ^ d1);
+
+  return normal;
 }
 
 /** Close points. */
@@ -2112,6 +2236,47 @@ template <class T> int numTriplicates(std::vector<TPoint<T>> &points, T toleranc
   return count;
 }
 
+/** Remove triplicates. */
+template <class T> int removeTriplicates(std::vector<TPoint<T>> &points, T tolerance = PARM_TOLERANCE)
+{
+  if (points.size() < 3)
+    return 0;
+
+  int count = 0;
+  for (int i = int(points.size()) - 2; i >= 1; i--)
+  {
+    int i0 = i - 1;
+    int i1 = i;
+    int i2 = i + 1;
+
+    T d0 = !(points[i1] - points[i0]);
+    T d1 = !(points[i2] - points[i1]);
+
+    if (d0 < tolerance && d1 < tolerance)
+    {
+      points.erase(points.begin() + i2);
+      count++;
+    }
+  }
+
+  return count;
+}
+
+/** i -> i + 1 are duplicate points. */
+template <class T> bool isDuplicate(std::vector<TPoint<T>> &points, int i, T tolerance = PARM_TOLERANCE)
+{
+  int i1 = i + 1;
+
+  if (i < 0)
+    return false;
+
+  if (i1 >= points.size())
+    return false;
+
+  T dist = !(points[i1] - points[i]);
+  return (dist < tolerance);
+}
+
 /** Cut out newpoints from points by going round the contour from newpoints end to 
   newpoints start. */
 template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
@@ -2144,6 +2309,10 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
 
         if (dist < parmtolerance)
         {
+          // non-trivial bug
+          if (isDuplicate(points,i - 1,parmtolerance))
+            newpoints.push_back(points[i - 1]);
+
           newpoints.push_back(endUV);
           found = true;
           break;
@@ -2166,6 +2335,7 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
   {
     // add a duplicate to the end
     newpoints.push_back(points.back());
+    newpoints.push_back(points.back());
 
     // test starting part of points from 0 to seg0
     for (int i = 0; i <= seg0; i++)
@@ -2186,6 +2356,10 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
 
           if (dist < parmtolerance)
           {
+            // non-trivial bug
+            if (isDuplicate(points,i - 1,parmtolerance))
+              newpoints.push_back(points[i - 1]);
+
             newpoints.push_back(endUV);
             found = true;
             break;
@@ -2203,6 +2377,8 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
       }
     }
   }
+
+  removeTriplicates(newpoints,parmtolerance);
 
   n3 = numTriplicates(newpoints);
 
@@ -2225,7 +2401,106 @@ template <class T> void reverse(std::vector<std::vector<TPoint<T>>> &points)
   std::reverse(points.begin(),points.end());
 }
 
-/** Divide points by into two by a divider. */
+#if 1
+
+/** Divide points into two by a divider. */
+template <class T> bool divide(std::vector<TPoint<T>> &points, TPoint<T> &divider,
+  std::vector<std::vector<TPoint<T>>> &newpoints, T &U, 
+  T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  int index = findClosest<T>(points,divider);
+
+  // do not take front/backs
+  if (index < 0 || index == 0 || index == points.size() - 1)
+    return false;
+
+  TPoint<T> proj; 
+  int seg = -1;
+  T Useg = 0.5;
+  if (projectPointOnPoints(points,divider,proj,&seg,&Useg,parmtolerance))
+  {
+    // total length
+    T totallen = calculateLength(points);
+
+    // current length to projection point
+    T seglen = !(proj - points[seg]);
+    T len = calculateLength(points,seg);
+
+    U = (len + seglen) / totallen;
+    LIMIT(U,0.0,1.0);
+
+    std::vector<TPoint<T>> part0(points.begin(),points.begin() + seg + 1);
+    part0.push_back(proj);
+    removeDuplicates(part0,false,tolerance);
+
+    std::vector<TPoint<T>> part1(points.begin() + seg,points.end());
+    part1.insert(part1.begin(),proj);
+    removeDuplicates(part1,false,tolerance);
+
+    newpoints.clear();
+    newpoints.push_back(part0);
+    newpoints.push_back(part1);
+
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Divide points into two by a divider. Together with corresponding UV array. */
+template <class T> bool divide(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &pointsUV, TPoint<T> &divider, 
+  std::vector<std::vector<TPoint<T>>> &newpoints, std::vector<std::vector<TPoint<T>>> &newpointsUV,
+  T tolerance, T parmtolerance = PARM_TOLERANCE)
+{
+  int index = findClosest<T>(points,divider);
+
+  // do not take front/backs
+  if (index < 0 || index == 0 || index == points.size() - 1)
+    return false;
+
+  TPoint<T> proj; 
+  int seg = -1;
+  T Useg = 0.5;
+  if (projectPointOnPoints(points,divider,proj,&seg,&Useg,parmtolerance))
+  {
+    std::vector<TPoint<T>> part0(points.begin(),points.begin() + seg + 1);
+    part0.push_back(proj);
+    removeDuplicates(part0,false,tolerance);
+
+    std::vector<TPoint<T>> part1(points.begin() + seg,points.end());
+    part1.insert(part1.begin(),proj);
+    removeDuplicates(part1,false,tolerance);
+
+    newpoints.clear();
+    newpoints.push_back(part0);
+    newpoints.push_back(part1);
+
+    TPoint<T> projUV = pointsUV[seg] + (pointsUV[seg + 1] - pointsUV[seg]) * Useg;
+
+    std::vector<TPoint<T>> part0UV(pointsUV.begin(),pointsUV.begin() + seg + 1);
+    part0UV.push_back(projUV);
+    removeDuplicates(part0UV,false,tolerance);
+
+    std::vector<TPoint<T>> part1UV(pointsUV.begin() + seg,pointsUV.end());
+    part1UV.insert(part1UV.begin(),projUV);
+    removeDuplicates(part1UV,false,tolerance);
+
+    newpointsUV.clear();
+    newpointsUV.push_back(part0UV);
+    newpointsUV.push_back(part1UV);
+
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+#else
+
+/** Divide points by into two by a divider. This division is INACCURATE!
+  as the closest division points are sought. */
 template <class T> bool divide(std::vector<TPoint<T>> &points, TPoint<T> &divider,
   std::vector<std::vector<TPoint<T>>> &newpoints)
 {
@@ -2241,7 +2516,8 @@ template <class T> bool divide(std::vector<TPoint<T>> &points, TPoint<T> &divide
   return true;
 }
 
-/** Divide points by a divider. */
+/** Divide points by a divider. This division is INACCURATE!
+  as the closest division points are sought. */
 template <class T> void divide(std::vector<std::vector<TPoint<T>>> &points, TPoint<T> &divider)
 {
   for (int i = int(points.size()) - 1; i >= 0; i--)
@@ -2253,6 +2529,66 @@ template <class T> void divide(std::vector<std::vector<TPoint<T>>> &points, TPoi
       points.insert(points.begin() + i,newpoints.begin(),newpoints.end());
     }
   }
+}
+
+#endif
+
+/** Find longest piece. */
+template <class T> int longestPiece(std::vector<std::vector<TPoint<T>>> &points, T *pmaxlen = nullptr)
+{
+  int longest = -1;
+
+  T maxlen = 0.0;
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    T len = calculateLength(points[i]);
+    if (len > maxlen)
+    {
+      maxlen = std::max(len,maxlen);
+      longest = i;
+    }
+  }
+
+  if (pmaxlen)
+    *pmaxlen = maxlen;
+
+  return longest;
+}
+
+/** Find longest piece longest by number of points. */
+template <class T> int longestSizePiece(std::vector<std::vector<TPoint<T>>> &points)
+{
+  int longest = -1;
+
+  int maxlen = 0;
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    int len = int(points[i].size());
+    if (len > maxlen)
+    {
+      maxlen = std::max(len,maxlen);
+      longest = i;
+    }
+  }
+
+  return longest;
+}
+
+/** Get loop normal. Is it a hole or space around the hole? */
+template <class T> TPoint<T> getLoopNormal(std::vector<std::vector<TPoint<T>>> &points, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  std::vector<TPoint<T>> wholeloop;
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    wholeloop.insert(wholeloop.end(),points[i].begin(),points[i].end());
+  }
+
+  removeDuplicates<T>(wholeloop,false,parmtolerance);
+
+  TPoint<T> loopnormal = calculateNormalXY(wholeloop);
+
+  return loopnormal;
 }
 
 }

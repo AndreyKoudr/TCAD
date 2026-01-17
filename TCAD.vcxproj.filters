@@ -175,5 +175,8 @@
     <ClInclude Include="tbrep.h">
       <Filter>BLOCKS</Filter>
     </ClInclude>
+    <ClInclude Include="tboundary.h">
+      <Filter>SURFACES</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

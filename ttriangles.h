@@ -2793,6 +2793,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   other.getEdgeMinMax(ominedge,omaxedge);
 
   maxedge = std::max(maxedge,omaxedge) * 1.1; //!!!!!!!
+  minedge = std::min(minedge,ominedge);
 
   // this tolerance below is only used to remove duplicate intersection points,
   // no other purpose
@@ -3200,7 +3201,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   T bigtolerance = maxedge * 0.1; //!!!!!!
 
   // order lines from edges
-  bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true); 
+  bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true,false); 
 
 #if 0 
   bool print = true; 

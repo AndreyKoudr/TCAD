@@ -287,6 +287,12 @@ public:
     return this->position(0.5);
   }
 
+  /** Middle direction. */
+  TPoint<T> midDirection()
+  {
+    return tcad::midDirection<T>(this->cpoints);
+  }
+
   /** Shift this->cpoints to end (positive shift) or to start (negative shift). 
     It amkes sense for closed curves. */
   bool shiftClosed(int shift, T tolerance = TOLERANCE(T))
@@ -585,11 +591,14 @@ template <class T> int pointsOverlap(TPointCurve<T> &points, TPointCurve<T> &opo
   }
 }
 
-/** Do lines overlap?. returns 1 if second longer, 2 if first longer and 0 in failure. */
-template <class T> bool pointsOverlap(TPointCurve<T> &points, TPointCurve<T> &opoints, bool directandreverse, 
-  T tolerance, T parmtolerance = PARM_TOLERANCE)
+/** Do lines overlap?. NOT RELIABLE!!! points.equal() MAY RETURN VERY BIG DIFFERENCE. */
+template <class T> bool pointsEqual(TPointCurve<T> &points, TPointCurve<T> &opoints, bool directandreverse, 
+  T tolerance, bool *reversed = nullptr, int numpoints = MANY_POINTS)
 {
-  int i0 = pointsOverlap(points,opoints,tolerance,parmtolerance);
+  bool i0 = points.equal(opoints,tolerance,numpoints);
+
+  if (reversed)
+    *reversed = false;
 
   if (i0)
     return true;
@@ -597,8 +606,11 @@ template <class T> bool pointsOverlap(TPointCurve<T> &points, TPointCurve<T> &op
   if (directandreverse)
   {
     opoints.reverse();
-    int i1 = pointsOverlap(points,opoints,tolerance,parmtolerance);
+    bool i1 = points.equal(opoints,tolerance,numpoints);
     opoints.reverse();
+
+    if (reversed)
+      *reversed = true;
 
     if (i1)
       return true;
@@ -634,23 +646,81 @@ template <class T> int findOverlapping(std::vector<std::vector<TPoint<T>>> &line
   return int(list.size());
 }
 
-/** Find line inside line list. */
-template <class T> int findOverlapping(std::vector<std::vector<TPoint<T>>> &lines, std::vector<TPoint<T>> &line, 
-   bool directandreverse, std::vector<int> &list, double tolerance, double parmtolerance)
+/** Find lines overlapping a piece defined by loc. The last integer in the list 
+  is return type from pointsOverlap() - 1 second longer, 2 - first longer. */
+template <class T> int findOverlapping(std::array<LINT,3> loc, 
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> &lines, 
+  std::vector<std::array<LINT,4>> &list, double tolerance, double parmtolerance)
 {
-  list.clear();
+  TPointCurve<T> points(lines[loc[0]][loc[1]][loc[2]]);
 
-  TPointCurve<T> curve0(line);
-  for (int i = 0; i < int(lines.size()); i++)
+  for (int i = 0; i < lines.size(); i++)
   {
-    TPointCurve<T> curve1(lines[i]);
-    if (pointsOverlap<T>(curve0,curve1,directandreverse,tolerance,parmtolerance))
+    for (int j = 0; j < lines[i].size(); j++)
     {
-      list.push_back(i);
+      for (int k = 0; k < lines[i][j].size(); k++)
+      {
+        if (loc[0] == i && loc[1] == j && loc[2] == k)
+          continue;
+
+        TPointCurve<T> opoints(lines[i][j][k]);
+        int res = pointsOverlap<T>(points,opoints,tolerance,parmtolerance);
+        if (res)
+        {
+          list.push_back(std::array<LINT,4>({i,j,k,(LINT) res}));
+        }
+      }
     }
   }
 
   return int(list.size());
+}
+
+/** Find closest curve. Used to find a boundary piece coincident with one of curves[i]. */
+template <class T> bool findClosest(int i, std::vector<std::vector<TPointCurve<T>>> &curves,
+  std::vector<bool> &busy, std::pair<int,int> &res, T tolerance, T bigtolerance, 
+  bool *reversed = nullptr, T *pmindist = nullptr)
+{
+  // result
+  res.first = res.second = -1;
+
+  T mindist = std::numeric_limits<T>::max();
+  int kmin = -1;
+
+  for (int j = 0; j < int(curves.size()); j++)
+  {
+    if (!busy[j])
+      continue;
+
+    for (int k = 0; k < int(curves[i].size()); k++)
+    {
+      for (int l = 0; l < int(curves[j].size()); l++)
+      {
+        if (curves[i][k].length() > tolerance && curves[j][l].length() > tolerance)
+        {
+          T dist = !(curves[i][k].middle() - curves[j][l].middle());
+          if (dist < mindist)
+          {
+            mindist = dist;
+            res.first = j;
+            res.second = l;
+            kmin = k;
+          }
+        }
+      }
+    }
+  }
+
+  if (pmindist)
+    *pmindist = mindist;
+
+  // bool ok = pointsEqual<T>(curves[i][kmin],curves[res.first][res.second],true,bigtolerance,reversed);
+
+  bool ok = (mindist < bigtolerance);
+
+  *reversed = !(curves[i][kmin].midDirection() > curves[res.first][res.second].midDirection());
+
+  return ok;
 }
 
 }

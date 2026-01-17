@@ -324,6 +324,15 @@ template <class T> void deleteSurfaces(std::vector<TSplineSurface<T> *> &surface
   surfaces.clear();
 }
 
+/** Flip (reverse) surfaces. */
+template <class T> void reverseSurfaces(std::vector<TSplineSurface<T> *> &surfaces)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    surfaces[i]->reverseU();
+  }
+}
+
 /** Copy and transform list of surfaces. */
 template <class T> void copySurfaces(
   // input
@@ -374,6 +383,124 @@ template <class T> void makeSingleLoop(std::vector<TSplineSurface<T> *> &surface
   }
 }
 
+/** Get piece of boundary curve in XYZ from parametric boundariesUV. */
+template <class T> void getBoundaryPartXYZ(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+//surface     loop        part        points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  int surface, int loop, int part, 
+  std::vector<TPoint<T>> &points)
+{
+  points.clear();
+
+  // this curve should be XYZ, not UV
+  for (auto &UV : boundariesUV[surface][loop][part])
+  {
+    points.push_back(surfaces[surface]->position(UV.X,UV.Y));
+  }
+}
+
+/** Get loop index in XYZ. */
+template <class T> void getLoopXYZ(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+//surface     loop        part        points
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  int surface, int loopindex, std::vector<std::vector<TPoint<T>>> &loop)
+{
+  loop.clear();
+
+  for (int i = 0; i < int(boundariesUV[surface][loopindex].size()); i++)
+  {
+    std::vector<TPoint<T>> points;
+    getBoundaryPartXYZ(surfaces,boundariesUV,surface,loopindex,i,points);
+
+    loop.push_back(points);
+  }
+}
+
+/** Prepare outer loops (index 0) in XYZ coorinates. If a loop is empty, it generates
+  a default outer loop. */
+template <class T> void prepareLoopsXYZ(
+  std::vector<TSplineSurface<T> *> &surfaces,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<std::vector<std::vector<TPoint<T>>>> &loops)
+{
+  loops.clear();
+
+  assert(surfaces.size() == boundariesUV.size());
+
+  for (int i = 0; i < int(boundariesUV.size()); i++)
+  {
+    if (boundariesUV[i].empty())
+    {
+      // create default outer boundary
+      closeOuterBoundary(boundariesUV[i]);
+      std::vector<std::vector<TPoint<T>>> loop;
+      getLoopXYZ(surfaces,boundariesUV,i,0,loop); // 0 - outer loop
+
+      loops.push_back(loop);
+
+      // restore status quo
+      boundariesUV[i].clear();
+    } else
+    {
+      for (int k = 0; k < int(boundariesUV[i].size()); k++) // all loops
+      {
+        std::vector<std::vector<TPoint<T>>> loop;
+        getLoopXYZ(surfaces,boundariesUV,i,k,loop); 
+
+        loops.push_back(loop);
+      }
+    }
+  }
+}
+
+/** Prepare outer loops (index 0) in XYZ coorinates. If a loop is empty, it generates
+  a default outer loop. The same as previous but output as a list of boundary curves in 
+  TPointCurve<T>. */
+template <class T> void prepareLoopsXYZ(
+  std::vector<TSplineSurface<T> *> &surfaces,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<std::vector<TPointCurve<T>>> &curves)
+{
+  curves.clear();
+
+  assert(surfaces.size() == boundariesUV.size());
+
+  for (int i = 0; i < int(boundariesUV.size()); i++)
+  {
+    curves.push_back(std::vector<TPointCurve<T>>());
+
+    if (boundariesUV[i].empty())
+    {
+      // create default outer boundary
+      closeOuterBoundary(boundariesUV[i]);
+      std::vector<std::vector<TPoint<T>>> loop;
+      getLoopXYZ(surfaces,boundariesUV,i,0,loop); // 0 - outer loop
+
+      for (int j = 0; j < int(loop.size()); j++)
+      {
+        TPointCurve<T> curve(loop[j]);
+        curves.back().push_back(curve);
+      }
+
+      // restore status quo
+      boundariesUV[i].clear();
+    } else
+    {
+      for (int k = 0; k < int(boundariesUV[i].size()); k++) // all loops
+      {
+        std::vector<std::vector<TPoint<T>>> loop;
+        getLoopXYZ(surfaces,boundariesUV,i,k,loop); 
+
+        for (int j = 0; j < int(loop.size()); j++)
+        {
+          TPointCurve<T> curve(loop[j]);
+          curves.back().push_back(curve);
+        }
+      }
+    }
+  }
+}
+
 /** Approximate surfaces min/max. */
 template <class T> std::pair<TPoint<T>,TPoint<T>> getMinMax(std::vector<TSplineSurface<T> *> &surfaces)
 {
@@ -393,6 +520,123 @@ template <class T> std::pair<TPoint<T>,TPoint<T>> getMinMax(std::vector<TSplineS
   }
 
   return result;
+}
+
+/** Close face loops for intersected faces by boundaries. */
+template <class T> void closeFaceLoops(std::vector<TSplineSurface<T> *> &surfaces,
+  // surface  // loop 0   // 4 pieces // piece contents
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> &boundaries,
+  std::vector<int> &exlist,
+  T maxseglen, T parmtolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+{
+  exlist.clear();
+
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    if (!boundaries[i].empty())
+    {
+      boundariesUV[i].clear();
+
+      std::vector<std::vector<TPoint<T>>> boundary;
+      for (int j = 0; j < int(boundaries[i].size()); j++)
+      {
+        for (int k = 0; k < int(boundaries[i][j].size()); k++)
+        {
+          //std::vector<int> list;
+          //if (!findOverlapping(boundary,boundaries[i][j][k],true,list,tolerance,parmtolerance))
+          if (boundaries[i][j][k].size() > 1)
+            boundary.push_back(boundaries[i][j][k]);
+        }
+      }
+
+      if (!boundary.empty())
+      {
+        bool reversed = false;
+        int index = longestSizePiece(boundary);
+        int boundaryside = boundaryLine<T>(boundary[index],parmtolerance,&reversed);
+        if (boundaryside >= 0)
+        {
+          if (reversed)
+          {
+            exlist.push_back(i);
+          } else
+          {
+            closeOuterBoundary(boundariesUV[i]);
+          }
+        } else
+        {
+          bool ok = surfaces[i]->closeBoundaryLoop(boundary,boundariesUV[i],
+            maxseglen * 2.0,parmtolerance,manypoints - 1);
+        }
+      }
+    }
+  }
+}
+
+/** Close connected faces with same boundary direction. */
+template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &surfaces,
+  // surface  // loop 0   // 4 pieces // piece contents
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<int> &exlist,
+  T tolerance, T bigtolerance, int numattempts = 500)
+{
+  for (int a = 0; a < numattempts; a++)
+  {
+    std::vector<int> list;
+
+    std::vector<std::vector<TPointCurve<T>>> curves;
+
+    prepareLoopsXYZ<T>(surfaces,boundariesUV,curves);
+
+//outputDebugString(""); 
+
+    for (int i = 0; i < int(boundariesUV.size()); i++)
+    {
+      // we need to make a correct outer loop taking its orientation from cut surfaces
+      if (boundariesUV[i].empty())
+      {
+        // find an edge connected to a outerloop edge from cut surfaces which already
+        // have a proper orientation after cuts
+
+        std::vector<bool> busy(boundariesUV.size(),false);
+        for (int j = 0; j < int(boundariesUV.size()); j++)
+        {
+          // this orientation is correct after cuts
+          busy[j] = ((i != j) && !boundariesUV[j].empty());
+        }
+
+        std::pair<int,int> res;
+        bool reversed = false;
+        T mindist = 0.0;
+        if (findClosest<T>(i,curves,busy,res,tolerance,bigtolerance,&reversed,&mindist))
+        {
+
+//outputDebugString("i+ " + to_string(i) + " j " + to_string(res.first) + " k " + to_string(res.second) + 
+//  " mindist " + to_string(mindist) + 
+//  " tolerance " + to_string(tolerance,12) + " bigtolerance " + to_string(bigtolerance,12));
+
+          // it must be empty
+          bool keepempty = (std::find(exlist.begin(),exlist.end(),i) != exlist.end());
+
+          if (reversed ^ keepempty)
+            list.push_back(i);
+        } else
+        {
+//outputDebugString("i- " + to_string(i) + " mindist " + to_string(mindist) + 
+//  " tolerance " + to_string(tolerance,12) + " bigtolerance " + to_string(bigtolerance,12)); 
+        }
+      }
+    }
+
+    if (list.empty())
+      break;
+
+    for (int i : list)
+    {
+      closeOuterBoundary(boundariesUV[i]);
+    }
+  }
 }
 
 

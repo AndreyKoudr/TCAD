@@ -163,13 +163,13 @@ Blocks
 - 5.15 Blocks : sub with rudder<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_rudder_solid.png)
 
-Booleans, not complete!
+Booleans
 =======================
 
 - 6.0 B-reps : booleans, box and sphere
 - 6.1 B-reps : booleans, box and sphere, union, subraction and intersection
-- 6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)
-
+- 6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Booleans.png)
 
 Important parameters in main.cpp
 ================================
@@ -205,7 +205,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Booleans, not complete!.<br /> 
+Booleans, working. Back to submarine to apply booleans for cutting part of the rudder.<br /> 
 
 
 

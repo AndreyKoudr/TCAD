@@ -247,7 +247,7 @@ template <class T, class Tint> bool solveSystemWithPivoting(Tint N, T A[], T B[]
 template <typename T> bool solveSystem2x2(T a11, T a12, T a21, T a22, T b1, T b2, T *x1, T *x2)
 {
   T det = a11 * a22 - a12 * a21;
-  if (std::abs(det) <= TOLERANCE(T) * TOLERANCE(T)) //!!!!!!!
+  if (std::abs(det) <= TOLERANCE(T) * TOLERANCE(T)) //!!!
     return false;
   *x1 = (b1 * a22 - b2 * a12) / det;
   *x2 = (a11 * b2 - a21 * b1) / det;
