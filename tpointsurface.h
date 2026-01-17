@@ -57,6 +57,8 @@ public:
   /** Constructor. */
   TPointSurface(const TPointSurface &other) : TBaseSurface<T>()
   {
+    this->name = other.name;
+
     this->K1 = other.K1;
     this->K2 = other.K2;
     this->cpoints = other.cpoints;
@@ -71,6 +73,8 @@ public:
   /** Assignment operator. */
   TPointSurface &operator = (const TPointSurface &other)  
   {
+    this->name = other.name;
+
     this->K1 = other.K1;
     this->K2 = other.K2;
     this->cpoints = other.cpoints;

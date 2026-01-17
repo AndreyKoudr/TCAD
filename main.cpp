@@ -1717,8 +1717,8 @@ int main(int argc, char* argv[])
       blade0->makeTransform(&t);
       blade1->makeTransform(&t);
 
-      blade0->name = "blade" + to_string(i) + " 0";
-      blade1->name = "blade" + to_string(i) + " 1";
+      blade0->name = "blade" + to_string(i) + "0";
+      blade1->name = "blade" + to_string(i) + "1";
 
       surfaces.push_back(blade0);
       surfaces.push_back(blade1);
@@ -2139,6 +2139,88 @@ int main(int argc, char* argv[])
     }
   }
 
+#if 1
+
+  /*****************************************************************************
+    5.14 Blocks : filleted wing with rudder cut out
+  *****************************************************************************/
+
+  cout << "5.14 Blocks : filleted wing with rudder cut out" << endl;
+
+  TBrep<T> brudder;
+
+  {
+    T subL = 74.0;
+    T tolerance = subL * PARM_TOLERANCE;
+
+    // numbers of spline intervals along U and V
+    int K1 = 40;
+    int K2 = 20;
+
+    // wing 1 : single stern bottom
+    std::vector<TPoint<T>> upperlower; 
+    std::pair<T,T> res = makeAirfoilPointsXY<T>(NACA0009<T>,true,false,K1,upperlower,true);
+
+    std::vector<std::vector<TPoint<T>>> camberpoints; 
+    std::vector<std::vector<T>> thickness;
+    makeBladeCamberThickness<T>(upperlower,KiloWing1Contour<T>,K1,K2,camberpoints,thickness,tolerance); 
+
+    // create camber surface
+    TSplineSurface<T> cambersurface(camberpoints,K1,SPLINE_DEGREE,K2,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+    saveSurfaceIges(&cambersurface,DEBUG_DIR + "Kilo wing 1 (rudder) camber surface.iges");
+
+    std::vector<TSplineSurface<T> *> surfaces;
+    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+    makeFlatRoundedTop(surfaces[0],surfaces[1],0.1,surfaces);
+
+    // rotate around
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(1,0,0),180.0 * CPI);
+    // move to place
+    t.Translate(TPoint<T>(-84.0 * KHCOEF));
+
+    makeTransform(surfaces,&t);
+
+    nameSurfaces<T>(surfaces,"rudder");
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo wing 1 (rudder) surfaces.iges");
+
+    brudder = TBrep<T>(surfaces);
+  }
+
+  /*****************************************************************************
+    5.15 Blocks : submarine with rudder
+  *****************************************************************************/
+
+  cout << "5.15 Blocks : sub with rudder" << endl;
+
+  TBrep<T> bsub = TBrep<T>(subsurfaces,subboundariesUV);
+
+  {
+    bsub = bsub + brudder;
+
+    // save surfaces
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudder surfaces trimmed.iges");
+
+    // save solid
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = bsub.saveSolidIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudder solid.iges",
+      bsub.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+    ASSERT(ok);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#else
+
   /*****************************************************************************
     5.14 Blocks : filleted submarine wings
   *****************************************************************************/
@@ -2186,6 +2268,8 @@ int main(int argc, char* argv[])
 
     makeTransform(surfaces,&t);
 
+    nameSurfaces<T>(surfaces,"rudder");
+
     saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo wing 1 (rudder) surfaces.iges");
 
     subwingsurfaces = surfaces;
@@ -2201,9 +2285,6 @@ int main(int argc, char* argv[])
     T hullL = 74.0;
     T tolerance = hullL * PARM_TOLERANCE;
 
-    // name for debugging
-    nameSurfaces<T>(subwingsurfaces,"wing");
-
     // make boundaries
     closeOuterBoundary<T>(subwingsurfaces,subwingboundariesUV);
 
@@ -2213,6 +2294,9 @@ int main(int argc, char* argv[])
       tolerance,PARM_TOLERANCE,false);
 
     saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings surfaces trimmed.iges");
+
+    // to display numbers in IGES
+    //clearNames(subsurfaces);
 
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings solid.iges",
@@ -2225,6 +2309,8 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
+
+#endif
 
 #endif
 

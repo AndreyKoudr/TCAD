@@ -793,7 +793,7 @@ template <class T> bool makeTrimming(
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   // the same edge on another surface (defined by intersections), 100% reliable, no tolerances
   T tolerance, T parmtolerance = PARM_TOLERANCE, 
-  bool clearboundaries = true, bool bodyleft = true, int manypoints = MANY_POINTS2D,
+  bool clearboundaries = false, bool bodyleft = true, int manypoints = MANY_POINTS2D,
   bool improveintersection = false, int maxiter = 20, T relaxcoef = 0.5,
 #if 1 //!!!!!!!
   T refinestartU = 0.5, T refineendU = 0.5, 

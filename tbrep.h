@@ -135,6 +135,25 @@ public:
     }
   }
 
+  /** Constructor, takes ownership of psurfaces pointers, do not delete them. */
+  TBrep(std::vector<TSplineSurface<T> *> &psurfaces, 
+    T ptolerance = -1.0, T parmtolerance = PARM_TOLERANCE)
+  {
+    surfaces = psurfaces;
+
+    // make boundaries
+    prepareOuterBoundary<T>(surfaces,boundariesUV);
+
+    if (ptolerance > 0.0)
+    {
+      tolerance = ptolerance;
+    } else
+    {
+      std::pair<TPoint<T>,TPoint<T>> minmax = getMinMax(surfaces);
+      tolerance = !(minmax.second - minmax.first) * parmtolerance;
+    }
+  }
+
   /** Clear all. */
   void clear()
   {
@@ -243,7 +262,7 @@ public:
     nameSurfaces<T>(surfaces,name);
 
     // make boundaries
-    closeOuterBoundary<T>(surfaces,boundariesUV);
+    prepareOuterBoundary<T>(surfaces,boundariesUV);
   }
 
   /** Make surface of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
@@ -270,7 +289,7 @@ public:
     nameSurfaces<T>(surfaces,name);
 
     // make boundaries
-    closeOuterBoundary<T>(surfaces,boundariesUV);
+    prepareOuterBoundary<T>(surfaces,boundariesUV);
   }
 
   /** Make sphere of radius R. */

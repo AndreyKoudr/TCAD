@@ -59,6 +59,8 @@ public:
   /** Constructor. */
   TBezierSurface(const TBezierSurface &other) : TBaseSurface<T>()
   {
+    this->name = other.name;
+
     this->K1 = other.K1;
     this->K2 = other.K2;
     this->cpoints = other.cpoints;
@@ -71,6 +73,8 @@ public:
   /** Assignment operator. */
   TBezierSurface &operator = (const TBezierSurface &other)  
   {
+    this->name = other.name;
+
     this->K1 = other.K1;
     this->K2 = other.K2;
     this->cpoints = other.cpoints;

@@ -547,9 +547,9 @@ template <class T> bool makeSurfaceLinesIges(std::vector<tcad::TSplineSurface<T>
   for (int i = 0; i < int(surfaces.size()); i++)
   {
     // for entity 128
-    s = makeIgesDirectoryLine0(dirline1280, -1, -1, &dcount);
+    s = makeIgesDirectoryLine0(dirline1280,-1,-1,&dcount);
     lines.push_back(s);
-    s = makeIgesDirectoryLine1(dirline1281, -1, -1, &dcount, "");
+    s = makeIgesDirectoryLine1(dirline1281,-1,-1,&dcount,surfaces[i]->name.c_str());
     lines.push_back(s);
   }
 
@@ -579,7 +579,7 @@ template <class T> bool makeSurfaceLinesIges(std::vector<tcad::TSplineSurface<T>
     int after = int(lines.size());
 
     // modify directory
-    lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,"");
+    lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,surfaces[i]->name.c_str());
     dir128line++;
   }
 
@@ -642,11 +642,11 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
   {
     if (!boundariesUV[i].empty())
     {
-      char name[32] = { 0 };
+      std::string name = surfaces[i]->name.empty() ? to_string(i) : surfaces[i]->name;
     
       s = makeIgesDirectoryLine0(dirline1280,-1,-1,&dcount);
       lines.push_back(s);
-      s = makeIgesDirectoryLine1(dirline1281,-1,-1,&dcount,name);
+      s = makeIgesDirectoryLine1(dirline1281,-1,-1,&dcount,name.c_str());
       lines.push_back(s);
       dlines++;
     
@@ -658,14 +658,14 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
           // curve B (126)
           s = makeIgesDirectoryLine0(dirline1260,-1,-1,&dcount);
           lines.push_back(s);
-          s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name);
+          s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name.c_str());
           lines.push_back(s);
           dlines++;
 
           // curve C (126)
           s = makeIgesDirectoryLine0(dirline1260,-1,-1,&dcount);
           lines.push_back(s);
-          s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name);
+          s = makeIgesDirectoryLine1(dirline1261,-1,-1,&dcount,name.c_str());
           lines.push_back(s);
           dlines++;
         }
@@ -673,7 +673,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
         // bounding curve (141)
         s = makeIgesDirectoryLine0(dirline1410,-1,-1,&dcount);
         lines.push_back(s);
-        s = makeIgesDirectoryLine1(dirline1411,-1,-1,&dcount,name);
+        s = makeIgesDirectoryLine1(dirline1411,-1,-1,&dcount,name.c_str());
         lines.push_back(s);
         dlines++;
       }
@@ -681,7 +681,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
       // trimmed surface (143)
       s = makeIgesDirectoryLine0(dirline1430,-1,-1,&dcount);
       lines.push_back(s);
-      s = makeIgesDirectoryLine1(dirline1431,-1,-1,&dcount,name);
+      s = makeIgesDirectoryLine1(dirline1431,-1,-1,&dcount,name.c_str());
       lines.push_back(s);
       dlines++;
     }
@@ -708,7 +708,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
       tcad::TSplineSurface<T> *surface = surfaces[i];
 
       // patch name
-      char name[32] = { 0 };
+      std::string name = surface->name;
     
       // modify directory
       lines[dir128line] = makeIgesDirectoryLine0(dirline1280,pcount,-1,&dcount);
@@ -720,7 +720,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
       int after = int(lines.size());
 
       // modify directory
-      lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,"");
+      lines[dir128line] = makeIgesDirectoryLine1(dirline1281,-1,(after - before),&dcount,name.c_str());
       dir128line++;
 
       // loops
@@ -747,7 +747,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
           int after = int(lines.size());
 
           // modify directory
-          lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name);
+          lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name.c_str());
           dir128line++;
         }
 
@@ -765,7 +765,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
           after = int(lines.size());
 
           // modify directory
-          lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name);
+          lines[dir128line] = makeIgesDirectoryLine1(dirline1261,-1,(after - before),&dcount,name.c_str());
           dir128line++;
         }
 
@@ -785,7 +785,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
         after = int(lines.size());
 
         // modify directory
-        lines[dir128line] = makeIgesDirectoryLine1(dirline1411,-1,(after - before),&dcount,name);
+        lines[dir128line] = makeIgesDirectoryLine1(dirline1411,-1,(after - before),&dcount,name.c_str());
         dir128line++;
 
         list141.push_back(dcount - 1 * 2);
@@ -801,7 +801,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
       after = int(lines.size());
 
       // modify directory
-      lines[dir128line] = makeIgesDirectoryLine1(dirline1431,-1,(after - before),&dcount,name);
+      lines[dir128line] = makeIgesDirectoryLine1(dirline1431,-1,(after - before),&dcount,name.c_str());
       dir128line++;
     } // loops
   } // loop on surfaces
@@ -893,10 +893,12 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   // 126 curves
   for (int i = 0; i < edges.size(); i++)
   {
+    std::string name = to_string(int(edges[i][3])) + "-" + to_string(int(edges[i][7]));
+
     // curve C (126)
     s = makeIgesDirectoryLine0(sdirline1260,-1,-1,&dcount);
     lines.push_back(s);
-    s = makeIgesDirectoryLine1(sdirline1261,-1,-1,&dcount,"");
+    s = makeIgesDirectoryLine1(sdirline1261,-1,-1,&dcount,name.c_str());
     lines.push_back(s);
     dlines++;
   }
@@ -914,12 +916,12 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     if (!boundariesUV[i].empty())
     {
       // patch name
-      char name[32] = { 0 };
+      std::string name = surfaces[i]->name.empty() ? to_string(i) : surfaces[i]->name;
 
       // for entity 128
       s = makeIgesDirectoryLine0(sdirline1280,-1,-1,&dcount);
       lines.push_back(s);
-      s = makeIgesDirectoryLine1(sdirline1281,-1,-1,&dcount,name);
+      s = makeIgesDirectoryLine1(sdirline1281,-1,-1,&dcount,name.c_str());
       lines.push_back(s);
       dlines++;
 
@@ -928,7 +930,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
       {
         s = makeIgesDirectoryLine0(sdirline5080,-1,-1,&dcount);
         lines.push_back(s);
-        s = makeIgesDirectoryLine1(sdirline5081,-1,-1,&dcount,name);
+        s = makeIgesDirectoryLine1(sdirline5081,-1,-1,&dcount,name.c_str());
         lines.push_back(s);
         dlines++;
       }
@@ -936,7 +938,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
       // 510
       s = makeIgesDirectoryLine0(sdirline5100,-1,-1,&dcount);
       lines.push_back(s);
-      s = makeIgesDirectoryLine1(sdirline5101,-1,-1,&dcount,name);
+      s = makeIgesDirectoryLine1(sdirline5101,-1,-1,&dcount,name.c_str());
       lines.push_back(s);
       dlines++;
     }
@@ -990,6 +992,8 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     std::vector<TPoint<T>> points;
     getBoundaryPartXYZ<T>(surfaces,boundariesUV,int(e[3]),int(e[4]),int(e[5]),points);
 
+    std::string name = to_string(int(e[3])) + "-" + to_string(int(e[7]));
+
     // make spline curve
     tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
 
@@ -1007,7 +1011,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     after = int(lines.size());
 
     // modify directory
-    lines[sdirline] = makeIgesDirectoryLine1(sdirline1261,-1,int(after - before),&dcount,"");
+    lines[sdirline] = makeIgesDirectoryLine1(sdirline1261,-1,int(after - before),&dcount,name.c_str());
     sdirline++;
   }
 
@@ -1033,7 +1037,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     if (!boundariesUV[i].empty())
     {
       // patch name
-      char name[32] = { 0 };
+      std::string name = surfaces[i]->name.empty() ? to_string(i) : surfaces[i]->name;
 
       TSplineSurface<T> *surface = surfaces[i];
 
@@ -1050,7 +1054,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
       int after = int(lines.size());
 
       // modify directory
-      lines[sdirline] = makeIgesDirectoryLine1(sdirline1281,-1,(after - before),&dcount,name);
+      lines[sdirline] = makeIgesDirectoryLine1(sdirline1281,-1,(after - before),&dcount,name.c_str());
       sdirline++;
 
       // 508
@@ -1069,7 +1073,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
         after = int(lines.size());
 
         // modify directory
-        lines[sdirline] = makeIgesDirectoryLine1(sdirline5081,-1,(after - before),&dcount,name);
+        lines[sdirline] = makeIgesDirectoryLine1(sdirline5081,-1,(after - before),&dcount,name.c_str());
         sdirline++;
       }
 
@@ -1083,7 +1087,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
       after = int(lines.size());
 
       // modify directory
-      lines[sdirline] = makeIgesDirectoryLine1(sdirline5101,-1,(after - before),&dcount,name);
+      lines[sdirline] = makeIgesDirectoryLine1(sdirline5101,-1,(after - before),&dcount,name.c_str());
       sdirline++;
     }
   }

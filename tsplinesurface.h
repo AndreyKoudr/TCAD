@@ -58,6 +58,8 @@ public:
   /** Constructor. */
   TSplineSurface(const TSplineSurface &other) : TBaseSurface<T>()
   {
+    this->name = other.name;
+
     this->K1 = other.K1;
     this->K2 = other.K2;
     this->M1 = other.M1;
@@ -78,6 +80,8 @@ public:
   /** Assignment operator. */
   TSplineSurface &operator = (const TSplineSurface &other)  
   {
+    this->name = other.name;
+
     this->K1 = other.K1;
     this->K2 = other.K2;
     this->M1 = other.M1;
@@ -1019,7 +1023,16 @@ template <class T> void nameSurfaces(std::vector<TSplineSurface<T> *> &surfaces,
 {
   for (int i = 0; i < int(surfaces.size()); i++)
   {
-    surfaces[i]->name = prefix + " " + to_string(i);
+    surfaces[i]->name = prefix + to_string(i);
+  }
+}
+
+/** Clear names to display surface number in IGES. */
+template <class T> void clearNames(std::vector<TSplineSurface<T> *> &surfaces)
+{
+  for (int i = 0; i < int(surfaces.size()); i++)
+  {
+    surfaces[i]->name.clear();
   }
 }
 
