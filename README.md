@@ -16,11 +16,11 @@ The plan :
 - surfaces (done)
 - volumes (done)
 - FFD (done)
+- intersections, trimmed (done, testing)
+- booleans (done, testing)
 - blocks (<B>doing...</B>)
 
 <B>to do</B>
-- intersections, maybe implicit
-- booleans, maybe implicit
 - 3D mesh
 - level sets
 - finite elements
@@ -170,6 +170,8 @@ Booleans
 - 6.1 B-reps : booleans, box and sphere, union, subraction and intersection
 - 6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Booleans.png)
+- 5.15 Blocks : applying booleans to cut part of rudder<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shaft_0.png)
 
 Important parameters in main.cpp
 ================================
@@ -205,7 +207,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Booleans, working. Back to submarine to apply booleans for cutting part of the rudder.<br /> 
+Applying booleans to submarine parts.<br /> 
 
 
 

@@ -998,7 +998,10 @@ public:
 
       // there are holes, we need an outer loop as loop[0]
       if (numholes)
-        loops.insert(loops.end(),outerloop); 
+      {
+        if (loops.empty()) //!!!
+          loops.insert(loops.end(),outerloop); 
+      }
 
       loops.insert(loops.end(),innerloops.begin(),innerloops.end());
 

@@ -154,7 +154,7 @@ namespace tcad {
 #define MANY_POINTS 501
 
 // default number of points for surface intersections etc.
-#define MANY_POINTS2D 101 
+#define MANY_POINTS2D 101
 
 // default number of points for volumes
 #define MANY_POINTS3D 51 

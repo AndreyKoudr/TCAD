@@ -35,7 +35,9 @@
 
 using namespace tcad;
 
-// SET WHAT TO DEBUG (below) //!!!!!!!
+//==============================================================================
+// SET WHAT TO DEBUG (below)
+//==============================================================================
 #define DEBUG_COMMON 
 #define DEBUG_SUBMARINE
 #define DEBUG_BOOLEANS
@@ -2139,15 +2141,13 @@ int main(int argc, char* argv[])
     }
   }
 
-#if 1
-
   /*****************************************************************************
     5.14 Blocks : filleted wing with rudder cut out
   *****************************************************************************/
 
   cout << "5.14 Blocks : filleted wing with rudder cut out" << endl;
 
-  TBrep<T> brudder;
+  TBrep<T> brudder,bcylinder;
 
   {
     T subL = 74.0;
@@ -2187,9 +2187,14 @@ int main(int argc, char* argv[])
 
     nameSurfaces<T>(surfaces,"rudder");
 
-    saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo wing 1 (rudder) surfaces.iges");
+    bcylinder.tolerance = tolerance;
+    bcylinder.makeCylinder(2.4,0.25,0.3,"",4,4,1,1);
 
-    brudder = TBrep<T>(surfaces);
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
+    bcylinder.makeTransform(&t);
+
+    brudder = TBrep<T>(surfaces,tolerance);
   }
 
   /*****************************************************************************
@@ -2201,7 +2206,11 @@ int main(int argc, char* argv[])
   TBrep<T> bsub = TBrep<T>(subsurfaces,subboundariesUV);
 
   {
+    // plus rudder
     bsub = bsub + brudder;
+
+    // minus cutting part
+    bsub = bsub - bcylinder;
 
     // save surfaces
     bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudder surfaces trimmed.iges");
@@ -2218,99 +2227,6 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
-
-#else
-
-  /*****************************************************************************
-    5.14 Blocks : filleted submarine wings
-  *****************************************************************************/
-
-  cout << "5.14 Blocks : filleted sub wings" << endl;
-
-  // sub wing
-  std::vector<TSplineSurface<T> *> subwingsurfaces;
-  // sub wing trimming curves
-  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> subwingboundariesUV;
-
-  {
-    T subL = 74.0;
-    T tolerance = subL * PARM_TOLERANCE;
-
-    // numbers of spline intervals along U and V
-    int K1 = 40;
-    int K2 = 20;
-
-    // wing 1 : single stern bottom
-    std::vector<TPoint<T>> upperlower; 
-    std::pair<T,T> res = makeAirfoilPointsXY<T>(NACA0009<T>,true,false,K1,upperlower,true);
-
-    std::vector<std::vector<TPoint<T>>> camberpoints; 
-    std::vector<std::vector<T>> thickness;
-    makeBladeCamberThickness<T>(upperlower,KiloWing1Contour<T>,K1,K2,camberpoints,thickness,tolerance); 
-
-    // create camber surface
-    TSplineSurface<T> cambersurface(camberpoints,K1,SPLINE_DEGREE,K2,SPLINE_DEGREE,
-      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
-
-    saveSurfaceIges(&cambersurface,DEBUG_DIR + "Kilo wing 1 (rudder) camber surface.iges");
-
-    std::vector<TSplineSurface<T> *> surfaces;
-    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
-      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
-
-    makeFlatRoundedTop(surfaces[0],surfaces[1],0.1,surfaces);
-
-    // rotate around
-    TTransform<T> t;
-    t.Rotate(TPoint<T>(1,0,0),180.0 * CPI);
-    // move to place
-    t.Translate(TPoint<T>(-84.0 * KHCOEF));
-
-    makeTransform(surfaces,&t);
-
-    nameSurfaces<T>(surfaces,"rudder");
-
-    saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo wing 1 (rudder) surfaces.iges");
-
-    subwingsurfaces = surfaces;
-  }
-
-  /*****************************************************************************
-    5.15 Blocks : submarine with wings
-  *****************************************************************************/
-
-  cout << "5.15 Blocks : sub with wings" << endl;
-
-  {
-    T hullL = 74.0;
-    T tolerance = hullL * PARM_TOLERANCE;
-
-    // make boundaries
-    closeOuterBoundary<T>(subwingsurfaces,subwingboundariesUV);
-
-    // make solid, do not clear old boundaries
-    makeTrimming(subwingsurfaces,subsurfaces,subwingboundariesUV,subboundariesUV,UNITE,
-      subsurfaces,subboundariesUV,
-      tolerance,PARM_TOLERANCE,false);
-
-    saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings surfaces trimmed.iges");
-
-    // to display numbers in IGES
-    //clearNames(subsurfaces);
-
-    std::vector<std::vector<TPoint<T>>> badedges;
-    bool ok = saveSolidIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+hump+propeller+wings solid.iges",
-      tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
-
-    ASSERT(ok);
-
-    if (!ok)
-    {
-      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
-    }
-  }
-
-#endif
 
 #endif
 
@@ -2408,7 +2324,7 @@ int main(int argc, char* argv[])
         ASSERT(ok4);
 
         bool ok5 = boxplussphere.saveSolidIges(DEBUG_DIR + "Box+sphere solid.iges",
-          tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+          tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges); 
 
         if (!ok5)
         {

@@ -196,7 +196,7 @@ template <class T> bool findClosestPiece(
     {
       for (int k = 0; k < int(middles[i][j].size()); k++)
       {
-        if (busy[i][j][k])
+        if (!busy.empty() && busy[i][j][k])
           continue;
 
         T dist = !(middles[i][j][k] - middle);
@@ -453,7 +453,7 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   std::vector<TPoint<T>> &vertices, 
   std::vector<std::array<LINT,11>> &edges,
   T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
-  T closestcoef = 0.1, bool makefix = true, int attempts = 50)
+  T closestcoef = 0.1, bool makefix = true, int attempts = 50) //!!!!!!!
 {
   // step 1 : make vertices and middlevertices
   vertices.clear();
@@ -488,7 +488,10 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   // fill edges array
   for (int i = 0; i < int(edgepairs.size()); i++)
   {
-    if (edgepairs[i].size() == 2)
+    if (edgepairs[i].size() == 1)
+    {
+      // just a place to insert smth to investigate edge pairs
+    } else if (edgepairs[i].size() == 2)
     {
       std::array<LINT,3> loc0 = edgepairs[i][0];
       std::array<LINT,3> loc1 = edgepairs[i][1];

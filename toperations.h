@@ -522,6 +522,13 @@ template <class T> std::pair<TPoint<T>,TPoint<T>> getMinMax(std::vector<TSplineS
   return result;
 }
 
+/** Approximate surfaces size. */
+template <class T> T surfacesSize(std::vector<TSplineSurface<T> *> &surfaces)
+{
+  std::pair<TPoint<T>,TPoint<T>> minmax = getMinMax(surfaces);
+  return !(minmax.second - minmax.first);
+}
+
 /** Close face loops for intersected faces by boundaries. */
 template <class T> void closeFaceLoops(std::vector<TSplineSurface<T> *> &surfaces,
   // surface  // loop 0   // 4 pieces // piece contents
@@ -536,7 +543,7 @@ template <class T> void closeFaceLoops(std::vector<TSplineSurface<T> *> &surface
   {
     if (!boundaries[i].empty())
     {
-      boundariesUV[i].clear();
+//!!! do not do      boundariesUV[i].clear();
 
       std::vector<std::vector<TPoint<T>>> boundary;
       for (int j = 0; j < int(boundaries[i].size()); j++)

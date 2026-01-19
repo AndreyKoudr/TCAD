@@ -795,14 +795,14 @@ template <class T> bool makeTrimming(
   T tolerance, T parmtolerance = PARM_TOLERANCE, 
   bool clearboundaries = false, bool bodyleft = true, int manypoints = MANY_POINTS2D,
   bool improveintersection = false, int maxiter = 20, T relaxcoef = 0.5,
-#if 1 //!!!!!!!
+#if 0 //!!!!!!!
   T refinestartU = 0.5, T refineendU = 0.5, 
   T refinestartV = 0.5, T refineendV = 0.5,
-  int maxcoef = 1) //!!!
+  int maxcoef = 1) 
 #else
   T refinestartU = 1.0, T refineendU = 1.0, //!!!!!!!
   T refinestartV = 1.0, T refineendV = 1.0,
-  int maxcoef = 1) //!!!
+  int maxcoef = 1)
 #endif
 {
   // temporary copies of surfaces and boundaries
@@ -835,6 +835,10 @@ template <class T> bool makeTrimming(
   // set good surface subdivisions for triangles (they better be uniform for threading)
   std::vector<TSplineSurface<T> *> allsurfaces = tsurfaces0;
   allsurfaces.insert(allsurfaces.end(),tsurfaces1.begin(),tsurfaces1.end());
+
+  T surfacessize0 = surfacesSize(tsurfaces0);
+  T surfacessize1 = surfacesSize(tsurfaces1);
+  T minsurfacessize = std::min<T>(surfacessize0,surfacessize1);
 
   // find min surfaces size
   T minsize = std::numeric_limits<T>::max();
@@ -869,6 +873,7 @@ template <class T> bool makeTrimming(
 
     int numpointsU = manypoints * coef0;
     int numpointsV = manypoints * coef1;
+
     tsurfaces0[i]->createTriangles(*tris,numpointsU,numpointsV,
       refinestartU,refineendU,refinestartV,refineendV);
 
@@ -1274,7 +1279,7 @@ template <class T> bool makeTrimming(
   ASSERT(surfaces.size() == boundariesUV.size());
 
   // make single loop everywhere to keep Rhino happy
-  //!!!!!!! makeSingleLoop(surfaces,boundariesUV); //!!!!!!!
+  //!!!!!!! makeSingleLoop(surfaces,boundariesUV); //!!!!!!! not correct for a single hole
 
   return true;
 }

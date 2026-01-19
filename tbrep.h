@@ -162,6 +162,14 @@ public:
     //!!! incorrect tolerance = 0.0;
   }
 
+  void closeOuterBoundary()
+  {
+    boundariesUV.clear();
+    tcad::closeOuterBoundary<T>(surfaces,boundariesUV);
+
+    assert(surfaces.size() == boundariesUV.size());
+  }
+
   //===== Booleans =====
 
   /** Booleans : union. */
@@ -223,7 +231,7 @@ public:
   /** Transform. */
   void makeTransform(TTransform<T> *t)
   {
-    makeTransform(surfaces,t);
+    tcad::makeTransform<T>(surfaces,t);
   }
 
   //===== Solid? =====
@@ -266,8 +274,7 @@ public:
   }
 
   /** Make surface of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
-    The contour has axial coordinate in countourAxisCoord and radial 
-    coordinate in countourRadialCoord.
+    The contour has axial coordinate in countourAxisCoord and radial coordinate in countourRadialCoord.
     numfaces is that along circumference. 
     U is circumferential, V - axial parameteric directions. */
   void makeAxisymmetricBody(std::vector<std::vector<TPoint<T>>> &contour,
@@ -296,9 +303,7 @@ public:
   void makeSphere(T R,
     std::string name = "",
     // for faces around
-    int numfaces = 2, int pointsperface = 64, //!!!!!!!
-  //  int numfaces = 4, int pointsperface = 64,
- //   int numfaces = 16, int pointsperface = 64,
+    int numfaces = 2, int pointsperface = 64, 
     // for a countour along
     int numcontourpoints = MANY_POINTS2D, 
     int K1 = 32, int K2 = 32, 
@@ -311,18 +316,18 @@ public:
     // in XY, around (0,0)
     makeEllipseXY<T>(numcontourpoints,numfaces,TPoint<T>(),R,R,contour,0.0,180.0);
 
+    // contour goes with decreasing Z (ellipse X from 0 to 180), so
     reverse(contour); //!!!
 
     // contour in XY
     makeAxisymmetricBody(contour,AxisX,AxisY,
       name,numfaces * 2,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
-//!!!      name,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
   }
 
   /** Make ellipsoid with a,b,c as semiaxes. */
   void makeEllipsoid(T a, T b, T c,
     std::string name = "",
-    int numfaces = 7, int pointsperface = 8, //!!!!!!!
+    int numfaces = 7, int pointsperface = 8, 
     int numcontourpoints = MANY_POINTS2D, 
     int K1 = 32, int K2 = 32, 
     int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
@@ -336,6 +341,52 @@ public:
     t.Resize(TPoint<T>(a,b,c));
 
     makeTransform(surfaces,&t);
+  }
+
+  /** Make cylinder of radius R of length L around Z with centre at 0,0,0. */
+  void makeCylinder(T L, T Rbottom, T Rtop,
+    std::string name = "",
+    // num faces around
+    int numfaces = 4, 
+    // num faces along L
+    int numfacesL = 4,
+    // we go from bottom (min Z)
+    int numfacesbottom = 0,
+    // to top (max Z)
+    int numfacestop = 0,
+    // points to construct spline edge
+    int pointsperface = 64, 
+    // for a countour along
+    int numcontourpoints = MANY_POINTS2D, 
+    int K1 = 32, int K2 = 32, 
+    int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
+    CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
+    CurveEndType startV = END_FIXED, CurveEndType endV = END_FIXED)
+  {
+    assert(numfaces >= 2);
+    assert(numfacesL >= 1);
+
+    std::vector<std::vector<TPoint<T>>> contour;
+    std::vector<TPoint<T>> points;
+
+    if (numfacesbottom)
+    {
+      makeStraightLine<T>(TPoint<T>(-L * 0.5,0.0),TPoint<T>(-L * 0.5,Rbottom),numfacesbottom + 1,points);
+      contour.push_back(points);
+    }
+
+    makeStraightLine<T>(TPoint<T>(-L * 0.5,Rbottom),TPoint<T>(L * 0.5,Rtop),numfacesL + 1,points);
+    contour.push_back(points);
+
+    if (numfacestop)
+    {
+      makeStraightLine<T>(TPoint<T>(L * 0.5,Rtop),TPoint<T>(L * 0.5,0.0),numfacestop + 1,points);
+      contour.push_back(points);
+    }
+
+    // contour in XY
+    makeAxisymmetricBody(contour,AxisX,AxisY,
+      name,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
   }
 
   //===== Export =====
