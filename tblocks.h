@@ -129,7 +129,7 @@ template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberp
   assert(camberpoints.size() == thickness.size());
   assert(camberpoints[0].size() == thickness[0].size());
 
-//!!!!!!  surfaces.clear();
+//!!!  surfaces.clear();
 
   int K1 = int(camberpoints[0].size()) - 1;
   int K2 = int(camberpoints.size()) - 1;
@@ -161,11 +161,12 @@ template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberp
 
   reverseRows(lowerpoints);
 
-  // approximate
 #if 0
+  // exact
   TSplineSurface<T> *upper = new TSplineSurface<T>(upperpoints,M1,M2,startU,endU,startV,endV);
   TSplineSurface<T> *lower = new TSplineSurface<T>(lowerpoints,M1,M2,startU,endU,startV,endV);
 #else
+  // approximate
   TSplineSurface<T> *upper = new TSplineSurface<T>(upperpoints,K1,M1,K2,M2,startU,endU,startV,endV);
   TSplineSurface<T> *lower = new TSplineSurface<T>(lowerpoints,K1,M1,K2,M2,endU,startU,startV,endV); // it was reversed
 #endif
@@ -741,15 +742,16 @@ template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour
   Axes countourAxialCoord, Axes countourRadialCoord,
   int numfaces, int pointsperface, int K1, int K2, 
   std::vector<TSplineSurface<T> *> &surfaces, 
+  T angdegfrom = 0.0, T angdegto = 360.0, 
   int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
   CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
   CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
 {
-  T da = 360.0 / T(numfaces);
+  T da = (angdegto - angdegfrom) / T(numfaces);
   for (int i = 0; i < numfaces; i++)
   {
-    T a0 = T(i) * da;
-    T a1 = T(i + 1) * da;
+    T a0 = angdegfrom + T(i) * da;
+    T a1 = angdegfrom + T(i + 1) * da;
 
     TSplineSurface<T> *surface = makeSurfaceOfRevolution(contour,countourAxialCoord,countourRadialCoord,
       pointsperface,a0,a1,K1,K2,M1,M2,startU,endU,startV,endV);
@@ -766,6 +768,7 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
   Axes countourAxialCoord, Axes countourRadialCoord,
   int numfaces, int pointsperface, int K1, int K2, 
   std::vector<TSplineSurface<T> *> &surfaces, 
+  T angdegfrom = 0.0, T angdegto = 360.0, 
   int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
   CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
   CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
@@ -773,7 +776,7 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
   for (int i = 0; i < int(contour.size()); i++)
   {
     makeSurfacesOfRevolution(contour[i],countourAxialCoord,countourRadialCoord,
-      numfaces,pointsperface,K1,K2,surfaces,M1,M2,startU,endU,startV,endV);
+      numfaces,pointsperface,K1,K2,surfaces,angdegfrom,angdegto,M1,M2,startU,endU,startV,endV);
   }
 }
 
@@ -822,7 +825,7 @@ template <class T> bool makeTrimming(
   {
   }
 
-  if (clearboundaries)
+  if (clearboundaries || operation == SUBTRACT || operation == INTERSECT) //!!!!!!!
   {
     tboundariesUV0.clear();
     tboundariesUV1.clear();

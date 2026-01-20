@@ -1598,6 +1598,8 @@ int main(int argc, char* argv[])
 
 #ifdef DEBUG_SUBMARINE
 
+#if 1 //!!!!!!!
+
   /*****************************************************************************
     5.4 Blocks : blade
   *****************************************************************************/
@@ -1633,9 +1635,9 @@ int main(int argc, char* argv[])
 
     cout << "5.5 Blocks : surfaces of revolution : propeller hub" << endl;
 
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,8,8,surfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,8,8,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,8,8,surfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 
     t.LoadIdentity();
@@ -1742,18 +1744,18 @@ int main(int argc, char* argv[])
 
     // + hub
 #if 0 //!!!!!!!
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 #else
-    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    //!!!!!!! makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    //!!!!!!! makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
     //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    //makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,hsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    //makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
     //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
 #endif
 
@@ -1823,7 +1825,7 @@ int main(int argc, char* argv[])
     // make axisymmetric hull
     smoothPointsByBezier(KiloHull<T>[1],END_FIXED,END_CLAMPED,50);
     smoothPointsByBezier(KiloHull<T>[3],END_CLAMPED,END_CLAMPED,50);
-    makeSurfacesOfRevolution<T>(KiloHull<T>,AxisZ,AxisX,8,9,16,32,hullsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(KiloHull<T>,AxisZ,AxisX,8,9,16,32,hullsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_CLAMPED); 
 
     TTransform<T> t;
@@ -1880,7 +1882,7 @@ int main(int argc, char* argv[])
     shaftcontour.push_back(TPoint<T>(0.2,0.0,-29.6));
 
     // make axisymmetric shaft
-    makeSurfacesOfRevolution<T>(shaftcontour,AxisZ,AxisX,8,9,8,8,shaftsurfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeSurfacesOfRevolution<T>(shaftcontour,AxisZ,AxisX,8,9,8,8,shaftsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_FREE,END_FREE,END_FREE,END_FREE); 
 
     TTransform<T> t;
@@ -2141,17 +2143,22 @@ int main(int argc, char* argv[])
     }
   }
 
+#endif
+
   /*****************************************************************************
     5.14 Blocks : filleted wing with rudder cut out
   *****************************************************************************/
 
   cout << "5.14 Blocks : filleted wing with rudder cut out" << endl;
 
-  TBrep<T> brudder,bcylinder;
+  // rudder
+  TBrep<T> brudder;
 
   {
     T subL = 74.0;
     T tolerance = subL * PARM_TOLERANCE;
+
+    //===== rudder =====
 
     // numbers of spline intervals along U and V
     int K1 = 40;
@@ -2187,15 +2194,51 @@ int main(int argc, char* argv[])
 
     nameSurfaces<T>(surfaces,"rudder");
 
-    bcylinder.tolerance = tolerance;
-    bcylinder.makeCylinder(2.4,0.25,0.3,"",4,4,1,1);
+    brudder = TBrep<T>(surfaces,tolerance);
 
+    //==== rudder cutter : cylinder + box =====
+
+    // contains two boxes + half cylinder with NO FACES INSIDE
+
+    TBrep<T> bruddercut(tolerance);
+
+    bruddercut.makeBox(TPoint<T>(-28.0,-0.3,-4.4),TPoint<T>(-24.0,0.0,-2.0));
+    bruddercut.makeBox(TPoint<T>(-28.0,0.0,-4.4),TPoint<T>(-24.0,0.3,-2.0));
+
+    bruddercut.deleteFace(8);
+    bruddercut.deleteFace(7);
+    bruddercut.deleteFace(3);
+    bruddercut.deleteFace(1);
+
+    TBrep<T> bcylinder(tolerance);
+
+    bcylinder.makeCylinder(2.4,0.3,0.3,"",4,4,1,1,64,MANY_POINTS2D,-90.0,90.0);
+
+    // move half cylinder to stern
     t.LoadIdentity();
     t.Translate(TPoint<T>(-24.0,0.0,-3.2));
     bcylinder.makeTransform(&t);
 
-    brudder = TBrep<T>(surfaces,tolerance);
+    // two boxes + half cylinder
+    bruddercut.addFaces(bcylinder);
+
+    bruddercut.closeOuterBoundary();
+    bruddercut.saveSurfacesIges(DEBUG_DIR + "Rudder cutter surfaces trimmed.iges");
+
+    //===== Intersect rudder with cutter body to get rudder plane shape =====
+
+    TBrep<T> bplane = brudder ^ bruddercut;
+
+    bplane.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
+
+    //===== Subtract cutter body from rudder to make space for rudder plane =====
+
+    brudder = brudder - bruddercut;
+
+    brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.iges");
   }
+
+#if 1
 
   /*****************************************************************************
     5.15 Blocks : submarine with rudder
@@ -2208,9 +2251,6 @@ int main(int argc, char* argv[])
   {
     // plus rudder
     bsub = bsub + brudder;
-
-    // minus cutting part
-    bsub = bsub - bcylinder;
 
     // save surfaces
     bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudder surfaces trimmed.iges");
@@ -2227,6 +2267,7 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
+#endif
 
 #endif
 

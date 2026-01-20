@@ -718,7 +718,8 @@ template <class T> bool findClosest(int i, std::vector<std::vector<TPointCurve<T
 
   bool ok = (mindist < bigtolerance);
 
-  *reversed = !(curves[i][kmin].midDirection() > curves[res.first][res.second].midDirection());
+  if (ok)
+    *reversed = !(curves[i][kmin].midDirection() > curves[res.first][res.second].midDirection());
 
   return ok;
 }

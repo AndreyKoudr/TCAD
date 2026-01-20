@@ -171,7 +171,8 @@ Booleans
 - 6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Booleans.png)
 - 5.15 Blocks : applying booleans to cut part of rudder<br />
-![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shaft_0.png)
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shaft_0.png)<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_cut.png)
 
 Important parameters in main.cpp
 ================================

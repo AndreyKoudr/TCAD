@@ -964,7 +964,14 @@ public:
 
     // step 1 : prepare outer loop
     std::vector<std::vector<TPoint<T>>> outerloop;
-    closeOuterBoundaryLoop(outerloop,numdivisions);
+
+    if (!loops.empty()) //!!!!!!!
+    {
+      outerloop = loops[0];
+    } else
+    {
+      closeOuterBoundaryLoop(outerloop,numdivisions);
+    }
 
     // step 2 : combine cut pieces into a single line
     std::vector<std::vector<TPoint<T>>> cut = cutUV;

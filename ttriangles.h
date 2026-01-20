@@ -173,6 +173,16 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   oedges[1] = std::pair<TPoint<T>,TPoint<T>>(other[1],other[2]);
   oedges[2] = std::pair<TPoint<T>,TPoint<T>>(other[2],other[0]);
 
+//  // to track coplanar case
+//  TPoint<T> normal = +((tri[1] - tri[0]) ^ (tri[2] - tri[1]));
+//  TPoint<T> onormal = +((other[1] - other[0]) ^ (other[2] - other[1]));
+//
+//  // angle between triangles in degrees
+//  T angdeg = (normal < onormal) * PCI;
+//
+//if (std::abs(angdeg) < 2.0 || std::abs(angdeg - 180.0) < 2.0)
+//outputDebugString(std::string("ang = ") + to_string(angdeg,14));
+
   intrs.clear();
 
   // tri edges with other triangle

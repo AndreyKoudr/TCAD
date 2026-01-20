@@ -170,6 +170,12 @@ public:
     assert(surfaces.size() == boundariesUV.size());
   }
 
+  void clearOuterBoundary()
+  {
+    // make boundaries
+    tcad::clearOuterBoundary<T>(surfaces,boundariesUV);
+  }
+
   //===== Booleans =====
 
   /** Booleans : union. */
@@ -245,6 +251,26 @@ public:
     return createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance);
   }
 
+  //===== Faces =====
+
+  /** Delete face from surfaces. */
+  void deleteFace(int index)
+  {
+    DELETE_CLASS(surfaces[index]);
+    surfaces.erase(surfaces.begin() + index);
+    boundariesUV.erase(boundariesUV.begin() + index);
+  }
+
+  /** Add faces from another brep. */
+  void addFaces(TBrep<T> &other)
+  {
+    for (int i = 0; i < int(other.surfaces.size()); i++)
+    {
+      surfaces.push_back(new TSplineSurface<T>(*other.surfaces[i]));
+    }
+    boundariesUV.insert(boundariesUV.end(),other.boundariesUV.begin(),other.boundariesUV.end());
+  }
+
   //===== Blocks =====
 
   /** Max box between min and max. */
@@ -254,7 +280,7 @@ public:
     int numpointsU = 11, int numpointsV = 11, int numpointsW = 11)
   {
     // clear all
-    clear();
+    //!!!!!!! do not clear();
 
     // make 3D box
     TSplineVolume<T> box(min,max,m1,m2,m3,numpointsU,numpointsV,numpointsW);
@@ -280,17 +306,18 @@ public:
   void makeAxisymmetricBody(std::vector<std::vector<TPoint<T>>> &contour,
     Axes countourAxialCoord, Axes countourRadialCoord,
     std::string name = "",
+    T angdegfrom = 0.0, T angdegto = 360.0, 
     int numfaces = 16, int pointsperface = 17, int K1 = 16, int K2 = 16, 
     int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
     CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
     CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
   {
     // clear all
-    clear();
+    //!!!!!!! do not clear();
 
     // make surfaces
     makeSurfacesOfRevolution<T>(contour,countourAxialCoord,countourRadialCoord,numfaces,pointsperface,K1,K2, 
-      surfaces,M1,M2,startU,endU,startV,endV);
+      surfaces,angdegfrom,angdegto,M1,M2,startU,endU,startV,endV);
 
     // name for debugging
     nameSurfaces<T>(surfaces,name);
@@ -306,6 +333,7 @@ public:
     int numfaces = 2, int pointsperface = 64, 
     // for a countour along
     int numcontourpoints = MANY_POINTS2D, 
+    T angdegfrom = 0.0, T angdegto = 360.0,
     int K1 = 32, int K2 = 32, 
     int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
     CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
@@ -321,7 +349,7 @@ public:
 
     // contour in XY
     makeAxisymmetricBody(contour,AxisX,AxisY,
-      name,numfaces * 2,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+      name,angdegfrom,angdegto,numfaces * 2,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
   }
 
   /** Make ellipsoid with a,b,c as semiaxes. */
@@ -358,6 +386,7 @@ public:
     int pointsperface = 64, 
     // for a countour along
     int numcontourpoints = MANY_POINTS2D, 
+    T angdegfrom = 0.0, T angdegto = 360.0,    
     int K1 = 32, int K2 = 32, 
     int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
     CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
@@ -386,7 +415,7 @@ public:
 
     // contour in XY
     makeAxisymmetricBody(contour,AxisX,AxisY,
-      name,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+      name,angdegfrom,angdegto,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
   }
 
   //===== Export =====
