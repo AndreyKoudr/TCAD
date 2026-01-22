@@ -104,6 +104,30 @@ template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERA
     std::abs(p.Y - 1.0) < parmtolerance);
 }
 
+/** All points are boundary? */
+template <class T> bool boundaryPoints(std::vector<TPoint<T>> &points, T parmtolerance = PARM_TOLERANCE)
+{
+  for (auto &p : points)
+  {
+    if (!boundaryPoint<T>(p,parmtolerance))
+      return false;
+  }
+
+  return true;
+}
+
+/** All points are boundary? */
+template <class T> bool boundaryPoints(std::vector<std::vector<TPoint<T>>> &points, T parmtolerance = PARM_TOLERANCE)
+{
+  for (auto &p : points)
+  {
+    if (!boundaryPoints<T>(p,parmtolerance))
+      return false;
+  }
+
+  return true;
+}
+
 /** Boundary piece number? */
 template <class T> int boundarySide(TPoint<T> p, T parmtolerance = PARM_TOLERANCE)
 {

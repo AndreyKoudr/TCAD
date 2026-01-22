@@ -1598,7 +1598,7 @@ int main(int argc, char* argv[])
 
 #ifdef DEBUG_SUBMARINE
 
-#if 1 //!!!!!!!
+#if 1 
 
   /*****************************************************************************
     5.4 Blocks : blade
@@ -1743,7 +1743,7 @@ int main(int argc, char* argv[])
     std::vector<TSplineSurface<T> *> hsurfaces;
 
     // + hub
-#if 0 //!!!!!!!
+#if 0 //!!!
     makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
     makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,2,17,16,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
@@ -1753,7 +1753,7 @@ int main(int argc, char* argv[])
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
     makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,AxisZ,AxisX,7,9,16,16,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
-    //!!!!!!! makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
+    //!!! makeSurfacesOfRevolution<T>(KiloPropHub<T>,7,9,8,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
     //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
     //makeSurfacesOfRevolution<T>(KiloPropHubEnd<T>,7,9,8,8,hsurfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
     //  END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
@@ -2210,14 +2210,30 @@ int main(int argc, char* argv[])
     bruddercut.deleteFace(3);
     bruddercut.deleteFace(1);
 
+    // half of cylinder is part of cutter body
     TBrep<T> bcylinder(tolerance);
 
+    // this is hollow shaft to hinge plate
+    TBrep<T> bshaft0(tolerance);
+    TBrep<T> bshaft1(tolerance);
+
     bcylinder.makeCylinder(2.4,0.3,0.3,"",4,4,1,1,64,MANY_POINTS2D,-90.0,90.0);
+
+    bshaft0.makeCylinder(0.2,0.05,0.05,"",4,4,0,0,64,MANY_POINTS2D,0.0,360.0);
+    bshaft1.makeCylinder(0.2,0.05,0.05,"",4,4,0,0,64,MANY_POINTS2D,0.0,360.0);
 
     // move half cylinder to stern
     t.LoadIdentity();
     t.Translate(TPoint<T>(-24.0,0.0,-3.2));
     bcylinder.makeTransform(&t);
+
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(-24.0,0.0,-2.005));
+    bshaft0.makeTransform(&t);
+
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(-24.0,0.0,-4.416));
+    bshaft1.makeTransform(&t);
 
     // two boxes + half cylinder
     bruddercut.addFaces(bcylinder);
@@ -2225,15 +2241,42 @@ int main(int argc, char* argv[])
     bruddercut.closeOuterBoundary();
     bruddercut.saveSurfacesIges(DEBUG_DIR + "Rudder cutter surfaces trimmed.iges");
 
+    bshaft0.closeOuterBoundary();
+    bshaft0.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 0 surfaces trimmed.iges");
+    bshaft1.closeOuterBoundary();
+    bshaft1.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 1 surfaces trimmed.iges");
+
     //===== Intersect rudder with cutter body to get rudder plane shape =====
 
     TBrep<T> bplane = brudder ^ bruddercut;
+
+    // make it a bit smaller to fit the cut
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Resize(TPoint<T>(0.95,0.95,0.95));
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),10.0 * CPI);
+    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
+    bplane.makeTransform(&t);
 
     bplane.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
 
     //===== Subtract cutter body from rudder to make space for rudder plane =====
 
     brudder = brudder - bruddercut;
+
+    brudder.clearNames();
+    brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.iges");
+
+    bplane.nameSurfaces("plane");
+    bshaft0.nameSurfaces("shaft0");
+    bplane = bplane + bshaft0;
+    bplane = bplane + bshaft1;
+
+    bplane.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
+
+    brudder.nameSurfaces("rudder");
+    bplane.nameSurfaces("plane");
+    brudder = brudder + bplane;
 
     brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.iges");
   }

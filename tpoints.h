@@ -165,6 +165,26 @@ template <class T> TPoint<T> midPoint(std::vector<TPoint<T>> &points)
   return points[i];
 }
 
+/** Get next increasing element of an array. */
+template <class T> int next(int size, int index)
+{
+  if (++index >= int(size))
+  {
+    index = 0;
+  }
+  return index;
+}
+
+/** Get previuos element of an array. */
+template <class T> int prev(int size, int index)
+{
+  if (--index < 0)
+  {
+    index = size - 1;
+  }
+  return index;
+}
+
 /** Calculate min/max among a list of points; imin, imax contain corresponding indices as reals. */
 template <class T> bool calculateMinMax(std::vector<TPoint<T>> &points, TPoint<T> *min, TPoint<T> *max,
   TPoint<T> *imin = nullptr, TPoint<T> *imax = nullptr)
@@ -463,6 +483,91 @@ template <class T> int findClosestNotBusyExcept(std::vector<TPoint<T>> &points, 
   return index;
 }
 
+/** Is point inside boundary? Ray casting. */
+template <class T> bool insideBoundary(std::vector<std::vector<TPoint<T>>> &boundary, TPoint<T> point, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  std::vector<TPoint<T>> intrs;
+
+  for (int i = 0; i < int(boundary.size()); i++)
+  {
+    for (int j = 0; j < int(boundary[i].size()) - 1; j++)
+    {
+      TPoint<T> p0 = boundary[i][j];
+      TPoint<T> p1 = boundary[i][j + 1];
+
+      // right on the boundary?
+      T t = 0;
+      TPoint<T> intr;
+      if (projectPointOnSegment(point,p0,p1,&intr,&t,parmtolerance))
+      {
+        T d = !(point - intr);
+        if (d < parmtolerance)
+          return true;
+      }
+
+      // make ray casting
+      T t1 = 0.0;
+      T t2 = 0.0;
+      T Xi = p1.X;
+      T Yi = p1.Y;
+
+      if (intersectSegmentsXY(p0.X,p0.Y,p1.X,p1.Y,point.X,point.Y,point.X,point.Y + 10.0, // important to cast ray along V
+        &t1,&t2,&Xi,&Yi) && (t1 >= 0.0) && (t1 <= 1.0) && (t2 >= 0.0)) // t2 >= 0 - single ray direction
+      {
+        intrs.push_back(TPoint<T>(Xi,Yi));
+      }
+
+      // old code :
+      //T t1,t2,Ui,Vi;
+      //bool res = s->IntersectSegmentUV(0,U,V,U,V + 10.0,&t1,&t2,&Ui,&Vi,0.0); 
+
+      //if (res)
+      //{
+      //  T dist = GetDistFromPointToLine(TPoint<T>(U,V),TPoint<T>(s->tu[0][0],s->tv[0][0]),
+      //    +(TPoint<T>(s->tu[0][1],s->tv[0][1]) - TPoint<T>(s->tu[0][0],s->tv[0][0])));
+      //  if (dist > minparmdist)
+      //  { 
+      //    intrs.push_back(TPoint<T>(Ui,Vi));
+      //  }
+      //}
+    }
+  }
+
+  // exclude equal intersections
+  if (intrs.size() == 0)
+  {
+    return false;
+  } else if (intrs.size() == 1)
+  {
+    return true;
+  } else
+  {
+    bool found = false;
+
+    do {
+      found = false;
+      for (int i = 0; i < intrs.size() - 1; i++)
+      {
+        for (int j = i + 1; j < intrs.size(); j++)
+        {
+          T dist = !(intrs[i] - intrs[j]);
+          if (dist < parmtolerance)
+          {
+            intrs.erase(intrs.begin() + j);
+            found = true;
+            break;
+          }
+        }
+        if (found)
+          break;
+      }
+    } while (found);
+
+    return (intrs.size() % 2 == 1);
+  }
+}
+
 /** Calculate number of intersections of segment p0->p1 with edges in XY plane. */
 template <class T> int numEdgeIntersectionsXY(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
   TPoint<T> p0, TPoint<T> p1, T tolerance)
@@ -544,11 +649,13 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
   {
     TPoint<T> p0 = points0[i];
     TPoint<T> p1 = points0[i + 1];
+    T d0 = !(p1 - p0);
 
     for (int j = 0; j < points1.size() - 1; j++)
     {
       TPoint<T> v0 = points1[j];
       TPoint<T> v1 = points1[j + 1];
+      T d1 = !(v1 - v0);
     
       T t1 = 0.0;
       T t2 = 0.0;
@@ -556,8 +663,16 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
       TPoint<T> ip,iv;
       if (intersectSegments(p0,p1,v0,v1,t1,t2,dist,&ip,&iv))
       {
-        if ((t1 >= 0.0 - parmtolerance) && (t1 <= 1.0 + parmtolerance) && 
-          (t2 >= 0.0 - parmtolerance) && (t2 <= 1.0 + parmtolerance))
+#if 0
+        T parmtolerance0 = (d0 < TOLERANCE(T)) ? parmtolerance : parmtolerance / d0; //!!!!!!!
+        T parmtolerance1 = (d1 < TOLERANCE(T)) ? parmtolerance : parmtolerance / d1;
+#else
+        T parmtolerance0 = parmtolerance;
+        T parmtolerance1 = parmtolerance;
+#endif
+
+        if ((t1 >= 0.0 - parmtolerance0) && (t1 <= 1.0 + parmtolerance0) && 
+          (t2 >= 0.0 - parmtolerance1) && (t2 <= 1.0 + parmtolerance1))
         { 
           if (dist < tolerance) //!!!
           {
@@ -1243,15 +1358,24 @@ template <class T> TPoint<T> calculateNormalXY(std::vector<TPoint<T>> &points)
     }
   }
 
-  int i0 = index - 1;
-  if (i0 < 0)
-    i0 = int(points.size()) - 1;
-  int i1 = index + 1;
-  if (i1 >= int(points.size()))
-    i1 = 0;
+  int i0 = prev<T>(int(points.size()),index);
+  int i1 = next<T>(int(points.size()),index);
 
-  TPoint<T> d0 = points[index] - points[i0];
-  TPoint<T> d1 = points[i1] - points[index];
+  TPoint<T> d0,d1;
+  for (int a = 0; a < 5; a++)
+  {
+    d0 = points[index] - points[i0];
+    if ((!d0) > TOLERANCE(T))
+      break;
+    i0 = prev<T>(int(points.size()),i0);
+  }
+  for (int a = 0; a < 5; a++)
+  {
+    d1 = points[i1] - points[index];
+    if ((!d1) > TOLERANCE(T))
+      break;
+    i1 = next<T>(int(points.size()),i1);
+  }
 
   assert((!d0) > TOLERANCE(T));
   assert((!d1) > TOLERANCE(T));

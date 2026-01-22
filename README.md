@@ -172,6 +172,7 @@ Booleans
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Booleans.png)
 - 5.15 Blocks : applying booleans to cut part of rudder<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shaft_0.png)<br />
+... and connect to the whole solid by shaft<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_cut.png)
 
 Important parameters in main.cpp
@@ -208,7 +209,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Applying booleans to submarine parts.<br /> 
+Applying booleans to submarine parts. Rudder done, doing remaining wings.<br /> 
 
 
 

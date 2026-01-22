@@ -708,7 +708,7 @@ template <class T> bool makeTrimmedSurfaceLinesIges(std::vector<tcad::TSplineSur
       tcad::TSplineSurface<T> *surface = surfaces[i];
 
       // patch name
-      std::string name = surface->name;
+      std::string name = surfaces[i]->name.empty() ? to_string(i) : surfaces[i]->name;
     
       // modify directory
       lines[dir128line] = makeIgesDirectoryLine0(dirline1280,pcount,-1,&dcount);

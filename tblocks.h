@@ -319,7 +319,7 @@ template <class T> void makeBladeCamberThickness(std::vector<TPoint<T>> &upperlo
   // smooth 
   if (smoothcontour)
   {
-#if 1 //!!!!!!!
+#if 1 //!!!
     smoothPointsBySplineCurve(middlepoints,5,END_FIXED,END_FREE);
     smoothPointsBySplineCurve(width,5,END_FIXED,END_FREE);
     smoothPointsBySplineCurve(twist,5,END_FIXED,END_FREE);
@@ -559,7 +559,7 @@ template <class T> void makeBladeCamberThickness(std::vector<TPoint<T>> &upperlo
   // smooth 
   if (smoothcontour)
   {
-#if 1 //!!!!!!!
+#if 1 //!!!
     smoothPointsBySplineCurve(left,5,END_FIXED,END_FREE);
     smoothPointsBySplineCurve(right,5,END_FIXED,END_FREE);
 #else
@@ -803,7 +803,7 @@ template <class T> bool makeTrimming(
   T refinestartV = 0.5, T refineendV = 0.5,
   int maxcoef = 1) 
 #else
-  T refinestartU = 1.0, T refineendU = 1.0, //!!!!!!!
+  T refinestartU = 1.0, T refineendU = 1.0, 
   T refinestartV = 1.0, T refineendV = 1.0,
   int maxcoef = 1)
 #endif
@@ -1076,6 +1076,14 @@ template <class T> bool makeTrimming(
 
         if (ok)
         {
+          // check if the cutting curve is inside existing loops
+          if (!cutInsideLoops<T>(boundary0,tboundariesUV0[i],parmtolerance) ||
+            !cutInsideLoops<T>(boundary1,tboundariesUV1[j],parmtolerance))
+            ok = false;
+        }
+
+        if (ok)
+        {
 #if 1
           iboundary0 = boundary0;
           iboundary1 = boundary1;
@@ -1280,6 +1288,16 @@ template <class T> bool makeTrimming(
   boundariesUV.insert(boundariesUV.end(),tboundariesUV1.begin(),tboundariesUV1.end());
 
   ASSERT(surfaces.size() == boundariesUV.size());
+
+  for (int i = int(surfaces.size()) - 1; i >= 0; i--)
+  {
+    if (boundariesUV[i].empty())
+    {
+      boundariesUV.erase(boundariesUV.begin() + i);
+      DELETE_CLASS(surfaces[i]);
+      surfaces.erase(surfaces.begin() + i);
+    }
+  }
 
   // make single loop everywhere to keep Rhino happy
   //!!!!!!! makeSingleLoop(surfaces,boundariesUV); //!!!!!!! not correct for a single hole

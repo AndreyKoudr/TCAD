@@ -79,6 +79,17 @@ enum Boolean {
   INTERSECT
 };
 
+/** Outer loop, not hole. */
+template <class T> bool outerLoop(std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
+{
+  TPoint<T> loopnormal = getLoopNormal(loop,parmtolerance);
+
+  // this is a hole, we need an outer loop as loop[0]
+  // sure it is not possible to have both holes and patches at the same time
+  bool outer = (loopnormal > TPoint<T>(0.0,0.0,1.0));
+
+  return outer;
+}
 
 template <class T> class TBaseSurface {
 public:
@@ -989,11 +1000,9 @@ public:
       int numpatches = 0;
       for (int i = 0; i < n; i++)
       {
-        TPoint<T> loopnormal = getLoopNormal(innerloops[i],parmtolerance);
-
         // this is a hole, we need an outer loop as loop[0]
         // sure it is not possible to have both holes and patches at the same time
-        bool hole = !(loopnormal > TPoint<T>(0.0,0.0,1.0));
+        bool hole = !outerLoop(innerloops[i],parmtolerance);
         if (hole)
         {
           numholes++;
@@ -1238,7 +1247,7 @@ redo:
     return minmax;
   }
 
-public: //!!!!!!!
+public: //!!!
 
   // number of columns minus 1
   int K1 = 0;
@@ -1727,5 +1736,72 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
   parms = bestparms;
   return false;
 } 
+
+/** Cut inside loop? */
+template <class T> bool cutInsideLoop(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
+{
+  //// test 1 : intersections
+  //std::vector<TPoint<T>> newpoints;
+  //std::vector<TPoint<T>> UV;
+
+  // cut curve specifies a correct direction of the loop, it must go first here
+  //for (int i = 0; i < int(cut.size()); i++)
+  //{
+  //  for (int j = 0; j < int(loop.size()); j++)
+  //  {
+  //    int numintrs = findIntersections(cut[i],loop[j],UV,parmtolerance); 
+
+  //    if (numintrs > 0)
+  //      return true;
+  //  }
+  //}
+
+  // test 2 : inside?
+  for (int i = 0; i < int(cut.size()); i++)
+  {    
+    for (int j = 0; j < int(cut[i].size()); j++)
+    {
+      bool inside = insideBoundary<T>(loop,cut[i][j],parmtolerance);
+      if (!inside)
+        return false;
+    }
+  }
+
+  return true;
+}
+
+/** Cut inside loops? */
+template <class T> bool cutInsideLoops(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<std::vector<std::vector<TPoint<T>>>> &loops, T parmtolerance = PARM_TOLERANCE)
+{
+  // loops not initialised
+  if (loops.empty())
+    return true;
+
+  // test loop 0 (normally outer)
+  bool loop0outer = outerLoop(loops[0],parmtolerance);
+
+  if (loop0outer)
+  {
+    // full standard outer loop
+    if (boundaryPoints(loops[0],parmtolerance))
+      return true;
+
+    // one outer loop and holes
+    if (cutInsideLoop(cut,loops[0],parmtolerance)) 
+      return true;
+  } else
+  {
+    // all loops are holes, test if cut is inside any loop
+    for (int i = 0; i < int(loops.size()); i++)
+    {
+      if (cutInsideLoop(cut,loops[i],parmtolerance))
+        return true;
+    }
+  }
+
+  return false;
+}
 
 }

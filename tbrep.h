@@ -280,7 +280,7 @@ public:
     int numpointsU = 11, int numpointsV = 11, int numpointsW = 11)
   {
     // clear all
-    //!!!!!!! do not clear();
+    //!!! do not clear();
 
     // make 3D box
     TSplineVolume<T> box(min,max,m1,m2,m3,numpointsU,numpointsV,numpointsW);
@@ -293,7 +293,7 @@ public:
     }
 
     // name for debugging
-    nameSurfaces<T>(surfaces,name);
+    nameSurfaces(name);
 
     // make boundaries
     prepareOuterBoundary<T>(surfaces,boundariesUV);
@@ -313,14 +313,14 @@ public:
     CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
   {
     // clear all
-    //!!!!!!! do not clear();
+    //!!! do not clear();
 
     // make surfaces
     makeSurfacesOfRevolution<T>(contour,countourAxialCoord,countourRadialCoord,numfaces,pointsperface,K1,K2, 
       surfaces,angdegfrom,angdegto,M1,M2,startU,endU,startV,endV);
 
     // name for debugging
-    nameSurfaces<T>(surfaces,name);
+    nameSurfaces(name);
 
     // make boundaries
     prepareOuterBoundary<T>(surfaces,boundariesUV);
@@ -419,6 +419,18 @@ public:
   }
 
   //===== Export =====
+
+  /** Clear names to display surface number in IGES. */
+  void clearNames()
+  {
+    tcad::clearNames<T>(surfaces);
+  }
+
+  /** Name surfaces for debugging and IGES. */
+  void nameSurfaces(std::string prefix)
+  {
+    tcad::nameSurfaces(surfaces,prefix);
+  }
 
   /** Save trimmed surfaces. */
   bool saveSurfacesIges(const std::string &filename, int splinedegree = SPLINE_DEGREE)
