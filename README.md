@@ -162,6 +162,10 @@ Blocks
 - 5.14 Blocks : filleted sub wings<br />
 - 5.15 Blocks : sub with rudder<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_rudder_solid.png)
+- 5.16 Blocks : vertical rudders<br />
+- 5.17 Blocks : submarine with vertical rudders<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shafts.png)
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Vertical_rudders.png)
 
 Booleans
 =======================

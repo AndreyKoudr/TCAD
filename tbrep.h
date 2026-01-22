@@ -162,6 +162,12 @@ public:
     //!!! incorrect tolerance = 0.0;
   }
 
+  /** Set tolerance. */
+  void setTolerance(T ptolerance)
+  {
+    tolerance = ptolerance;
+  }
+
   void closeOuterBoundary()
   {
     boundariesUV.clear();

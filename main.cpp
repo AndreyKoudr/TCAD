@@ -2151,8 +2151,18 @@ int main(int argc, char* argv[])
 
   cout << "5.14 Blocks : filleted wing with rudder cut out" << endl;
 
-  // rudder
+  // whole horizontal rudder
   TBrep<T> brudder;
+
+  // its parts :
+
+  // rudder frame with a cut attached to sub body
+  TBrep<T> brudderframe;
+  // rudder plane which rotates on shaft at zero angle of attack
+  TBrep<T> bplane;
+  // two round shaft parts to connect rudder frame + rudder plate to sub body
+  TBrep<T> bshaft0;
+  TBrep<T> bshaft1;
 
   {
     T subL = 74.0;
@@ -2214,8 +2224,8 @@ int main(int argc, char* argv[])
     TBrep<T> bcylinder(tolerance);
 
     // this is hollow shaft to hinge plate
-    TBrep<T> bshaft0(tolerance);
-    TBrep<T> bshaft1(tolerance);
+    bshaft0.setTolerance(tolerance);
+    bshaft1.setTolerance(tolerance);
 
     bcylinder.makeCylinder(2.4,0.3,0.3,"",4,4,1,1,64,MANY_POINTS2D,-90.0,90.0);
 
@@ -2227,6 +2237,7 @@ int main(int argc, char* argv[])
     t.Translate(TPoint<T>(-24.0,0.0,-3.2));
     bcylinder.makeTransform(&t);
 
+    // move two shafts to position
     t.LoadIdentity();
     t.Translate(TPoint<T>(-24.0,0.0,-2.005));
     bshaft0.makeTransform(&t);
@@ -2248,40 +2259,51 @@ int main(int argc, char* argv[])
 
     //===== Intersect rudder with cutter body to get rudder plane shape =====
 
-    TBrep<T> bplane = brudder ^ bruddercut;
+    // remember this
+    bplane = brudder ^ bruddercut;
 
-    // make it a bit smaller to fit the cut
+    // make it a bit smaller to fit the cut, do not rotate it now
     t.LoadIdentity();
     t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
     t.Resize(TPoint<T>(0.95,0.95,0.95));
-    t.Rotate(TPoint<T>(0.0,0.0,1.0),10.0 * CPI);
     t.Translate(TPoint<T>(-24.0,0.0,-3.2));
     bplane.makeTransform(&t);
 
-    bplane.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
+    // rotate plate by 10 degrees
+    TBrep<T> bplane10 = bplane;
+
+    // rotate by 10 degrees
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),10.0 * CPI);
+    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
+    bplane10.makeTransform(&t);
+
+    bplane10.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
 
     //===== Subtract cutter body from rudder to make space for rudder plane =====
 
     brudder = brudder - bruddercut;
 
+    // remember this as rudder frame
+    brudderframe = brudder;
+
     brudder.clearNames();
     brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.iges");
 
-    bplane.nameSurfaces("plane");
+    bplane10.nameSurfaces("plane");
     bshaft0.nameSurfaces("shaft0");
-    bplane = bplane + bshaft0;
-    bplane = bplane + bshaft1;
+    bplane10 = bplane10 + bshaft0;
+    bplane10 = bplane10 + bshaft1;
 
-    bplane.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
+    bplane10.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
 
     brudder.nameSurfaces("rudder");
-    bplane.nameSurfaces("plane");
-    brudder = brudder + bplane;
+    bplane10.nameSurfaces("plane");
+    brudder = brudder + bplane10;
 
     brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.iges");
   }
-
-#if 1
 
   /*****************************************************************************
     5.15 Blocks : submarine with rudder
@@ -2310,7 +2332,111 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
-#endif
+
+  /*****************************************************************************
+    5.16 Blocks : vertical rudders
+  *****************************************************************************/
+
+  cout << "5.16 Blocks : vertical rudders" << endl;
+
+  // two stern vertical rudders
+  TBrep<T> brudder0;
+  TBrep<T> brudder1;
+
+  {
+    brudderframe.saveSurfacesIges(DEBUG_DIR + "Rudder frame surfaces trimmed.iges");
+    bplane.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
+    bshaft0.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 0 surfaces trimmed.iges");
+    bshaft1.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 1 surfaces trimmed.iges");
+
+    // make two vertical rudders
+    brudder0 = brudderframe;
+    brudder1 = brudderframe;
+    TBrep<T> bplane0 = bplane;
+    TBrep<T> bplane1 = bplane;
+
+    TTransform<T> t;
+
+    // make 2 frames and 2 plates a bit smaller in X direction
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Resize(TPoint<T>(0.7,1.0,1.0));
+    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
+    brudder0.makeTransform(&t);
+    brudder1.makeTransform(&t);
+    bplane0.makeTransform(&t);
+    bplane1.makeTransform(&t);
+
+    // rotate planes by 5 degrees
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),5.0 * CPI);
+    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
+    bplane0.makeTransform(&t);
+
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),-5.0 * CPI);
+    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
+    bplane1.makeTransform(&t);
+
+    brudder0.saveSurfacesIges(DEBUG_DIR + "Rudder 0 surfaces trimmed.iges");
+    brudder1.saveSurfacesIges(DEBUG_DIR + "Rudder 1 surfaces trimmed.iges");
+    bplane0.saveSurfacesIges(DEBUG_DIR + "Rudder plane 0 surfaces trimmed.iges");
+    bplane1.saveSurfacesIges(DEBUG_DIR + "Rudder plane 1 surfaces trimmed.iges");
+    bshaft0.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 0 surfaces trimmed.iges");
+    bshaft1.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 1 surfaces trimmed.iges");
+
+    // combine all stuff into brudder0 and brudder1
+    brudder0 = brudder0 + bplane0 + bshaft0 + bshaft1;
+    brudder1 = brudder1 + bplane1 + bshaft0 + bshaft1;
+
+    brudder0.saveSurfacesIges(DEBUG_DIR + "Rudder 0 surfaces trimmed.iges");
+    brudder1.saveSurfacesIges(DEBUG_DIR + "Rudder 1 surfaces trimmed.iges");
+
+    // rotate vertical rudders
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+    t.Translate(TPoint<T>(-24.0,3.2,0.0));
+    brudder0.makeTransform(&t);
+
+    t.LoadIdentity();
+    t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
+    t.Rotate(TPoint<T>(1.0,0.0,0.0),270.0 * CPI);
+    t.Translate(TPoint<T>(-24.0,-3.2,0.0));
+    brudder1.makeTransform(&t);
+
+    brudder0.saveSurfacesIges(DEBUG_DIR + "Vertical Rudder 0 surfaces trimmed.iges");
+    brudder1.saveSurfacesIges(DEBUG_DIR + "Vertical Rudder 1 surfaces trimmed.iges");
+  }
+
+  /*****************************************************************************
+    5.17 Blocks : submarine with vertical rudders
+  *****************************************************************************/
+
+  cout << "5.17 Blocks : submarine with vertical rudders" << endl;
+
+  {
+    // plus rudder
+    bsub = bsub + brudder0;
+    bsub = bsub + brudder1;
+
+    // save surfaces
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudders surfaces trimmed.iges");
+
+    // save solid
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = bsub.saveSolidIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudders solid.iges",
+      bsub.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+    ASSERT(ok);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
 
 #endif
 
