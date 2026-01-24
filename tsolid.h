@@ -453,7 +453,8 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   std::vector<TPoint<T>> &vertices, 
   std::vector<std::array<LINT,11>> &edges,
   T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
-  T closestcoef = 0.1, bool makefix = true, int attempts = 50) //!!!!!!!
+  T closestcoef = 0.5, bool makefix = true, int attempts = 50) //!!!!!!!
+ // T closestcoef = 0.1, bool makefix = true, int attempts = 50) //!!!!!!!
 {
   // step 1 : make vertices and middlevertices
   vertices.clear();

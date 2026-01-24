@@ -396,20 +396,23 @@ template <class T> std::vector<TPoint<T>> KiloHumpBase = {
 };
 
 /** Wing 1, single stem wing below hull. Blade contour of left-right 
-  points in XY plane. All coordinates to be multiplied by KHCOEF to 
+  points in XZ plane. All coordinates to be multiplied by KHCOEF to 
   convert into metres. Z coordinate is along span. */
 template <class T> std::vector<std::array<TPoint<T>,2>> KiloWing1Contour = {
-#if 0
-  { TPoint<T>(0.0 * KHCOEF, 0.0,  0.0 * KHCOEF), TPoint<T>(20.0 * KHCOEF, 0.0, 0.0 * KHCOEF) },
-  { TPoint<T>(0.0 * KHCOEF, 0.0, 14.0 * KHCOEF), TPoint<T>(15.0 * KHCOEF, 0.0, 14.0 * KHCOEF) }
-#else
   { TPoint<T>(0.0 * KHCOEF, 0.0,  0.0 * KHCOEF), TPoint<T>(22.0 * KHCOEF, 0.0, 5.5 * KHCOEF) },
   { TPoint<T>(0.0 * KHCOEF, 0.0,  2.5 * KHCOEF), TPoint<T>(18.0 * KHCOEF, 0.0, 7.5 * KHCOEF) },
   { TPoint<T>(0.0 * KHCOEF, 0.0,  4.0 * KHCOEF), TPoint<T>(17.0 * KHCOEF, 0.0, 9.0 * KHCOEF) },
   { TPoint<T>(0.0 * KHCOEF, 0.0,  8.5 * KHCOEF), TPoint<T>(16.0 * KHCOEF, 0.0, 11.5 * KHCOEF) },
   { TPoint<T>(0.0 * KHCOEF, 0.0, 12.5 * KHCOEF), TPoint<T>(15.5 * KHCOEF, 0.0, 13.0 * KHCOEF) },
   { TPoint<T>(0.0 * KHCOEF, 0.0, 14.0 * KHCOEF), TPoint<T>(15.0 * KHCOEF, 0.0, 14.0 * KHCOEF) }
-#endif
+};
+
+/** Forward vertical wing, two of them. Blade contour of left-right 
+  points in XZ plane. All coordinates to be multiplied by KHCOEF to 
+  convert into metres. Z coordinate is along span. */
+template <class T> std::vector<std::array<TPoint<T>,2>> KiloWing2Contour = {
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  0.0 * KHCOEF), TPoint<T>(6.0 * KHCOEF, 0.0, 0.0 * KHCOEF) },
+  { TPoint<T>(0.0 * KHCOEF, 0.0,  9.0 * KHCOEF), TPoint<T>(5.0 * KHCOEF, 0.0, 9.0 * KHCOEF) }
 };
 
 

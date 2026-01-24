@@ -380,6 +380,55 @@ public:
     return (diff >= 0.0 && diff < tolerance);
   }
 
+  /** Are equal? Report if reversed in U or V. */
+  bool equal(TBaseSurface &other, T tolerance, bool &reversedU, bool &reversedV,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
+  {
+    reversedU = reversedV = false;
+
+    if (this->equal(other,tolerance,numpointsU,numpointsV))
+    {
+      return true;
+    } 
+
+    other.reverseU();
+    bool ok = this->equal(other,tolerance,numpointsU,numpointsV);
+    other.reverseU();
+
+    if (ok)
+    {
+      reversedU = true;
+      reversedV = false;
+      return true;
+    }
+
+    other.reverseV();
+    ok = this->equal(other,tolerance,numpointsU,numpointsV);
+    other.reverseV();
+
+    if (ok)
+    {
+      reversedU = false;
+      reversedV = true;
+      return true;
+    }
+
+    other.reverseU();
+    other.reverseV();
+    ok = this->equal(other,tolerance,numpointsU,numpointsV);
+    other.reverseV();
+    other.reverseU();
+
+    if (ok)
+    {
+      reversedU = true;
+      reversedV = true;
+      return true;
+    }
+
+    return false;
+  }
+
   /** Find values of parameters U,V for a point on (or close to) the surface. 
     Create finer mesh by createPoints() for more accurate results. */
   static TPoint<T> findUVforPoint(std::vector<TPoint<T>> &points,
@@ -976,7 +1025,7 @@ public:
     // step 1 : prepare outer loop
     std::vector<std::vector<TPoint<T>>> outerloop;
 
-    if (!loops.empty()) //!!!!!!!
+    if (!loops.empty()) //!!!
     {
       outerloop = loops[0];
     } else
@@ -1157,6 +1206,11 @@ redo:
         // first intersection point is from cutpoints start, cutpoints direction from
         // first to second intersection point defines cutting direction : void is to
         // the right, surface is to the left
+
+        if (UV[1].X < UV[0].X)
+        {
+          SWAP(TPoint<T>,UV[0],UV[1]);
+        }
 
         // all points
         int Useg0 = int(UV[0].X);
@@ -1788,9 +1842,25 @@ template <class T> bool cutInsideLoops(std::vector<std::vector<TPoint<T>>> &cut,
     if (boundaryPoints(loops[0],parmtolerance))
       return true;
 
+    //// one outer loop and holes //!!!!!!!
+    //if (cutInsideLoop(cut,loops[0],parmtolerance)) 
+    //  return true;
+
     // one outer loop and holes
     if (cutInsideLoop(cut,loops[0],parmtolerance)) 
+    {
+      // cut maybe inside a hole
+      for (int i = 1; i < int(loops.size()); i++)
+      {
+        if (cutInsideLoop(cut,loops[i],parmtolerance))
+          return false;
+      }
+
       return true;
+    } else
+    {
+      return false;
+    }
   } else
   {
     // all loops are holes, test if cut is inside any loop

@@ -827,10 +827,12 @@ template <class T> bool makeTrimming(
 
   if (clearboundaries || operation == SUBTRACT || operation == INTERSECT) //!!!!!!!
   {
-    tboundariesUV0.clear();
+    if (operation == INTERSECT)
+      tboundariesUV0.clear();
     tboundariesUV1.clear();
 
-    prepareOuterBoundary(tsurfaces0,tboundariesUV0);
+    if (tboundariesUV0.empty())
+      prepareOuterBoundary(tsurfaces0,tboundariesUV0);
     prepareOuterBoundary(tsurfaces1,tboundariesUV1);
   }
 

@@ -64,6 +64,27 @@ template <class T> T sign(T value)
   return (value >= 0.0) ? +1 : -1; 
 }
 
+/** Set bit. */
+template <class T> int setBit(int i, int bitno)
+{
+  int mask = 1 << bitno;
+  return i | mask;
+}
+
+/** Clear bit. */
+template <class T> int clearBit(int i, int bitno)
+{
+  int mask = 1 << bitno;
+  return i & (0xFFFFFFFF ^ mask);
+}
+
+/** Bit set? */
+template <class T> bool bitSet(int i, int bitno)
+{
+  int mask = 1 << bitno;
+  return ((i & mask) != 0);
+}
+
 /** All busy? */
 bool allBusy(std::vector<bool> &ibusy);
 

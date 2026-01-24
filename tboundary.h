@@ -179,8 +179,8 @@ template <class T> bool boundaryLine(std::vector<TPoint<T>> &boundary, T parmtol
 /** Piece of boundary line on side number. */
 template <class T> int boundaryLine(std::vector<TPoint<T>> &boundary, T parmtolerance = PARM_TOLERANCE, bool *reversed = nullptr)
 {
-  assert(boundary.size() > 2); 
-  if (boundary.size() <= 2)
+  assert(boundary.size() > 1); //!!!
+  if (boundary.size() <= 1)
     return -1;
 
   int index = -1;

@@ -1931,17 +1931,33 @@ template <class T> void cutOut(std::vector<TPoint<T>> &points, int seg0, T U0, i
     TPoint<T> dp = p1 - p0;
     TPoint<T> p = p0;
 
-    if (i == seg0)
+    if (seg0 == seg1)
     {
-      p = p0 + dp * U0;
-    }
+      if (i == seg0)
+      {
+        p = p0 + dp * U0;
+        newpoints.push_back(p);
+      }
 
-    if (i == seg1)
+      if (i == seg1)
+      {
+        p = p0 + dp * U1;
+        newpoints.push_back(p);
+      }
+    } else
     {
-      p = p0 + dp * U1;
-    }
+      if (i == seg0)
+      {
+        p = p0 + dp * U0;
+      }
 
-    newpoints.push_back(p);
+      if (i == seg1)
+      {
+        p = p0 + dp * U1;
+      }
+
+      newpoints.push_back(p);
+    }
   }
 }
 

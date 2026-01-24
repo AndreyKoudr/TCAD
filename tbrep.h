@@ -241,9 +241,9 @@ public:
   //==== Transforms =====
 
   /** Transform. */
-  void makeTransform(TTransform<T> *t)
+  void makeTransform(TTransform<T> *t, int index0 = -1, int index1 = -1)
   {
-    tcad::makeTransform<T>(surfaces,t);
+    tcad::makeTransform<T>(surfaces,t,index0,index1);
   }
 
   //===== Solid? =====
@@ -262,9 +262,10 @@ public:
   /** Delete face from surfaces. */
   void deleteFace(int index)
   {
+    if (surfaces.size() == boundariesUV.size())
+      boundariesUV.erase(boundariesUV.begin() + index);
     DELETE_CLASS(surfaces[index]);
     surfaces.erase(surfaces.begin() + index);
-    boundariesUV.erase(boundariesUV.begin() + index);
   }
 
   /** Add faces from another brep. */
@@ -277,11 +278,50 @@ public:
     boundariesUV.insert(boundariesUV.end(),other.boundariesUV.begin(),other.boundariesUV.end());
   }
 
+  /** Exclude identical faces. n^2. */
+  void excludeInnerFaces(T tolerance, 
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
+  {
+    int attempts = int(surfaces.size());
+
+    for (int a = 0; a < attempts; a++)
+    {
+      bool found = false;
+      for (int i = 0; i < int(surfaces.size()); i++)
+      {
+        for (int j = i + 1; j < int(surfaces.size()); j++)
+        {
+          bool reversedU,reversedV;
+
+          if (surfaces[j]->equal(*surfaces[i],tolerance,reversedU,reversedV,
+            numpointsU,numpointsV))
+          {
+            DELETE_CLASS(surfaces[j]);
+            surfaces.erase(surfaces.begin() + j);
+            // i is less, delete after
+            DELETE_CLASS(surfaces[i]);
+            surfaces.erase(surfaces.begin() + i);
+
+            found = true;
+          }
+        }
+      }
+
+      if (!found)
+        break;
+    }
+
+    // make empty boundaries
+    clearOuterBoundary();
+    prepareOuterBoundary<T>(surfaces,boundariesUV);
+  }
+
   //===== Blocks =====
 
-  /** Max box between min and max. */
+  /** Max box between min and max. bottom is face with Zmin, top - with Zmax. */
   void makeBox(TPoint<T> min, TPoint<T> max, 
     std::string name = "",
+    int facemask = 0xFF,
     int m1 = SPLINE_DEGREE, int m2 = SPLINE_DEGREE, int m3 = SPLINE_DEGREE,
     int numpointsU = 11, int numpointsV = 11, int numpointsW = 11)
   {
@@ -296,6 +336,16 @@ public:
     {
       TSplineSurface<T> *face = box.getFace(i);
       surfaces.push_back(face);
+    }
+
+    // delete unmasked faces
+    int n = int(surfaces.size());
+    for (int i = 5; i >= 0; i--)
+    {
+      if (!bitSet<T>(facemask,i))
+      {
+        deleteFace(n - 6 + i); 
+      }
     }
 
     // name for debugging
@@ -377,7 +427,8 @@ public:
     makeTransform(surfaces,&t);
   }
 
-  /** Make cylinder of radius R of length L around Z with centre at 0,0,0. */
+  /** Make cylinder of radius R of length L around Z with centre at 0,0,0. if numfacesbottom = 0 or
+    numfacestop = 0, there is no bottom/top correspondingly. */
   void makeCylinder(T L, T Rbottom, T Rtop,
     std::string name = "",
     // num faces around
@@ -422,6 +473,322 @@ public:
     // contour in XY
     makeAxisymmetricBody(contour,AxisX,AxisY,
       name,angdegfrom,angdegto,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+  }
+
+  /** Make a wing.
+
+      airfoil. 
+    points in XY, these points start from TE, go around LE along 
+    the upper surface and then back to TE, like this
+
+    template <class T> std::vector<TPoint<T>> NACA0009 = {
+      TPoint<T>(1.00000, 0.0),
+      TPoint<T>(0.99572, 0.00057),
+      TPoint<T>(0.98296, 0.00218),
+      ...
+      TPoint<T>(0.00428, 0.00767),
+      TPoint<T>(0.00107, 0.00349),
+      TPoint<T>(0.0,     0.0),
+      TPoint<T>(0.00107, -0.00349),
+      TPoint<T>(0.00428, -0.00767),
+      ...
+      TPoint<T>(0.98296, -0.00218),
+      TPoint<T>(0.99572, -0.00057),
+      TPoint<T>(1.00000, 0.0)
+    };
+    points must be closed! The chord must be close to 1.0.
+
+      contour. 
+    Wing contour of left-right points in XZ plane. Z coordinate is along span, like this:
+
+    template <class T> std::vector<std::array<TPoint<T>,2>> KiloWing1Contour = {
+      { TPoint<T>(0.0 * KHCOEF, 0.0,  0.0 * KHCOEF), TPoint<T>(22.0 * KHCOEF, 0.0, 5.5 * KHCOEF) },
+      { TPoint<T>(0.0 * KHCOEF, 0.0,  2.5 * KHCOEF), TPoint<T>(18.0 * KHCOEF, 0.0, 7.5 * KHCOEF) },
+      { TPoint<T>(0.0 * KHCOEF, 0.0,  4.0 * KHCOEF), TPoint<T>(17.0 * KHCOEF, 0.0, 9.0 * KHCOEF) },
+      { TPoint<T>(0.0 * KHCOEF, 0.0,  8.5 * KHCOEF), TPoint<T>(16.0 * KHCOEF, 0.0, 11.5 * KHCOEF) },
+      { TPoint<T>(0.0 * KHCOEF, 0.0, 12.5 * KHCOEF), TPoint<T>(15.5 * KHCOEF, 0.0, 13.0 * KHCOEF) },
+      { TPoint<T>(0.0 * KHCOEF, 0.0, 14.0 * KHCOEF), TPoint<T>(15.0 * KHCOEF, 0.0, 14.0 * KHCOEF) }};
+    contour is in real model coordinates, not [0..1].
+
+    closetoptip - true if to close top tip with topradius, no fillet if topradius == 0.0
+    closebottomtip - true if to close bottom tip with bottomradius, no fillet if bottomradius == 0.0
+    K1 - number of spline intervals along U (along chord)
+    K2 - number of spline intervals along V (along span)
+  */
+  bool makeWing(std::vector<TPoint<T>> &airfoil, bool roundLE, bool roundTE,
+    std::vector<std::array<TPoint<T>,2>> &contour, bool closetoptip, bool closebottomtip,
+    T topradius, T bottomradius,
+    T tolerance, T parmtolerance = PARM_TOLERANCE, int K1 = 40, int K2 = 20)
+  {
+    // step 1 : make airfoil in XY plane
+
+    if (!closed<T>(airfoil,parmtolerance))
+      return false;
+
+    this->tolerance = tolerance;
+
+    // make upper and lower curves, still in XY, make LE lowest X (reverse)
+    std::vector<TPoint<T>> upperlower; 
+    std::pair<T,T> res = makeAirfoilPointsXY<T>(airfoil,roundLE,roundTE,K1,upperlower,true);
+
+    // step 2 : make 3D camber surface and thickness from upperlower and
+    // contour as a regular set of points
+
+    std::vector<std::vector<TPoint<T>>> camberpoints; 
+    std::vector<std::vector<T>> thickness;
+    makeBladeCamberThickness<T>(upperlower,contour,K1,K2,camberpoints,thickness,tolerance); 
+
+    // create camber surface
+    TSplineSurface<T> cambersurface(camberpoints,K1,SPLINE_DEGREE,K2,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+    //saveSurfaceIges(&cambersurface,DEBUG_DIR + "Kilo wing 1 (rudder) camber surface.iges");
+
+    // step 3 : make 3D wing of two upper and lower spline surfaces
+
+    clear(); // this is important as the first two surfaces are upper/lower airfoil
+
+    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+    // step 4 : close and round tips
+
+    if (closetoptip)
+    {
+      makeFlatRoundedTop(surfaces[0],surfaces[1],topradius,surfaces);
+    }
+
+    if (closebottomtip)
+    {
+      surfaces[0]->reverseU();
+      surfaces[1]->reverseU();
+      surfaces[0]->reverseV();
+      surfaces[1]->reverseV();
+
+      makeFlatRoundedTop(surfaces[0],surfaces[1],bottomradius,surfaces);
+
+      surfaces[0]->reverseU();
+      surfaces[1]->reverseU();
+      surfaces[0]->reverseV();
+      surfaces[1]->reverseV();
+    }
+
+    // make boundaries
+    prepareOuterBoundary<T>(surfaces,boundariesUV);
+
+    return true;
+  }
+
+  /** Make box with with four rounded corners (int XY plane) of three boxes 
+    and four quarter-cylinders. bottom is faces with Zmin, top - with Zmax. */
+  bool makeBoxRounded4(T dx, T dy, T dz, T radius,
+    bool makebottom, bool maketop,
+    int numfacesaround = 4, T parmtolerance = PARM_TOLERANCE,     
+    int m1 = SPLINE_DEGREE, int m2 = SPLINE_DEGREE, int m3 = SPLINE_DEGREE,
+    int numpointsU = 11, int numpointsV = 11, int numpointsW = 11,
+    int numcontourpoints = MANY_POINTS2D)
+  {
+    // tolerance and radius must be non-zero
+    assert(tolerance >= TOLERANCE(T));
+    assert(radius >= tolerance);
+
+    if (tolerance < TOLERANCE(T) || radius < tolerance)
+      return false;
+
+    // boundaries of 9 XY faces
+    T x[4] = {-dx * 0.5, -dx * 0.5 + radius, +dx * 0.5 - radius, +dx * 0.5};
+    T y[4] = {-dy * 0.5, -dy * 0.5 + radius, +dy * 0.5 - radius, +dy * 0.5};
+
+    // make 5 boxes
+    int count = 0;
+    for (int i = 0; i < 3; i++)
+    {
+      T y0 = y[i];
+      T y1 = y[i + 1];
+
+      for (int j = 0; j < 3; j++)
+      {
+        if (count == 0 || count == 2 || count == 6 || count == 8)
+        {
+          count++;
+          continue;
+        }
+
+        T x0 = x[j];
+        T x1 = x[j + 1];
+
+        int mask = 0xFF;
+
+        if (!makebottom)
+          mask = clearBit<T>(mask,4);
+        if (!maketop)
+          mask = clearBit<T>(mask,5);
+
+        if (count == 1 || count == 7)
+        {
+          mask = clearBit<T>(mask,0);
+          mask = clearBit<T>(mask,1);
+        } else if (count == 3 || count == 5)
+        {
+          mask = clearBit<T>(mask,2);
+          mask = clearBit<T>(mask,3);
+        }
+
+        makeBox(
+          TPoint<T>(x0,y0,-dz * 0.5),
+          TPoint<T>(x1,y1,+dz * 0.5), 
+          "",mask,1,m2,m3,numpointsU,numpointsV,numpointsW);
+
+        count++;
+      }
+    }
+
+    TTransform<T> t;
+
+    // add 4 quarter-cylinders at corners
+
+    int last = int(surfaces.size());
+    makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+      numcontourpoints,180.0,270.0,32,32,m1,m2);
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(x[1],y[1]));
+    makeTransform(&t,last,int(surfaces.size() - 1));
+
+    last = int(surfaces.size());
+    makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+      numcontourpoints,270.0,360.0,32,32,m1,m2);
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(x[2],y[1]));
+    makeTransform(&t,last,int(surfaces.size() - 1));
+
+    last = int(surfaces.size());
+    makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+      numcontourpoints,0.0,90.0,32,32,m1,m2);
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(x[2],y[2]));
+    makeTransform(&t,last,int(surfaces.size() - 1));
+
+    last = int(surfaces.size());
+    makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+      numcontourpoints,90.0,180.0,32,32,m1,m2);
+    t.LoadIdentity();
+    t.Translate(TPoint<T>(x[1],y[2]));
+    makeTransform(&t,last,int(surfaces.size() - 1));
+
+    excludeInnerFaces(tolerance,3,3); //!!!
+
+    return true;
+  }
+
+  /** Make box with with two rounded ends (int XY plane) of two boxes 
+    and two half-cylinders. bottom is faces with Zmin, top - with Zmax. */
+  bool makeBoxRounded2(T dx, T radius, T dz,
+    bool makebottom, bool maketop,
+    bool roundleft = true, bool roundright = true,
+    int numfacesaround = 4, T parmtolerance = PARM_TOLERANCE,     
+    int m1 = SPLINE_DEGREE, int m2 = SPLINE_DEGREE, int m3 = SPLINE_DEGREE,
+    int numpointsU = 11, int numpointsV = 11, int numpointsW = 11,
+    int numcontourpoints = MANY_POINTS2D)
+  {
+    // tolerance and radius must be non-zero
+    assert(tolerance >= TOLERANCE(T));
+    assert(radius >= tolerance);
+
+    if (tolerance < TOLERANCE(T) || radius < tolerance)
+      return false;
+
+    // boundaries of 6 XY faces
+    T x[4] = {-dx * 0.5, -dx * 0.5 + radius, +dx * 0.5 - radius, +dx * 0.5};
+    T y[3] = {-radius, 0.0, +radius};
+
+    // make 2 boxes
+    int count = 0;
+    for (int i = 0; i < 2; i++)
+    {
+      T y0 = y[i];
+      T y1 = y[i + 1];
+
+      for (int j = 0; j < 3; j++)
+      {
+        if (count == 0 || count == 2 || count == 3 || count == 5)
+        {
+          count++;
+          continue;
+        }
+
+        T x0 = x[j];
+        T x1 = x[j + 1];
+
+        int mask = 0xFF;
+
+        if (!makebottom)
+          mask = clearBit<T>(mask,4);
+        if (!maketop)
+          mask = clearBit<T>(mask,5);
+        if (roundleft)
+          mask = clearBit<T>(mask,0);
+        if (roundright)
+          mask = clearBit<T>(mask,1);
+
+        if (count == 1)
+        {
+          mask = clearBit<T>(mask,3);
+        } else if (count == 4)
+        {
+          mask = clearBit<T>(mask,2);
+        }
+
+        makeBox(
+          TPoint<T>(x0,y0,-dz * 0.5),
+          TPoint<T>(x1,y1,+dz * 0.5), 
+          "",mask,1,m2,m3,numpointsU,numpointsV,numpointsW);
+
+        count++;
+      }
+    }
+
+    TTransform<T> t;
+
+    // add 4 quarter-cylinders at corners
+
+    int last = int(surfaces.size());
+
+    if (roundleft)
+    {
+      makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+        numcontourpoints,180.0,270.0,32,32,m1,m2);
+      t.LoadIdentity();
+      t.Translate(TPoint<T>(x[1],y[1]));
+      makeTransform(&t,last,int(surfaces.size() - 1));
+
+      last = int(surfaces.size());
+      makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+        numcontourpoints,90.0,180.0,32,32,m1,m2);
+      t.LoadIdentity();
+      t.Translate(TPoint<T>(x[1],y[1]));
+      makeTransform(&t,last,int(surfaces.size() - 1));
+    }
+
+    if (roundright)
+    {
+      last = int(surfaces.size());
+      makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+        numcontourpoints,270.0,360.0,32,32,m1,m2);
+      t.LoadIdentity();
+      t.Translate(TPoint<T>(x[2],y[1]));
+      makeTransform(&t,last,int(surfaces.size() - 1));
+
+      last = int(surfaces.size());
+      makeCylinder(dz,radius,radius,"",numfacesaround,1,int(makebottom),int(maketop),64,
+        numcontourpoints,0.0,90.0,32,32,m1,m2);
+      t.LoadIdentity();
+      t.Translate(TPoint<T>(x[2],y[1]));
+      makeTransform(&t,last,int(surfaces.size() - 1));
+    }
+
+  //  excludeInnerFaces(tolerance,3,3); //!!! not needed
+
+    return true;
   }
 
   //===== Export =====
