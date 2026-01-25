@@ -152,6 +152,8 @@ Booleans
 - 5.19 Blocks : two rudder containers<br />
 - 5.20 Blocks : submarine with all wings<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_all_wings.png)<br />
+- 5.21 Blocks : 3D text<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_text.png)<br />
 
 Important parameters in main.cpp
 ================================

@@ -178,5 +178,8 @@
     <ClInclude Include="tboundary.h">
       <Filter>SURFACES</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>BASICS</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

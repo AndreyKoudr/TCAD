@@ -637,7 +637,7 @@ public:
         makeBox(
           TPoint<T>(x0,y0,-dz * 0.5),
           TPoint<T>(x1,y1,+dz * 0.5), 
-          "",mask,1,m2,m3,numpointsU,numpointsV,numpointsW);
+          "",mask,1,m2,m3,numpointsU,numpointsV,numpointsW); //!!! m1 = 1
 
         count++;
       }
@@ -741,7 +741,7 @@ public:
         makeBox(
           TPoint<T>(x0,y0,-dz * 0.5),
           TPoint<T>(x1,y1,+dz * 0.5), 
-          "",mask,1,m2,m3,numpointsU,numpointsV,numpointsW);
+          "",mask,1,m2,m3,numpointsU,numpointsV,numpointsW); //!!! m1 = 1
 
         count++;
       }
@@ -787,6 +787,79 @@ public:
     }
 
   //  excludeInnerFaces(tolerance,3,3); //!!! not needed
+
+    return true;
+  }
+
+  /** Make a letter from 8x14 font, every pixel size dx x dy x dz is a box,
+    bottom, top - in Z direction. LOWER!!! left corner is (0,0,0). */
+  bool makeLetter8x14(unsigned char letter, T dx, T dy, T dz,
+    bool makebottom, bool maketop, T tolerance, 
+    T parmtolerance = PARM_TOLERANCE,     
+    int m1 = SPLINE_DEGREE, int m2 = SPLINE_DEGREE, int m3 = SPLINE_DEGREE,
+    int numpointsU = 11, int numpointsV = 11, int numpointsW = 11,
+    int numcontourpoints = MANY_POINTS2D)
+  {
+    std::array<unsigned char,14> &bits = Font8x14<T>[letter];
+
+    // must be 14
+    int bytesperchar = sizeof(Font8x14<T>[letter]);
+    assert(bytesperchar == 14);
+
+    // rows, upside down, LOWER!!! left corner is (0,0,0)
+    for (int i = 0; i < bytesperchar; i++)
+    {
+      // pixels
+      for (int j = 0; j < 8; j++)
+      {
+        if (bitSet<T>(bits[i],7 - j)) // bits are reverse
+        {
+          int mask = 0xFF;
+
+          if (!makebottom)
+            mask = clearBit<T>(mask,4);
+          if (!maketop)
+            mask = clearBit<T>(mask,5);
+
+          T x0 = T(j) * dx;
+          T x1 = x0 + dx;
+          T y0 = T(i) * dy;
+          T y1 = y0 + dy;
+          makeBox(
+            TPoint<T>(x0,y0,-dz * 0.5),
+            TPoint<T>(x1,y1,+dz * 0.5), 
+            "",mask,1,1,1,numpointsU,numpointsV,numpointsW); //!!! m1 = 1
+        }
+      }
+    }
+
+    excludeInnerFaces(tolerance,3,3);
+
+    return true;
+  }
+
+  /** Make text with 8x14 font, every pixel size dx x dy x dz is a box,
+    bottom, top - in Z direction. LOWER!!! left corner is (0,0,0). */
+  bool makeText8x14(const std::string &text, T dx, T dy, T dz,
+    bool makebottom, bool maketop, T tolerance, 
+    T parmtolerance = PARM_TOLERANCE,     
+    int m1 = SPLINE_DEGREE, int m2 = SPLINE_DEGREE, int m3 = SPLINE_DEGREE,
+    int numpointsU = 11, int numpointsV = 11, int numpointsW = 11,
+    int numcontourpoints = MANY_POINTS2D)
+  {
+    for (int i = 0; i < int(text.size()); i++)
+    {
+      TBrep<T> letter(tolerance);
+      letter.makeLetter8x14(text[i],dx,dy,dz,makebottom,maketop,tolerance, 
+        parmtolerance,m1,m2,m3,numpointsU,numpointsV,numpointsW,numcontourpoints);
+
+      TTransform<T> t;
+      t.Translate(TPoint<T>(T(i) * dx * 8));
+
+      letter.makeTransform(&t);
+
+      addFaces(letter);
+    }
 
     return true;
   }

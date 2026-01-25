@@ -264,6 +264,31 @@ bool rewriteSTLAsBinary(const std::string &filename)
 
 int main(int argc, char* argv[])
 {
+#if 0 //!!!!!!!
+  {
+    FILE *fp = nullptr;
+    if (fopen_s(&fp,"FONT8X14.FON","rb") != 0)
+      return 1;
+
+    unsigned char bt[3584];
+    size_t bytesread = fread(bt,1,3584,fp);
+
+    fclose(fp);
+
+    if (fopen_s(&fp,"FONT8X14.TXT","wb") != 0)
+      return 1;
+
+    for (int i = 0; i < 3584; i += 14)
+    {
+      fprintf(fp,"{0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X,0x%02X},\n",
+        bt[i],bt[i + 1],bt[i + 2],bt[i + 3],bt[i + 4],bt[i + 5],bt[i + 6],bt[i + 7],bt[i + 8],
+        bt[i + 9],bt[i + 10],bt[i + 11],bt[i + 12],bt[i + 13]);
+    }
+
+    fclose(fp);
+  }
+#endif
+
   // start console output (for errorMessage("..."))
   startConsole();
 
@@ -2141,8 +2166,6 @@ int main(int argc, char* argv[])
     }
   }
 
-#endif
-
   /*****************************************************************************
     5.14 Blocks : filleted wing with rudder cut out
   *****************************************************************************/
@@ -2576,6 +2599,48 @@ int main(int argc, char* argv[])
     // save solid
     std::vector<std::vector<TPoint<T>>> badedges;
     bool ok = bsub.saveSolidIges(DEBUG_DIR + "Kilo all wings solid.iges",
+      bsub.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+    ASSERT(ok);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#endif
+
+  /*****************************************************************************
+    5.21 Blocks : 3D text
+  *****************************************************************************/
+
+  cout << "5.21 Blocks : 3D text" << endl;
+
+  {
+    T subL = 74.0;
+    T tolerance = subL * PARM_TOLERANCE;
+
+    TTransform<T> t;
+
+    TBrep<T> btext(tolerance);
+
+    btext.makeText8x14("TCAD",0.2,0.2,1.0,true,false,tolerance); //!!!!!!! no top - not deleted by booleans
+
+    t.LoadIdentity();
+    t.Rotate(TPoint<T>(1,0,0),-90.0 * CPI);
+    t.Translate(TPoint<T>(12.5,-1.22,9.0));
+    btext.makeTransform(&t);
+
+    btext.closeOuterBoundary();
+    btext.saveSurfacesIges(DEBUG_DIR + "Text surfaces.iges");
+
+    bsub = bsub + btext;
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo text surfaces.iges");
+
+    // save solid
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = bsub.saveSolidIges(DEBUG_DIR + "Kilo text solid.iges",
       bsub.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
 
     ASSERT(ok);
