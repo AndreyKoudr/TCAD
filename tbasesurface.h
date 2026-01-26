@@ -1050,7 +1050,8 @@ public:
       for (int i = 0; i < n; i++)
       {
         // this is a hole, we need an outer loop as loop[0]
-        // sure it is not possible to have both holes and patches at the same time
+        //!!! incorrect - sure it is not possible to have both holes and patches at the same time
+        // it is possible if a hole is inside another hole, it has the "outer" direction
         bool hole = !outerLoop(innerloops[i],parmtolerance);
         if (hole)
         {

@@ -2636,6 +2636,8 @@ int main(int argc, char* argv[])
     btext.saveSurfacesIges(DEBUG_DIR + "Text surfaces.iges");
 
     bsub = bsub + btext;
+
+    bsub.clearNames();
     bsub.saveSurfacesIges(DEBUG_DIR + "Kilo text surfaces.iges");
 
     // save solid
