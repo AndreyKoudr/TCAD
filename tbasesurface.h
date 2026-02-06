@@ -1018,6 +1018,7 @@ public:
     std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
     T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
     T maxparmgap = 0.001)
+ //!!!!!!!   T maxparmgap = 1.1 / T(MANY_POINTS2D - 1))
   {
     if (cutUV.empty())
       return false;
@@ -1038,8 +1039,8 @@ public:
 
     // inner loops
     std::vector<std::vector<std::vector<TPoint<T>>>> innerloops;
+ //   int n = extractLoops(cut,innerloops,parmtolerance * 1000.0,parmtolerance); //!!!!!!!
     int n = extractLoops(cut,innerloops,parmtolerance,parmtolerance);
- //!!!   int n = extractLoops(cut,innerloops,bigtolerance,parmtolerance);
   
     // all done
     if (n)

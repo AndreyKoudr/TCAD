@@ -145,7 +145,7 @@ template <class T> TPoint<T> midDirection(std::vector<TPoint<T>> &points)
 {
   assert(points.size() > 1);
 
-  int i0 = int(points.size() / 2);
+  int i0 = int(points.size() / 2) - 1;
   LIMIT_MIN(i0,0);
   int i1 = i0 + 1;
   LIMIT_MAX(i1,int(points.size() - 1));
@@ -1511,7 +1511,7 @@ template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points,
   }
                               // get max integer value we need
   T numcellsneeded = maxcoord / gridstep;
-  T numcellsavailable = static_cast<T>(std::numeric_limits<LINT>::max( ));
+  T numcellsavailable = static_cast<T>(std::numeric_limits<LINT>::max());
   if (numcellsavailable < numcellsneeded)
   {
                               // increase tolerance
@@ -1541,8 +1541,8 @@ template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points,
     -0.5,+0.5,+0.5
   };
 
-  for (int pos = 0; pos < 8; pos ++) {
-
+  for (int pos = 0; pos < 8; pos++) 
+  {
     T dx = tolerance * incs[pos][0];
     T dy = tolerance * incs[pos][1];
     T dz = tolerance * incs[pos][2];
@@ -1639,7 +1639,8 @@ template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points,
 
   for(int i = 0; i < numvectors; i++) 
   {
-    if (replacement[i] < 0) {
+    if (replacement[i] < 0) 
+    {
       replacement[i] = replacement[-1 - replacement[i]];
     }
   }
@@ -2730,5 +2731,59 @@ template <class T> TPoint<T> getLoopNormal(std::vector<std::vector<TPoint<T>>> &
 
   return loopnormal;
 }
+
+/** Find a pair of two closest values. n^2. */
+template <class T> bool findTwoClosest(std::vector<TPoint<T>> &points,
+  int &index0, int &index1)
+{
+  if (points.size() <= 2)
+    return false;
+
+  T mindist = std::numeric_limits<T>::max();
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    for (int j = i + 1; j < int(points.size()); j++)
+    {
+      T dist = !(points[i] - points[j]);
+      if (dist < mindist)
+      {
+        mindist = dist;
+        index0 = i;
+        index1 = j;
+      }
+    }
+  }
+
+  return true;
+}
+
+/** Exclude pairs of closest numbers till the list reaches numpoints. Used in
+  intersectTriangleByTriangle() to get exactly two intersection points. n^2. */
+template <class T> void excludeClosestNumbers(std::vector<TPoint<T>> &points,
+  T tolerance, int numpoints = 2)
+{
+  assert(numpoints >= 2);
+
+  while (points.size() > numpoints)
+  {
+    int index0 = -1;
+    int index1 = -1;
+    if (!findTwoClosest(points,index0,index1))
+      break;
+
+    // we need to exlude a "less rounded" value
+    int count0 = digitRoundCount(points[index0],tolerance);
+    int count1 = digitRoundCount(points[index1],tolerance);
+
+    if (count0 > count1)
+    {
+      points.erase(points.begin() + index1);
+    } else
+    {
+      points.erase(points.begin() + index0);
+    }
+  }
+}
+
 
 }

@@ -189,7 +189,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-All wings in place. All last operations are done with booleans, +,- and ^. All in single solid.<br /> 
+Important fix. Much less memory eaten. Now trying to make the whole thing faster and more accurate.<br /> 
 
 
 

@@ -744,8 +744,39 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
   TPoint<T> c = v01 * U; 
   intersection = point0 + c;
                                       // scan each facet side 
-  TPoint<T> olddir;
   bool inside = true;
+
+#if 1 //!!! fix for a very bad bag
+                                      // all dirs must have same direction
+  std::vector<TPoint<T>> dirs;
+  for (int i = 0; i < 3; i++)
+  {
+    int i1 = (i < 2) ? (i + 1) : 0;
+
+    TPoint<T> v = intersection - coords[i];
+    TPoint<T> dv = coords[i1] - coords[i];
+    TPoint<T> dir = dv ^ v;
+    dirs.push_back(dir);
+  }
+
+  for (int i = 0; i < 3; i++)
+  {
+    for (int j = i + 1; j < 3; j++)
+    {
+      if (!(dirs[i] > dirs[j]))
+      {
+        inside = false;
+        break;
+      }
+    }
+
+    if (!inside)
+      break;
+  }
+
+#else
+                                      // works incorrectly when dv ^ v is zero length vector
+  TPoint<T> olddir;
   for (int i = 0; i < 3; i++)
   {
     int i1 = (i < 2) ? (i + 1) : 0;
@@ -765,6 +796,8 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
 
     olddir = dir;
   }
+
+#endif
                                       // additional check by projecting intersection on every edge
   bool onedge = false;
   if (!inside)

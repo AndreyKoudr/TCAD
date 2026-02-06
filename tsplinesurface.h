@@ -1049,6 +1049,16 @@ template <class T> void closeOuterBoundary(std::vector<std::vector<std::vector<t
   closeOuterBoundaryLoop<T>(loop[0]);
 }
 
+/** Close outer boundary if empty. */
+template <class T> void closeOuterBoundaryIfEmpty(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop)
+{
+  if (loop.empty())
+  {
+    loop.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
+    closeOuterBoundaryLoop<T>(loop[0]);
+  }
+}
+
 /** Close outer boundary. */
 template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
   // surface  // loop 0   // 4 pieces // piece contents

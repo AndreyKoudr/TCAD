@@ -2349,6 +2349,9 @@ int main(int argc, char* argv[])
   TBrep<T> bsub = TBrep<T>(subsurfaces,subboundariesUV);
 
   {
+    // save surfaces
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudder surfaces before.iges");
+
     // plus rudder
     bsub = bsub + brudder;
 
@@ -2454,7 +2457,12 @@ int main(int argc, char* argv[])
 
   {
     // plus rudder
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudders surfaces 0.iges");
+
     bsub = bsub + brudder0;
+
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudders surfaces 1.iges");
+
     bsub = bsub + brudder1;
 
     // save surfaces
@@ -2609,8 +2617,6 @@ int main(int argc, char* argv[])
     }
   }
 
-#endif
-
   /*****************************************************************************
     5.21 Blocks : 3D text
   *****************************************************************************/
@@ -2625,7 +2631,7 @@ int main(int argc, char* argv[])
 
     TBrep<T> btext(tolerance);
 
-    btext.makeText8x14("TCAD",0.2,0.2,1.0,true,false,tolerance); //!!!!!!! no top - not deleted by booleans
+    btext.makeText8x14("TCAD",0.2,0.2,1.0,true,true,tolerance); //!!! no top - not deleted by booleans
 
     t.LoadIdentity();
     t.Rotate(TPoint<T>(1,0,0),-90.0 * CPI);
@@ -2652,6 +2658,66 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
+
+#endif
+
+#if 0
+  /*****************************************************************************
+    5.22 Blocks : 3D text simple defect
+  *****************************************************************************/
+
+  cout << "5.22 Blocks : 3D text simple defect" << endl;
+
+  {
+    T tolerance = 1.0 * PARM_TOLERANCE;
+
+    TTransform<T> t;
+
+    TBrep<T> bbox(tolerance);
+    bbox.makeBox(TPoint<T>(0.0,0.0,0.0),TPoint<T>(1.0,1.0,1.0));
+
+    bbox.closeOuterBoundary();
+    bbox.saveSurfacesIges(DEBUG_DIR + "Box surfaces.iges");
+
+    TBrep<T> btext(tolerance);
+
+    btext.makeText8x14("o",0.05,0.05,0.5,true,true,tolerance); //!!! no top - not deleted by booleans
+
+    t.LoadIdentity();
+    t.Rotate(TPoint<T>(1,0,0),-90.0 * CPI);
+    t.Translate(TPoint<T>(0.325,0.0,0.85));
+    btext.makeTransform(&t);
+
+    btext.closeOuterBoundary();
+    btext.saveSurfacesIges(DEBUG_DIR + "Text surfaces.iges");
+
+    bbox.nameSurfaces("b");
+    btext.nameSurfaces("t");
+    bbox = bbox + btext;
+
+  //  bbox.clearNames();
+    //for (int i = 0; i < int(bbox.boundariesUV.size()); i++)
+    //{
+    //  if (i != 2)
+    //    bbox.boundariesUV[i].clear();
+    //}
+
+    bbox.saveSurfacesIges(DEBUG_DIR + "Text surfaces.iges");
+
+    // save solid
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = bbox.saveSolidIges(DEBUG_DIR + "Text solid.iges",
+      bbox.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+    ASSERT(ok);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#endif
 
 #ifdef DEBUG_BOOLEANS
 
@@ -2740,8 +2806,11 @@ int main(int argc, char* argv[])
 
         cout << "box + sphere" << endl;
 
+        box.nameSurfaces("b");
+        sphere.nameSurfaces("s");
         TBrep<T> boxplussphere = box + sphere; 
 
+        boxplussphere.clearNames();
         bool ok4 = boxplussphere.saveSurfacesIges(DEBUG_DIR + "Box+sphere surfaces.iges");
 
         ASSERT(ok4);

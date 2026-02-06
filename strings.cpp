@@ -65,7 +65,8 @@ std::string to_string(double d, int len)
   if (d == 0.0) 
   {
     std::string s = "0.0";
-    return padFromRight(s,len,' ');
+    return padFromRight(s,len,'0');
+//!!!!!!!    return padFromRight(s,len,' ');
   } else
   {
     int order,dig;
@@ -327,6 +328,26 @@ bool containsOnlyChars(const std::string &s, char from, char to)
   }
 
   return true;
+}
+
+int countCharFromEnd(std::string str, unsigned char ch, unsigned char skipch)
+{
+  int count = 0;
+
+  for (int i = int(str.size() - 1); i >= 0; i--)
+  {
+    if (str[i] == ch)
+    {
+      count++;
+    } else if (str[i] == skipch)
+    {
+    } else
+    {
+      break;
+    }
+  }
+
+	return count;
 }
 
 void outputDebugString(const std::string &str)

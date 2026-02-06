@@ -676,37 +676,147 @@ template <class T> int findOverlapping(std::array<LINT,3> loc,
   return int(list.size());
 }
 
+/** Find closest curve. Used to find a boundary piece coincident with one of curves[i]. inout contains :
+  0 : to be defined, 1 - intersected, 2 - in, 3 - out. */
+template <class T> bool findClosest(TPointCurve<T> &curve,
+  std::vector<std::vector<std::vector<TPointCurve<T>>>> &curves, 
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> &boundariesUV, 
+  std::vector<bool> &busy, std::vector<int> &inout, 
+  std::array<int,3> &res, bool &in, T tolerance, T bigtolerance, 
+  T parmtolerance = PARM_TOLERANCE, bool *reversed = nullptr, T *pmindist = nullptr)
+{
+  // result
+  res[0] = res[1] = res[2] = -1;
+
+  if (curve.length() <= tolerance)
+    return false;
+
+  TPoint<T> middle = curve.middle();
+
+  // suppose connected to "in" part
+  in = true;
+
+  // min dist for "in" connected curves
+  T mindistin = std::numeric_limits<T>::max();
+  // min dist for "out" connected curves
+  T mindistout = std::numeric_limits<T>::max();
+
+  std::array<int,3> inres = {-1,-1,-1};
+  std::array<int,3> outres = {-1,-1,-1};
+
+  for (int i = 0; i < int(curves.size()); i++)
+  {
+    // skip this face
+    if (!busy[i])
+      continue;
+
+    // test "in" curves, they have first "loop" for "in" boundaries
+    for (int j = 0; j < int(curves[i][0].size()); j++)
+    {
+      if (curves[i][0][j].length() > tolerance)
+      {
+        T dist = !(curve.middle() - curves[i][0][j].middle());
+        if (dist < mindistin)
+        {
+          if (inout[i] == 1 || inout[i] == 2)
+          {
+            mindistin = dist;
+            inres[0] = i;
+            inres[1] = 0;
+            inres[2] = j;
+          } else
+          {
+            mindistout = dist;
+            outres[0] = i;
+            outres[1] = 0;
+            outres[2] = j;
+          }
+        }
+      }
+    }
+
+    // intersection curves have two "loops" the second is full untrimmed
+    if (curves[i].size() > 1)
+    {
+      std::array<int,4> used;
+      getUsedBoundaryPieces(boundariesUV[i][0],used,parmtolerance);
+
+      assert(curves[i][1].size() == 4);
+
+      for (int j = 0; j < int(curves[i][1].size()); j++)
+      {
+        if (used[j])
+          continue;
+
+        if (curves[i][1][j].length() > tolerance)
+        {
+          T dist = !(curve.middle() - curves[i][1][j].middle());
+          if (dist < mindistout)
+          {
+            mindistout = dist;
+            outres[0] = i;
+            outres[1] = 1;
+            outres[2] = j;
+          }
+        }
+      }
+    }
+  }
+
+  T mindist = 0.0;
+  if (mindistin < mindistout)
+  {
+    mindist = mindistin;
+    res = inres;
+    in = true;
+  } else
+  {
+    mindist = mindistout;
+    res = outres;
+    in = false;
+  }
+
+  if (pmindist)
+    *pmindist = mindist;
+
+  bool ok = ((mindist < bigtolerance) && (res[0] >= 0) && (inout[res[0]] > 0));
+
+  if (ok && reversed)
+    *reversed = !(curve.midDirection() > curves[res[0]][res[1]][res[2]].midDirection());
+
+  return ok;
+}
+
 /** Find closest curve. Used to find a boundary piece coincident with one of curves[i]. */
-template <class T> bool findClosest(int i, std::vector<std::vector<TPointCurve<T>>> &curves,
-  std::vector<bool> &busy, std::pair<int,int> &res, T tolerance, T bigtolerance, 
+template <class T> bool findClosest(int i, 
+  std::vector<std::vector<std::vector<TPointCurve<T>>>> &curves,
+  std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> &boundariesUV, 
+  std::vector<bool> &busy, std::vector<int> &inout, std::array<int,3> &res, bool &in, 
+  T tolerance, T bigtolerance, T parmtolerance = PARM_TOLERANCE,
   bool *reversed = nullptr, T *pmindist = nullptr)
 {
   // result
-  res.first = res.second = -1;
+  res = {-1,-1,-1};
 
   T mindist = std::numeric_limits<T>::max();
-  int kmin = -1;
 
-  for (int j = 0; j < int(curves.size()); j++)
+  for (int k = 0; k < int(curves[i][0].size()); k++)
   {
-    if (!busy[j])
-      continue;
+    std::array<int,3> res0;
+    bool reversed0 = false;
+    bool in0 = false;
+    T mindist0 = 0.0;
 
-    for (int k = 0; k < int(curves[i].size()); k++)
+    if (findClosest(curves[i][0][k],curves,boundariesUV,busy,inout,res0,in0,tolerance,bigtolerance,
+      parmtolerance,&reversed0,&mindist0))
     {
-      for (int l = 0; l < int(curves[j].size()); l++)
+      if (mindist0 < mindist)
       {
-        if (curves[i][k].length() > tolerance && curves[j][l].length() > tolerance)
-        {
-          T dist = !(curves[i][k].middle() - curves[j][l].middle());
-          if (dist < mindist)
-          {
-            mindist = dist;
-            res.first = j;
-            res.second = l;
-            kmin = k;
-          }
-        }
+        mindist = mindist0;
+        res = res0;
+        in = in0;
+        if (reversed)
+          *reversed = reversed0;
       }
     }
   }
@@ -714,12 +824,7 @@ template <class T> bool findClosest(int i, std::vector<std::vector<TPointCurve<T
   if (pmindist)
     *pmindist = mindist;
 
-  // bool ok = pointsEqual<T>(curves[i][kmin],curves[res.first][res.second],true,bigtolerance,reversed);
-
-  bool ok = (mindist < bigtolerance);
-
-  if (ok)
-    *reversed = !(curves[i][kmin].midDirection() > curves[res.first][res.second].midDirection());
+  bool ok = ((mindist < bigtolerance) && (res[0] >= 0) && (inout[res[0]] > 0)); // if only already defined
 
   return ok;
 }

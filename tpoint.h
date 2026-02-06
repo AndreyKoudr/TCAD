@@ -42,6 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "tbasics.h"
 #include "memory.h"
+#include "strings.h"
 
 namespace tcad {
 
@@ -423,6 +424,33 @@ template <typename T> void makeBox(TPoint<T> min, TPoint<T> max, std::array<TPoi
   box[5] = TPoint<T>(max.X,min.Y,max.Z);
   box[6] = TPoint<T>(max.X,max.Y,max.Z);
   box[7] = TPoint<T>(min.X,max.Y,max.Z);
+}
+
+/** Find count of '0's or '9's at the end of a real. */
+template <typename T> int digitRoundCount(T value, T tolerance)
+{
+  int numdigits = int(log10(1.0 / tolerance)) + 2;
+
+  std::string str = to_string(value,numdigits);
+
+  int count0 = countCharFromEnd(str,'0');
+  int count1 = countCharFromEnd(str,'9');
+
+  int count = std::max<int>(count0,count1);
+
+  return count;
+}
+
+/** Find count of '0's or '9's at the end of reals. */
+template <typename T> int digitRoundCount(TPoint<T> point, T tolerance)
+{
+  int count0 = digitRoundCount<T>(point.X,tolerance);
+  int count1 = digitRoundCount<T>(point.Y,tolerance);
+  int count2 = digitRoundCount<T>(point.Z,tolerance);
+
+  int count = count0 + count1 + count2;
+
+  return count;
 }
 
 }

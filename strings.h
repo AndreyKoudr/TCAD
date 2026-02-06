@@ -101,6 +101,8 @@ std::string justDirectory(const std::string &path);
 
                               // string contains only chars from to
 bool containsOnlyChars(const string &s, char from, char to);
+                              // count characters ch from end (like '0' or '9')
+int countCharFromEnd(std::string str, unsigned char ch, unsigned char skipch= '.');
 
                               // output debug string
 void outputDebugString(const std::string &str);

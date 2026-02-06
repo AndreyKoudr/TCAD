@@ -160,8 +160,8 @@ template <class T> void boundarySideEnds(int side, TPoint<T> &p0, TPoint<T> &p1)
 
   int i1 = nextCorner<T>(i);
 
-  p0 = cornerUV[i];
-  p1 = cornerUV[i1];
+  p0 = cornerUV<T>[i];
+  p1 = cornerUV<T>[i1];
 }
 
 /** Is it a boundary line? To check bad intersection lines along boundary. */
@@ -177,7 +177,8 @@ template <class T> bool boundaryLine(std::vector<TPoint<T>> &boundary, T parmtol
 }
 
 /** Piece of boundary line on side number. */
-template <class T> int boundaryLine(std::vector<TPoint<T>> &boundary, T parmtolerance = PARM_TOLERANCE, bool *reversed = nullptr)
+template <class T> int boundaryLine(std::vector<TPoint<T>> &boundary, T parmtolerance = PARM_TOLERANCE, 
+  bool *reversed = nullptr)
 {
   assert(boundary.size() > 1); //!!!
   if (boundary.size() <= 1)
@@ -214,6 +215,51 @@ template <class T> int boundaryLine(std::vector<TPoint<T>> &boundary, T parmtole
   }
 
   return index;
+}
+
+/** If full boundary line returns side number else -1. */
+template <class T> int fullBoundaryLine(std::vector<TPoint<T>> &boundary, T parmtolerance = PARM_TOLERANCE, 
+  bool *reversed = nullptr)
+{
+  int index = boundaryLine(boundary,parmtolerance,reversed);
+
+  if (index < 0)
+    return index;
+
+  TPoint<T> p0,p1;
+  boundarySideEnds(index,p0,p1);
+
+  if (!(boundary.front() - p0) < parmtolerance && !(boundary.back() - p1) < parmtolerance)
+  {
+    if (reversed)
+      *reversed = false;
+    return index;
+  } else if (!(boundary.front() - p1) < parmtolerance && !(boundary.back() - p0) < parmtolerance)
+  {
+    if (reversed)
+      *reversed = true;
+    return index;
+  } else
+  {
+    return -1;
+  }
+}
+
+/** Get (outer) boundary lines numbers [0..3] which are NOT in the loop. */
+template <class T> void getUsedBoundaryPieces(std::vector<std::vector<TPoint<T>>> &loop, 
+  std::array<int,4> &used, T parmtolerance = PARM_TOLERANCE)
+{
+  used.fill(false);
+
+  for (int i = 0; i < int(loop.size()); i++)
+  {
+    bool reversed = false;
+    int index = boundaryLine(loop[i],parmtolerance,&reversed);
+    if (index >= 0)
+    {
+      used[index] = true;
+    }
+  }
 }
 
 /** Set accurate values for boundary point. */

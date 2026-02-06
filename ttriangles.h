@@ -183,6 +183,26 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
 //if (std::abs(angdeg) < 2.0 || std::abs(angdeg - 180.0) < 2.0)
 //outputDebugString(std::string("ang = ") + to_string(angdeg,14));
 
+//!!! remove
+//bool found0 = false;
+//bool found1 = false;
+//for (int i = 0; i < 3; i++)
+//{
+//  if (!(tri[i] - TPoint<T>(0.475,0.0,0.35)) < 0.00001)
+//  {
+//    found0 = true;
+//  }
+//  if (!(other[i] - TPoint<T>(0.475,0.0,0.35)) < 0.000001)
+//  {
+//    found1 = true;
+//  }
+//}
+//
+//if (found0 && found1)
+//{
+//  int aggaga = 0;
+//}
+
   intrs.clear();
 
   // tri edges with other triangle
@@ -209,7 +229,11 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
     }
   }
 
+  // remove duplicates
   removeDuplicates(intrs,true,tolerance); // true is correct here
+
+  // we need two points, exclude "less rounded"
+//!!!!!!!  DO NOT DO excludeClosestNumbers<T>(intrs,tolerance,2);
 
   //!!!!!! important : set correct orientation of intersection curve : part to the right is
   // thrown off
@@ -3213,8 +3237,8 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   // order lines from edges
   bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true,false); 
 
-#if 0 
-  bool print = true; 
+#if 0 //!!!
+  bool print = false; 
 
   if (print)
   {
