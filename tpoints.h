@@ -512,6 +512,7 @@ template <class T> bool insideBoundary(std::vector<std::vector<TPoint<T>>> &boun
       T Xi = p1.X;
       T Yi = p1.Y;
 
+//      if (intersectSegmentsXY(p0.X,p0.Y,p1.X,p1.Y,point.X,point.Y,point.X + 10.0,point.Y + 10.0,
       if (intersectSegmentsXY(p0.X,p0.Y,p1.X,p1.Y,point.X,point.Y,point.X,point.Y + 10.0, // important to cast ray along V
         &t1,&t2,&Xi,&Yi) && (t1 >= 0.0) && (t1 <= 1.0) && (t2 >= 0.0)) // t2 >= 0 - single ray direction
       {
@@ -951,7 +952,7 @@ template <class T> bool makeUpCurves(std::vector<std::pair<TPoint<T>,TPoint<T>>>
   it is unknown in case edges are points (degenerated edges). */
 template <class T> bool curvesFromPieces(std::vector<std::vector<TPoint<T>>> &pieces,
   std::vector<std::vector<TPoint<T>>> &lines, T tolerance, 
-  bool degenerateedges = false, T maxedgeratio = 0.1, bool removeedgeduplicates = false)
+  bool degenerateedges = false, T maxedgeratio = MAXEDGE_RATIO, bool removeedgeduplicates = false)
 {
   // make edges
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
@@ -1002,7 +1003,7 @@ template <class T> bool curvesFromPieces(std::vector<std::vector<TPoint<T>>> &pi
   maxedge ratio is a guessed max edge size to the model size,
   it is unknown in case edges are points (degenerated edges). */
 template <class T> bool curveFromPieces(std::vector<std::vector<TPoint<T>>> &pieces,
-  std::vector<TPoint<T>> &line, T tolerance, bool degenerateedges = false, T maxedgeratio = 0.1)
+  std::vector<TPoint<T>> &line, T tolerance, bool degenerateedges = false, T maxedgeratio = MAXEDGE_RATIO)
 {
   std::vector<std::vector<TPoint<T>>> lines;
   if (curvesFromPieces(pieces,lines,tolerance,degenerateedges,maxedgeratio) && lines.size() == 1)
@@ -1017,7 +1018,7 @@ template <class T> bool curveFromPieces(std::vector<std::vector<TPoint<T>>> &pie
 
 /** Exclude duplicate pieces and order points. */
 template <class T> bool orderPoints(std::vector<TPoint<T>> &points,
-  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T maxedgeratio = 0.1)
+  std::vector<std::vector<TPoint<T>>> &lines, T tolerance, T maxedgeratio = MAXEDGE_RATIO)
 {
   // step 1 : exclude duplicates
   removeDuplicates(points,true,tolerance);
@@ -1962,41 +1963,6 @@ template <class T> void cutOut(std::vector<TPoint<T>> &points, int seg0, T U0, i
   }
 }
 
-/** Divide points into pieces by duplicates. */
-template <class T> void divideByDuplicates(std::vector<TPoint<T>> &points,
-  std::vector<std::vector<TPoint<T>>> &loop, T tolerance)
-{
-  int start = 0; 
-  for (int i = 0; i < int(points.size()); i++)
-  {
-    TPoint<T> p = points[i];
-
-    if (i < int(points.size()) - 1)
-    {
-      TPoint<T> p1 = points[i + 1];
-      T d = !(p1 - p);
-
-      if (d < tolerance)
-      {
-        std::vector<TPoint<T>> piece(points.begin() + start,points.begin() + i + 1);
-        if (!piece.empty())
-        {
-          loop.push_back(piece);
-        }
-
-        start = i + 1;
-      }
-    } else
-    {
-      std::vector<TPoint<T>> piece(points.begin() + start,points.end());
-      if (!piece.empty())
-      {
-        loop.push_back(piece);
-      }
-    }
-  } 
-}
-
 /** Extend curve length by moving start or end by dlen. */
 template <class T> void extendByLength(std::vector<TPoint<T>> &points, bool extendstart, T dlen)
 {
@@ -2418,119 +2384,6 @@ template <class T> bool isDuplicate(std::vector<TPoint<T>> &points, int i, T tol
   return (dist < tolerance);
 }
 
-/** Cut out newpoints from points by going round the contour from newpoints end to 
-  newpoints start. */
-template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
-  std::vector<TPoint<T>> &newpoints, int &n3, T parmtolerance = PARM_TOLERANCE)
-{
-  TPoint<T> startUV = newpoints.back();
-  TPoint<T> endUV = newpoints.front();
-
-  bool found = false;
-
-  // starting point must be duplicate
-  newpoints.push_back(startUV);
-
-  // go from seg0 + 1 to the end, look for endUV inside intervals
-  for (int i = seg0 + 1; i < points.size() - 1; i++)
-  {
-    TPoint<T> p0 = points[i];
-    TPoint<T> p1 = points[i + 1];
-    TPoint<T> dp = p1 - p0;
-    T len = !dp;
-
-    if (len > parmtolerance)
-    {
-      // find end point between p0 and p1
-      TPoint<T> intr;
-      T t = 0.5;
-      if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
-      {
-        T dist = !(endUV - intr);
-
-        if (dist < parmtolerance)
-        {
-          // non-trivial bug
-          if (isDuplicate(points,i - 1,parmtolerance))
-            newpoints.push_back(points[i - 1]);
-
-          newpoints.push_back(endUV);
-          found = true;
-          break;
-        } else
-        {
-          newpoints.push_back(p0);
-        }
-      } else
-      {
-        newpoints.push_back(p0);
-      }
-    } else
-    {
-      newpoints.push_back(p0);
-    }
-  }
-
-  // another part
-  if (!found)
-  {
-    // add a duplicate to the end
-    newpoints.push_back(points.back());
-    newpoints.push_back(points.back());
-
-    // test starting part of points from 0 to seg0
-    for (int i = 0; i <= seg0; i++)
-    {
-      TPoint<T> p0 = points[i];
-      TPoint<T> p1 = points[i + 1];
-      TPoint<T> dp = p1 - p0;
-      T len = !dp;
-
-      if (len > parmtolerance)
-      {
-        // find end point between p0 and p1
-        TPoint<T> intr;
-        T t = 0.5;
-        if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
-        {
-          T dist = !(endUV - intr);
-
-          if (dist < parmtolerance)
-          {
-            // non-trivial bug
-            if (isDuplicate(points,i - 1,parmtolerance))
-              newpoints.push_back(points[i - 1]);
-
-            newpoints.push_back(endUV);
-            found = true;
-            break;
-          } else
-          {
-            newpoints.push_back(p0);
-          }
-        } else
-        {
-          newpoints.push_back(p0);
-        }
-      } else
-      {
-        newpoints.push_back(p0);
-      }
-    }
-  }
-
-  removeTriplicates(newpoints,parmtolerance);
-
-  n3 = numTriplicates(newpoints);
-
-#if _DEBUG
-  int n2 = numDuplicates(newpoints);
-
-  //assert(n3 == 0);
-#endif
-
-  return found;
-}
 
 /** Reverse two layers of points. */
 template <class T> void reverse(std::vector<std::vector<TPoint<T>>> &points)
@@ -2598,6 +2451,9 @@ template <class T> bool divide(std::vector<TPoint<T>> &points, std::vector<TPoin
 
   // do not take front/backs
   if (index < 0 || index == 0 || index == points.size() - 1)
+    return false;
+
+  if (points.size() != pointsUV.size())
     return false;
 
   TPoint<T> proj; 
@@ -2783,6 +2639,42 @@ template <class T> void excludeClosestNumbers(std::vector<TPoint<T>> &points,
       points.erase(points.begin() + index0);
     }
   }
+}
+
+/** Decimate points. */
+template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpoints)
+{
+  if (numpoints >= int(points.size()))
+    return;
+
+  std::vector<TPoint<T>> newpoints;
+
+#if 1
+  std::vector<int> ranges;
+  stretchBresenhamPoints<T>(0,0,numpoints - 1,int(points.size()) - 1,ranges);
+
+  for (int i = 0; i < int(ranges.size()); i++)
+  {
+    newpoints.push_back(points[ranges[i]]);
+  }
+
+  assert(!(points.front() - newpoints.front()) < TOLERANCE(T));
+  assert(!(points.back() - newpoints.back()) < TOLERANCE(T));
+
+#else
+  std::vector<int> ranges;
+  getRanges(int(points.size()) - 1,numpoints - 1,ranges);
+
+  for (int i = 0; i < int(ranges.size()); i++)
+  {
+    newpoints.push_back(points[ranges[i]]);
+  }
+
+  assert(!(points.front() - newpoints.front()) < TOLERANCE(T));
+  assert(!(points.back() - newpoints.back()) < TOLERANCE(T));
+#endif
+
+  points = newpoints;
 }
 
 

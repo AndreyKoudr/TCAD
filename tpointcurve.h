@@ -434,7 +434,7 @@ public:
     These edges are degenerated. It is supposed there is only ONE curve
     represented by pieces, not many. 
     maxedge ratio is a guessed max edge size to the model size. */
-  void order(T tolerance, T maxedgeratio = 0.1)
+  void order(T tolerance, T maxedgeratio = MAXEDGE_RATIO)
   {
     // order points
     std::vector<std::vector<TPoint<T>>> pieces;

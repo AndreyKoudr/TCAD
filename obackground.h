@@ -61,19 +61,23 @@ Both operations are fast. This is the way an octree provides a kind of indexing 
 template <typename T> class OBackground {
 public:
 
-  OBackground() = delete;
+  OBackground() {};
 
   /** Contructor */
   OBackground(const TPoint<T> &min, const TPoint<T> &max, 
     LINT Im, LINT Jm, LINT Km, const int maxOctreeLevel);
 
-  /** Return 8 boundary nodes */
+  /** Initialise. */
+  void init(const TPoint<T> &min, const TPoint<T> &max, 
+    LINT Im, LINT Jm, LINT Km, const int maxOctreeLevel);
+
+  /** Return 8 boundary nodes. */
   std::array<TPoint<T>,8> boundaryNodes();
 
-  /** Convert back cell I,J,K (not normal integer!) position into back cell number */
+  /** Convert back cell I,J,K (not normal integer!) position into back cell number. */
   LINT positionToBackCellIndex(const IPosition &position);
 
-  /** Convert back cell number into I,J,K (not normal integer!) position */
+  /** Convert back cell number into I,J,K (not normal integer!) position. */
   IPosition backCellIndexToPosition(const LINT index);
 
   /** Find cell number, -1 in failure. */
@@ -123,6 +127,12 @@ public:
 };
 
 template <typename T> OBackground<T>::OBackground(const TPoint<T> &min, const TPoint<T> &max, 
+  LINT Im, LINT Jm, LINT Km, const int maxOctreeLevel)
+{
+  init(min,max,Im,Jm,Km,maxOctreeLevel);
+}
+
+template <typename T> void OBackground<T>::init(const TPoint<T> &min, const TPoint<T> &max, 
   LINT Im, LINT Jm, LINT Km, const int maxOctreeLevel)
 {
   LIMIT_MIN(Im,1);

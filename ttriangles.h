@@ -65,6 +65,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace tcad {
 
+extern bool print; 
+
+
 /**
   Class TTriangles - a collection of triangles
   --------------------------------------------
@@ -288,6 +291,7 @@ public:
   {
     coords = copy.coords;
     corners = copy.corners;
+    UVcorners = copy.UVcorners;
     replacement = copy.replacement;
   }
 
@@ -296,6 +300,7 @@ public:
   {
     coords = copy.coords;
     corners = copy.corners;
+    UVcorners = copy.UVcorners;
     replacement = copy.replacement;
 
     return *this;
@@ -409,6 +414,10 @@ public:
   bool saveBoxSTL(std::array<TPoint<T>,8> &box, const std::string filename, 
     const std::string partname, bool binary) const;
 
+  /** Save boxes as STL. */
+  bool saveBoxesSTL(std::vector<std::array<TPoint<T>,8>> &boxes, const std::string filename, 
+    const std::string partname, bool binary) const;
+
   /** Generate points from triangle surfaces. pointsPerTri - 
     number of points per traingle (approximate). Points may be duplicate. */
   bool generatePoints(int pointsPerTri, bool excludeDuplicates, T tolerance, 
@@ -481,6 +490,17 @@ public:
     T parmtolerance = PARM_TOLERANCE,
     std::vector<std::vector<TPoint<T>>> *boundary = nullptr);
 
+  /** Prepare cells for space partitioning. */
+  bool prepareCells(TTriangles<T> &other, T maxedge,
+    OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris, std::vector<std::vector<LINT>> &ocelltris,
+    std::vector<LINT> &activecells, TPoint<T> &UVmin, TPoint<T> &UVmax, 
+    TPoint<T> &oUVmin, TPoint<T> &oUVmax, T parmtolerance = PARM_TOLERANCE, 
+    T expandcoef = MINMAX_COEF, bool debug = false, LINT maxcells = MAX_CELLS); 
+
+  /** Get UV min/max in active cells. */
+  bool parmMinMax(std::vector<std::vector<LINT>> &celltris, 
+    std::vector<LINT> &activecells, TPoint<T> &min, TPoint<T> &max);
+
   /** Intersect with other tris. boundary0,1 contain in U,V parameters in X,Y for 
     first and second surfaces for trimming. Set BOTH boundaries to null or not null 
     at the same time. */
@@ -489,7 +509,7 @@ public:
     T parmtolerance = TOLERANCE(T),
     std::vector<std::vector<TPoint<T>>> *boundary0 = nullptr,
     std::vector<std::vector<TPoint<T>>> *boundary1 = nullptr,
-    int numthreads = NUM_THREADS); 
+    int numthreads = NUM_THREADS, T extendcoef = MINMAX_COEF, T maxedgecoef = MAXEDGE_COEF); 
 
   /** Intersect with other tris. boundary0,1 contain in U,V parameters in X,Y for 
     first and second surfaces for trimming. Set BOTH boundaries to null or not null 
@@ -500,7 +520,7 @@ public:
     std::vector<std::vector<TPoint<T>>> &lines, T parmtolerance,
     std::vector<std::vector<TPoint<T>>> *boundary0,
     std::vector<std::vector<TPoint<T>>> *boundary1,
-    int numthreads);
+    int numthreads, T extendcoef = MINMAX_COEF, T maxedgecoef = MAXEDGE_COEF); 
 
   /** Get pieces (normally one) of boundary as ordered boundary nodes. maxlinelength
     is max line length to prevent crashes (not clear). */
@@ -862,6 +882,38 @@ template<class T> bool TTriangles<T>::saveBoxSTL(std::array<TPoint<T>,8> &box, c
 
   return tris.saveSTL(filename,partname,binary);
 }
+
+template<class T> bool TTriangles<T>::saveBoxesSTL(std::vector<std::array<TPoint<T>,8>> &boxes, const std::string filename, 
+  const std::string partname, bool binary) const
+{
+  TTriangles<T> tris;
+  
+  for (int i = 0; i < int(boxes.size()); i++)
+  {
+    std::array<TPoint<T>,8> &box = boxes[i];
+
+    tris.addTri(box[0],box[1],box[4],0.0);
+    tris.addTri(box[4],box[1],box[5],0.0);
+
+    tris.addTri(box[1],box[2],box[5],0.0);
+    tris.addTri(box[5],box[2],box[6],0.0);
+
+    tris.addTri(box[2],box[3],box[6],0.0);
+    tris.addTri(box[6],box[3],box[7],0.0);
+
+    tris.addTri(box[3],box[0],box[4],0.0);
+    tris.addTri(box[4],box[7],box[3],0.0);
+
+    tris.addTri(box[1],box[0],box[3],0.0);
+    tris.addTri(box[3],box[2],box[1],0.0);
+
+    tris.addTri(box[4],box[5],box[6],0.0);
+    tris.addTri(box[6],box[7],box[4],0.0);
+  }
+
+  return tris.saveSTL(filename,partname,binary);
+}
+
 
 template<class T> bool TTriangles<T>::saveOBJ(FILE *fp, const std::string partname) const
 {
@@ -1583,7 +1635,6 @@ template <class T> bool TTriangles<T>::generatePoints(int pointsPerTri, bool exc
   return true;
 }
 
-
 template <class T> void refineTriangle(const TPoint<T> corner0, 
   const TPoint<T> corner1, const TPoint<T> corner2, 
   const T fraction, std::vector<TPoint<T>> &points)
@@ -1650,7 +1701,7 @@ template <class T> void refineTriangle(const TPoint<T> corner0,
 template <class T> bool TTriangles<T>::generatePointsByRefine(T fraction, bool excludeDuplicates, 
   T tolerance, std::vector<TPoint<T>> &points)
 {
-                            // got through all tris
+                            // go through all tris
   for (int i = 0; i < numFaces(); i++)
   {
      int i3 = i * 3;
@@ -2166,7 +2217,7 @@ template <class T> bool TTriangles<T>::intersectByPlane(TPlane<T> &plane,
   }
 
   // order a curve from two-point pieces
-  ok = curvesFromPieces(pieces,lines,tolerance,false,0.1,true);
+  ok = curvesFromPieces(pieces,lines,tolerance,false,MAXEDGE_RATIO,true);
 
   if (makeboundaries)
   {
@@ -2281,14 +2332,207 @@ template <class T> void intersectMultiCells(std::vector<LINT> *activecells, LINT
   }
 }
 
+template <class T> bool TTriangles<T>::prepareCells(TTriangles<T> &other, T maxedge,
+  OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris, std::vector<std::vector<LINT>> &ocelltris,
+  std::vector<LINT> &activecells, TPoint<T> &UVmin, TPoint<T> &UVmax, 
+  TPoint<T> &oUVmin, TPoint<T> &oUVmax, T parmtolerance, T expandcoef, bool debug, LINT maxcells)
+{
+  celltris.clear();
+  ocelltris.clear();
+  activecells.clear();
+
+  // min/max of all triangles
+  std::pair<TPoint<T>,TPoint<T>> mm0 = minmax();
+  std::pair<TPoint<T>,TPoint<T>> mm1 = other.minmax();
+  TPoint<T> min = pointMin(mm0.first,mm1.first);
+  TPoint<T> max = pointMax(mm0.second,mm1.second);
+
+  // extend
+  extendMinMax(min,max,expandcoef); 
+  TPoint<T> dmm = max - min;
+
+  T tolerance = maxedge * parmtolerance;
+
+  // no intersection possible
+  if (dmm.X < tolerance || dmm.Y < tolerance || dmm.Z < tolerance)
+    return false;
+
+  // too many cells makes the whole construction very slow
+  LINT kX = (LINT) (dmm.X / maxedge);
+  LINT kY = (LINT) (dmm.Y / maxedge);
+  LINT kZ = (LINT) (dmm.Z / maxedge);
+
+  LINT n = kX * kY * kZ;
+  if (n > maxcells)
+  {
+    T coef = pow(T(maxcells) / T(n),0.3333333);
+    maxedge /= coef;
+
+    kX = (LINT) (dmm.X / maxedge);
+    kY = (LINT) (dmm.Y / maxedge);
+    kZ = (LINT) (dmm.Z / maxedge);
+  }
+
+  // cells big enough for spacial partitioning to identify if two triangles
+  // may intersect, they can if they have a node in the same cell only
+  cells.init(min,max,kX,kY,kZ,8);
+
+  // total number of cells
+  LINT numcells = cells.numBackgroundCells();
+
+  // now distribute all tris over cells
+  {
+  #if 0
+    std::vector<std::unordered_set<LINT>> celltristemp(numcells);
+  #else
+    std::vector<std::set<LINT>> celltristemp(numcells);
+  #endif
+    for (LINT i = 0; i < numFaces(); i++)
+    {
+      // important, do not remove
+      std::array<TPoint<T>,8> box;
+      faceBox(i,box);
+
+      for (int j = 0; j < 8; j++)
+      {
+        LINT index = cells.findCell(box[j]);
+        assert(index >= 0);
+
+        celltristemp[index].insert(i);
+      }
+    }
+
+    // convert sets into vectors to divide for threading
+    for (int i = 0; i < int(celltristemp.size()); i++)
+    {
+      std::vector<LINT> list(celltristemp[i].begin(),celltristemp[i].end());
+      celltris.push_back(list);
+    }
+  }
+
+  {
+  #if 0
+    std::vector<std::unordered_set<LINT>> ocelltristemp(numcells);
+  #else
+    std::vector<std::set<LINT>> ocelltristemp(numcells);
+  #endif
+    for (LINT i = 0; i < other.numFaces(); i++)
+    {
+      // important, do not remove
+      std::array<TPoint<T>,8> box;
+      other.faceBox(i,box);
+
+      for (int j = 0; j < 8; j++)
+      {
+        LINT index = cells.findCell(box[j]);
+        assert(index >= 0);
+
+        ocelltristemp[index].insert(i);
+      }
+    }
+
+    for (int i = 0; i < int(ocelltristemp.size()); i++)
+    {
+      std::vector<LINT> list(ocelltristemp[i].begin(),ocelltristemp[i].end());
+      ocelltris.push_back(list);
+    }
+  }
+
+  // now distinguish cells which are (1) not empty (2) contain triangles from
+  // this and other triangles
+  for (LINT i = 0; i < numcells; i++)
+  {
+    if (!celltris[i].empty() && !ocelltris[i].empty())
+    {
+      activecells.push_back(i);
+    }
+  }
+
+//outputDebugString(std::string("numcells ") + to_string(numcells) + 
+//  std::string(" numactivecells ") + to_string(activecells.size())); //!!!!!!!
+
+  if (activecells.empty())
+    return false;
+
+  // report min/max parameters
+  if (!parmMinMax(celltris,activecells,UVmin,UVmax))
+    return false;
+  if (!other.parmMinMax(ocelltris,activecells,oUVmin,oUVmax))
+    return false;
+
+  // slightly increase parm ranges
+  assert(expandcoef >= 1.0);
+  extendMinMaxUV<T>(UVmin,UVmax,expandcoef); 
+  extendMinMaxUV<T>(oUVmin,oUVmax,expandcoef); 
+
+  if (debug)
+  {
+    saveSTL("this.STL","TDCAD",false);
+    other.saveSTL("other.STL","TDCAD",false);
+
+    std::vector<std::array<TPoint<T>,8>> cellboxes;
+
+    for (int i = 0; i < int(activecells.size()); i++)
+    {
+      int cellindex = int(activecells[i]);
+
+      IPosition ipos = cells.backCellIndexToPosition(cellindex);
+      std::array<TPoint<T>,8> cellcorners = cells.cell8RealCoordinates(ipos);
+
+      cellboxes.push_back(cellcorners);
+    }
+
+    saveBoxesSTL(cellboxes,"active cells.STL","TDCAD",true);
+  }
+
+  return true;
+}
+
+template <class T> bool TTriangles<T>::parmMinMax(std::vector<std::vector<LINT>> &celltris, 
+  std::vector<LINT> &activecells, TPoint<T> &min, TPoint<T> &max)
+{
+  if (UVcorners.empty())
+    return false;
+  if (activecells.empty())
+    return false;
+
+  bool inited = false;
+  for (auto a : activecells)
+  {
+    for (auto i : celltris[a])
+    {
+      std::array<TPoint<T>,3> uvcorners = UVcorners[i];
+
+      for (int k = 0; k < 3; k++)
+      {
+        if (!inited)
+        {
+          min = max = uvcorners[k];
+          inited = true;
+        } else
+        {
+          min = pointMin<T>(min,uvcorners[k]);
+          max = pointMax<T>(max,uvcorners[k]);
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyleft,
   std::vector<std::vector<TPoint<T>>> &lines, T parmtolerance,
   std::vector<std::vector<TPoint<T>>> *boundary0,
   std::vector<std::vector<TPoint<T>>> *boundary1,
-  int numthreads)
+  int numthreads, T extendcoef, T maxedgecoef)
 {
   // no lines
   lines.clear();
+  if (boundary0)
+    boundary0->clear();
+  if (boundary1)
+    boundary1->clear();
 
   // intersection pairs of points
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
@@ -2311,99 +2555,30 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   T ominedge,omaxedge;
   other.getEdgeMinMax(ominedge,omaxedge);
 
-  maxedge = std::max(maxedge,omaxedge) * 1.1; //!!!!!!!
+  maxedge = std::max<T>(maxedge,omaxedge) * maxedgecoef; 
 
   // this tolerance below is only used to remove duplicate intersection points,
   // no other purpose
   T tolerance = maxedge * parmtolerance;
 
+  // prepare cells for space partitioning
+  OBackground<T> cells; 
+  std::vector<std::vector<LINT>> celltris,ocelltris;
+  std::vector<LINT> activecells;
+  // parameter limits in active cells (where tris intersect)
+  TPoint<T> UVmin,UVmax,oUVmin,oUVmax;
+
+//outputDebugString(std::string("max edge ") + to_string(maxedge,12) + 
+//  std::string(" tolerance ") + to_string(tolerance,12)); //!!!!!!!
+
+  prepareCells(other,maxedge,cells,celltris,ocelltris,activecells,UVmin,UVmax,oUVmin,oUVmax,
+    parmtolerance,extendcoef,print); 
+
   // use octree background cells for spacial partitioning...
 #ifdef USE_SPACEPARTITIONING 
-
-  // min/max of all triangles
-  std::pair<TPoint<T>,TPoint<T>> mm0 = minmax();
-  std::pair<TPoint<T>,TPoint<T>> mm1 = other.minmax();
-  TPoint<T> min = pointMin(mm0.first,mm1.first);
-  TPoint<T> max = pointMax(mm0.second,mm1.second);
-
-  // extend
-  extendMinMax(min,max,1.01);
-  TPoint<T> dmm = max - min;
-
-  // no intersection possible
-  if (dmm.X < tolerance || dmm.Y < tolerance || dmm.Z < tolerance)
-    return false;
-
-  // cells big enough for spacial partitioning to identify if two triangles
-  // may intersect, they can if they have a node in the same cell only
-  OBackground<T> cells(min,max,(LINT) (dmm.X / maxedge),(LINT) (dmm.Y / maxedge),(LINT) (dmm.Z / maxedge),8);
-
-  // total number of cells
-  LINT numcells = cells.numBackgroundCells();
-
-  // now distribute all tris over cells
-  std::vector<std::set<LINT>> celltristemp(numcells);
-  for (LINT i = 0; i < numFaces(); i++)
-  {
-    // important, do not remove
-    std::array<TPoint<T>,8> box;
-    faceBox(i,box);
-
-    for (int j = 0; j < 8; j++)
-    {
-      LINT index = cells.findCell(box[j]);
-      assert(index >= 0);
-
-      celltristemp[index].insert(i);
-    }
-  }
-
-  std::vector<std::set<LINT>> ocelltristemp(numcells);
-  for (LINT i = 0; i < other.numFaces(); i++)
-  {
-    // important, do not remove
-    std::array<TPoint<T>,8> box;
-    other.faceBox(i,box);
-
-    for (int j = 0; j < 8; j++)
-    {
-      LINT index = cells.findCell(box[j]);
-      assert(index >= 0);
-
-      ocelltristemp[index].insert(i);
-    }
-  }
-
-  // convert sets into vectors to divide for threading
-  std::vector<std::vector<LINT>> celltris;
-  std::vector<std::vector<LINT>> ocelltris;
-
-  for (int i = 0; i < int(celltristemp.size()); i++)
-  {
-    std::vector<LINT> list(celltristemp[i].begin(),celltristemp[i].end());
-    celltris.push_back(list);
-  }
-
-  for (int i = 0; i < int(ocelltristemp.size()); i++)
-  {
-    std::vector<LINT> list(ocelltristemp[i].begin(),ocelltristemp[i].end());
-    ocelltris.push_back(list);
-  }
-
-  // now distinguish cells which are (1) not empty (2) contain triangles from
-  // this and other triangles
-  std::vector<LINT> activecells;
-  for (LINT i = 0; i < numcells; i++)
-  {
-    if (!celltris[i].empty() && !ocelltris[i].empty())
-    {
-      activecells.push_back(i);
-    }
-  }
+  
+  // # active cells (which contain triangles from both groups)
   int numactive = int(activecells.size());
-
-  if (numactive == 0)
-    return false;
 
   if (numactive == 0)
     return false;
@@ -2442,7 +2617,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
     int count = 0;
 
+#if 1 
+    std::set<std::pair<LINT,LINT>> intrset;
+#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#endif
 
     for (int t = 0; t < numactive; t++)
     {
@@ -2497,6 +2676,16 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       if (ncells0 > ncells1)
       {
         std::vector<std::thread> threads;
+
+#if 1
+        std::vector<int> ranges;
+        getRanges<T>(ncells,numthreads,ranges);
+
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = ranges[t];
+          int j2 = ranges[t + 1] - 1;
+#else
         int dt = int(ncells) / numthreads;
         for (int t = 0; t < numthreads; t++)
         {
@@ -2505,6 +2694,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
           if (t == numthreads - 1)
             j2 = int(ncells) - 1;
+#endif
 
           std::thread th;
           th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
@@ -2523,6 +2713,16 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       } else
       {
         std::vector<std::thread> threads;
+
+#if 1
+        std::vector<int> ranges;
+        getRanges<T>(ncells,numthreads,ranges);
+
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = ranges[t];
+          int j2 = ranges[t + 1] - 1;
+#else
         int dt = int(ncells) / numthreads;
         for (int t = 0; t < numthreads; t++)
         {
@@ -2531,6 +2731,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
           if (t == numthreads - 1)
             j2 = int(ncells) - 1;
+#endif
 
           std::thread th;
           th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
@@ -2549,7 +2750,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       }
 
       int count = 0;
-      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#if 1 
+    std::set<std::pair<LINT,LINT>> intrset;
+#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+    std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#endif
 
       for (int t = 0; t < numthreads; t++)
       {
@@ -2581,6 +2786,17 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
       // distribute over threads
       std::vector<std::thread> threads;
+
+#if 1
+      std::vector<int> ranges;
+      getRanges<T>(numactive,numthreads,ranges);
+
+      for (int t = 0; t < numthreads; t++)
+      {
+        int j1 = ranges[t];
+        int j2 = ranges[t + 1] - 1;
+#else
+
       int dt = int(numactive) / numthreads;
       for (int t = 0; t < numthreads; t++)
       {
@@ -2589,6 +2805,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
         if (t == numthreads - 1)
           j2 = int(numactive) - 1;
+#endif
 
         std::thread th;
         th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,bodyleft,
@@ -2605,7 +2822,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
       int count = 0;
 
-      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#if 1 
+    std::set<std::pair<LINT,LINT>> intrset;
+#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+    std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#endif
 
       for (int t = 0; t < numthreads; t++)
       {
@@ -2721,35 +2942,10 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 #endif
 
   // this tolerance must be big
-  T bigtolerance = maxedge * 0.1; //!!!!!!!
+  T bigtolerance = maxedge * MAXEDGE_RATIO; //!!!
 
   // order lines from pieces
   bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true); 
-
-#if 0
-  bool print = false;
-
-  if (print)
-  {
-    other.saveFaceSTL(19388,"19388.STL","TDCAD",false);
-    saveFaceSTL(824,"824.STL","TDCAD",false);
-    saveFaceSTL(826,"826.STL","TDCAD",false);
-    saveFaceSTL(827,"827.STL","TDCAD",false);
-    saveFaceSTL(828,"828.STL","TDCAD",false);
-    saveFaceSTL(829,"829.STL","TDCAD",false);
-    saveFaceSTL(834,"834.STL","TDCAD",false);
-
-    for (int i = 0; i < int(activecells.size()); i++)
-    {
-      int cellindex = int(activecells[i]);
-
-      IPosition ipos = cells.backCellIndexToPosition(cellindex);
-      std::array<TPoint<T>,8> cellcorners = cells.cell8RealCoordinates(ipos);
-
-      saveBoxSTL(cellcorners,"cell" + to_string(cellindex) + ".STL","TDCAD",false);
-    }
-  }
-#endif
 
   if (makeboundaries)
   {
@@ -2800,10 +2996,14 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   std::vector<std::vector<TPoint<T>>> &lines, T parmtolerance,
   std::vector<std::vector<TPoint<T>>> *boundary0,
   std::vector<std::vector<TPoint<T>>> *boundary1,
-  int numthreads)
+  int numthreads, T extentdcoef, T maxedgecoef)
 {
   // no lines
   lines.clear();
+  if (boundary0)
+    boundary0->clear();
+  if (boundary1)
+    boundary1->clear();
 
   // intersection pairs of points
   std::vector<std::pair<TPoint<T>,TPoint<T>>> edges;
@@ -2826,7 +3026,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   T ominedge,omaxedge;
   other.getEdgeMinMax(ominedge,omaxedge);
 
-  maxedge = std::max(maxedge,omaxedge) * 1.1; //!!!!!!!
+  maxedge = std::max(maxedge,omaxedge) * maxedgecoef; 
   minedge = std::min(minedge,ominedge);
 
   // this tolerance below is only used to remove duplicate intersection points,
@@ -2843,7 +3043,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   TPoint<T> max = pointMax(mm0.second,mm1.second);
 
   // extend
-  extendMinMax(min,max,1.01);
+  extendMinMax(min,max,MINMAX_COEF);
   TPoint<T> dmm = max - min;
 
   // no intersection possible
@@ -2953,7 +3153,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
     int count = 0;
 
+#if 1 
+    std::set<std::pair<LINT,LINT>> intrset;
+#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#endif
 
     for (int t = 0; t < numactive; t++)
     {
@@ -3008,11 +3212,23 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       if (ncells0 > ncells1)
       {
         std::vector<std::thread> threads;
+
+#if 1
+        std::vector<int> ranges;
+        getRanges<T>(ncells,numthreads,ranges);
+
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = ranges[t];
+          int j2 = ranges[t + 1] - 1;
+#else
+
         int dt = int(ncells) / numthreads;
         for (int t = 0; t < numthreads; t++)
         {
           int j1 = t * dt;
           int j2 = (t + 1) * dt - 1;
+#endif
 
           if (t == numthreads - 1)
             j2 = int(ncells) - 1;
@@ -3034,6 +3250,17 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       } else
       {
         std::vector<std::thread> threads;
+
+#if 1
+        std::vector<int> ranges;
+        getRanges<T>(ncells,numthreads,ranges);
+
+        for (int t = 0; t < numthreads; t++)
+        {
+          int j1 = ranges[t];
+          int j2 = ranges[t + 1] - 1;
+#else
+
         int dt = int(ncells) / numthreads;
         for (int t = 0; t < numthreads; t++)
         {
@@ -3042,6 +3269,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
           if (t == numthreads - 1)
             j2 = int(ncells) - 1;
+#endif
 
           std::thread th;
           th = std::thread(intersectCells<T>,this,&other,bodyleft,index,
@@ -3060,7 +3288,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       }
 
       int count = 0;
-      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#if 1 
+    std::set<std::pair<LINT,LINT>> intrset;
+#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+    std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#endif
 
       for (int t = 0; t < numthreads; t++)
       {
@@ -3092,6 +3324,17 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
       // distribute over threads
       std::vector<std::thread> threads;
+
+#if 1
+      std::vector<int> ranges;
+      getRanges<T>(numactive,numthreads,ranges);
+
+      for (int t = 0; t < numthreads; t++)
+      {
+        int j1 = ranges[t];
+        int j2 = ranges[t + 1] - 1;
+#else
+
       int dt = int(numactive) / numthreads;
       for (int t = 0; t < numthreads; t++)
       {
@@ -3100,6 +3343,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
         if (t == numthreads - 1)
           j2 = int(numactive) - 1;
+#endif
 
         std::thread th;
         th = std::thread(intersectMultiCells<T>,&activecells,j1,j2,this,&other,bodyleft,
@@ -3116,7 +3360,11 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
       int count = 0;
 
-      std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#if 1 
+    std::set<std::pair<LINT,LINT>> intrset;
+#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+    std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
+#endif
 
       for (int t = 0; t < numthreads; t++)
       {
@@ -3232,7 +3480,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 #endif
 
   // this tolerance must be big
-  T bigtolerance = maxedge * 0.1; //!!!!!!
+  T bigtolerance = maxedge * MAXEDGE_RATIO;
 
   // order lines from edges
   bool ok = makeUpCurves(edges,bigtolerance,lines,tolerance,true,true,false); 
@@ -3770,6 +4018,34 @@ template <class T> void deleteTriangles(std::vector<TTriangles<T> *> &triangles)
   }
 
   triangles.clear();
+}
+
+/** Subdivide triangle, get barycentric coordinates of small tris. */
+template <class T> void subdivideTriangle(int numdivisions, std::vector<std::array<TPoint<T>,3>> &barcoords)
+{
+  // starting from E2 = 0 (opposite to node 2)
+  // bottom to top
+  for (int i = 0; i < numdivisions; i++)
+  {
+    T dE2 = 1.0 / T(numdivisions);
+    T E2 = T(i) * dE2;
+
+    // left to right
+    for (int j = 0; j < numdivisions - i; j++)
+    {
+      T dE1 = 1.0 / T(numdivisions);
+      T E1 = T(j) * dE1;
+
+      array<TPoint<T>,3> corners = {barycentricE0(E1,E2),barycentricE0(E1 + dE1,E2),barycentricE0(E1,E2 + dE2)};
+      barcoords.push_back(corners);
+
+      if (j < numdivisions - i - 1)
+      {
+        array<TPoint<T>,3> corners = {barycentricE0(E1 + dE1,E2),barycentricE0(E1 + dE1,E2 + dE2),barycentricE0(E1,E2 + dE2)};
+        barcoords.push_back(corners);
+      }
+    }
+  }
 }
 
 }

@@ -275,6 +275,24 @@ template <class T> void correctBoundaryPoint(TPoint<T> &p, T parmtolerance = PAR
     p.Y = 1.0;
 }
 
+/** Set accurate values for boundary point. */
+template <class T> void correctBoundaryPoints(std::vector<std::vector<TPoint<T>>> &loop, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  // correct points on the boundary
+  for (int i = 0; i < int(loop.size()); i++)
+  {
+    if (boundaryPoint(loop[i].front(),parmtolerance))
+    {
+      correctBoundaryPoint(loop[i].front(),parmtolerance);
+    }
+    if (boundaryPoint(loop[i].back(),parmtolerance))
+    {
+      correctBoundaryPoint(loop[i].back(),parmtolerance);
+    }
+  }
+}
+
 /** Boundary parameters are measured from node 0 (U = V = 0.0)
   counter-clockwise, max value being 4.0. Returns -1.0 in case of failure. */
 template <class T> T UVToBoundaryParm(T U, T V, T parmtolerance = PARM_TOLERANCE)
@@ -445,6 +463,389 @@ template <class T> bool goRoundBoundary(TPoint<T> p0, TPoint<T> p1, std::vector<
   assert(found);
 
   return found && (points.size() >= 2);
+}
+
+
+/** Prepare points before intersection. Divide pieces by duplicate points. */
+template <class T> void cutIntoPoints(std::vector<std::vector<TPoint<T>>> &cut, std::vector<TPoint<T>> &points)
+{
+  points.clear();
+
+  int count = 0;
+  for (int i = 0; i < int(cut.size()); i++)
+  {
+    for (int j = 0; j < int(cut[i].size()); j++) // points may be duplicate, they mark new part
+    {
+      TPoint<T> p = cut[i][j];
+      p.W = T(count++);
+      points.push_back(p);
+    }
+  }
+}
+
+/** Divide points into pieces by duplicates. */
+template <class T> void divideByDuplicates(std::vector<TPoint<T>> &points,
+  std::vector<std::vector<TPoint<T>>> &loop, T tolerance)
+{
+  int start = 0; 
+  for (int i = 0; i < int(points.size()); i++)
+  {
+    TPoint<T> p = points[i];
+
+    if (i < int(points.size()) - 1)
+    {
+      TPoint<T> p1 = points[i + 1];
+      T d = !(p1 - p);
+
+      if (d < tolerance)
+      {
+        std::vector<TPoint<T>> piece(points.begin() + start,points.begin() + i + 1);
+        if (!piece.empty())
+        {
+          loop.push_back(piece);
+        }
+
+        start = i + 1;
+      }
+    } else
+    {
+      std::vector<TPoint<T>> piece(points.begin() + start,points.end());
+      if (!piece.empty())
+      {
+        loop.push_back(piece);
+      }
+    }
+  } 
+}
+
+/** Convert cut and loop into points with duplicate points to mark boundaries between peieces.
+  Intersect loop by cut. Return number of intersections. */
+template <class T> int intersectLoopByCut(
+  std::vector<std::vector<TPoint<T>>> &loop, std::vector<std::vector<TPoint<T>>> &cut, 
+  std::vector<TPoint<T>> &looppoints, std::vector<TPoint<T>> &cutpoints, 
+  std::vector<TPoint<T>> &UV, T parmtolerance = PARM_TOLERANCE)
+{
+  UV.clear();
+
+  // make a single continuous curve from outer loop with marking sharp corners :
+  // they mark every START of new curve piece
+  cutIntoPoints(loop,looppoints);
+
+  // set W for cut
+  cutIntoPoints(cut,cutpoints);
+
+  // find intersections, UV contain segment number + fraction of intersections
+  // cut curve specifies a correct direction of the loop, it must go first here
+  int numintrs = findIntersections(cutpoints,looppoints,UV,parmtolerance); 
+
+  // cleanup duplicate points
+  if (UV.size() > 1)
+  {
+    std::vector<TPoint<T>> UVclean;
+
+    for (int k = 0; k < int(UV.size()); k++)
+    {
+      bool found = false;
+      for (int l = k + 1; l < int(UV.size()); l++)
+      {
+        T d0 = UV[l].X - UV[k].X;
+        T d1 = UV[l].Y - UV[k].Y;
+        T dist0 = std::abs(d0);
+        T dist1 = std::abs(d1);
+
+        found = (
+          dist0 < parmtolerance / T(cutpoints.size()) ||
+          dist1 < parmtolerance / T(looppoints.size())
+        );
+
+        if (found)
+          break;
+      }
+      if (!found)
+        UVclean.push_back(UV[k]);
+    }
+
+    UV = UVclean;
+
+    numintrs = int(UV.size());
+  }
+
+  return numintrs;
+}
+
+/** Get segments and segment UVs from intersection parms for TWO points. */
+template <class T> void getSegment2UVs(std::vector<TPoint<T>> &UV,
+  int &Useg0, T &U0, int &Useg1, T &U1, int &Vseg0, T &V0, int &Vseg1, T &V1)
+{
+  assert(UV.size() == 2);
+
+  if (UV[1].X < UV[0].X)
+  {
+    SWAP(TPoint<T>,UV[0],UV[1]);
+  }
+
+  // all points
+  Useg0 = int(UV[0].X);
+  U0 = UV[0].X - T(Useg0);
+  Useg1 = int(UV[1].X);
+  U1 = UV[1].X - T(Useg1);
+
+  // now go all cut points
+  Vseg0 = int(UV[0].Y);
+  V0 = UV[0].Y - T(Vseg0);
+  Vseg1 = int(UV[1].Y);
+  V1 = UV[1].Y - T(Vseg1);
+}
+
+/** Cut out newpoints from points by going round the contour from newpoints end to 
+  newpoints start. */
+template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
+  TPoint<T> startUV, TPoint<T> endUV, std::vector<TPoint<T>> &newpoints, int &n3, T parmtolerance = PARM_TOLERANCE)
+{
+  bool found = false;
+
+  // starting point must be duplicate
+  newpoints.push_back(startUV);
+
+  // go from seg0 + 1 to the end, look for endUV inside intervals
+  //!!! BUG for (int i = seg0 + 1; i < points.size() - 1; i++) 
+
+  // check FIRST same segment, this is not quite right, as the small segment may be from
+  // already trimmed outer boundary
+  if (UVToBoundaryParm(endUV.X,endUV.Y,parmtolerance) > UVToBoundaryParm(startUV.X,startUV.Y,parmtolerance))
+  {
+    TPoint<T> p0 = points[seg0];
+    TPoint<T> p1 = points[seg0 + 1];
+    TPoint<T> dp = p1 - p0;
+    T len = !dp;
+
+    if (len > parmtolerance)
+    {
+      // find end point between p0 and p1
+      TPoint<T> intr;
+      T t = 0.5;
+      if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
+      {
+        T dist = !(endUV - intr);
+
+        if (dist < parmtolerance)
+        {
+          newpoints.push_back(endUV);
+          return true;
+        }
+      }
+    }
+  }
+
+  // go from seg0 to the end, look for endUV inside intervals
+  for (int i = seg0 + 1; i < points.size() - 1; i++)
+  {
+    TPoint<T> p0 = points[i];
+    TPoint<T> p1 = points[i + 1];
+    TPoint<T> dp = p1 - p0;
+    T len = !dp;
+
+    if (len > parmtolerance)
+    {
+      // find end point between p0 and p1
+      TPoint<T> intr;
+      T t = 0.5;
+      if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
+      {
+        T dist = !(endUV - intr);
+
+        if (dist < parmtolerance)
+        {
+          // non-trivial bug
+          if (isDuplicate(points,i - 1,parmtolerance))
+            newpoints.push_back(points[i - 1]);
+
+          newpoints.push_back(endUV);
+          found = true;
+          break;
+        } else
+        {
+          newpoints.push_back(p0);
+        }
+      } else
+      {
+        newpoints.push_back(p0);
+      }
+    } else
+    {
+      newpoints.push_back(p0);
+    }
+  }
+
+  // another part
+  if (!found)
+  {
+    // add a duplicate to the end
+    newpoints.push_back(points.back());
+    newpoints.push_back(points.back());
+
+    // test starting part of points from 0 to seg0
+    for (int i = 0; i <= seg0; i++)
+    {
+      TPoint<T> p0 = points[i];
+      TPoint<T> p1 = points[i + 1];
+      TPoint<T> dp = p1 - p0;
+      T len = !dp;
+
+      if (len > parmtolerance)
+      {
+        // find end point between p0 and p1
+        TPoint<T> intr;
+        T t = 0.5;
+        if (projectPointOnSegment(endUV,p0,p1,&intr,&t,parmtolerance))
+        {
+          T dist = !(endUV - intr);
+
+          if (dist < parmtolerance)
+          {
+            // non-trivial bug
+            if (isDuplicate(points,i - 1,parmtolerance))
+              newpoints.push_back(points[i - 1]);
+
+            newpoints.push_back(endUV);
+            found = true;
+            break;
+          } else
+          {
+            newpoints.push_back(p0);
+          }
+        } else
+        {
+          newpoints.push_back(p0);
+        }
+      } else
+      {
+        newpoints.push_back(p0);
+      }
+    }
+  }
+
+  removeTriplicates(newpoints,parmtolerance);
+
+  n3 = numTriplicates(newpoints);
+
+#if _DEBUG
+  int n2 = numDuplicates(newpoints);
+
+  //assert(n3 == 0);
+#endif
+
+  return found;
+}
+
+/** Cut out newpoints from points by going round the contour from newpoints end to 
+  newpoints start. */
+template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
+  std::vector<TPoint<T>> &newpoints, int &n3, T parmtolerance = PARM_TOLERANCE)
+{
+  TPoint<T> startUV = newpoints.back();
+  TPoint<T> endUV = newpoints.front();
+
+  return cutOutGoingRound(points,seg0,U0,startUV,endUV,newpoints,n3,parmtolerance);
+}
+
+/** Combine new loop points for 2 intersection points. They have duplicates bewteen pieces. */
+template <class T> bool makeNewLoopPoints(std::vector<TPoint<T>> &cutpoints,
+  std::vector<TPoint<T>> &looppoints, std::vector<TPoint<T>> &UV, 
+  std::vector<TPoint<T>> &newpoints, bool insertcut, T parmtolerance = PARM_TOLERANCE)
+{
+  newpoints.clear();
+
+  // first intersection point is from cutpoints start, cutpoints direction from
+  // first to second intersection point defines cutting direction : void is to
+  // the right, surface is to the left
+
+  int Useg0,Useg1,Vseg0,Vseg1;
+  T U0,U1,V0,V1;
+  getSegment2UVs<T>(UV,Useg0,U0,Useg1,U1,Vseg0,V0,Vseg1,V1);
+
+  // just take all cut points void is to the right, surface is to the left
+  cutOut(cutpoints,Useg0,U0,Useg1,U1,newpoints);
+
+  TPoint<T> startUV = newpoints.back();
+  TPoint<T> endUV = newpoints.front();
+
+  if (!insertcut)
+    newpoints.clear();
+
+  // we need to proceed from newpoints last point to newpoints first
+  // point; we always leave surface to the left, so there are TWO CASES here : 
+  // point 1 has "greater" UV position when going along the boundary or "less"
+  int n3 = 0;
+  bool ok = cutOutGoingRound<T>(looppoints,Vseg1,V1,startUV,endUV,newpoints,n3,parmtolerance);
+  if (n3 > 0)
+  {
+    ok = false;
+  }
+
+  // it must be always ok
+  assert(ok);
+
+  return ok;
+}
+
+/** Find a cut piece (except busy) close to p. p is "tail", cut front is "head" to be
+  connected to tail. */
+template <class T> int findClosestFront(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<bool> &busy, TPoint<T> p, T tolerance)
+{
+  // find closest piece to the current loop end among not busy
+  int closest = -1;
+
+  T mindist = std::numeric_limits<T>::max();
+  for (int i = 0; i < int(cut.size()); i++)
+  {
+    if (busy[i])
+      continue;
+
+    T dist = !(p - cut[i].front());
+    if (dist < tolerance && dist < mindist)
+    {
+      mindist = dist;
+      closest = i;
+    }
+  }
+
+  return closest;
+}
+
+/** Find a cut piece (except busy) by one end close to p. */
+template <class T> int findClosest(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<bool> &busy, TPoint<T> p, bool &front, T tolerance)
+{
+  // find closest piece to the current loop end among not busy
+  int closest = -1;
+  front = false;
+
+  T mindist = std::numeric_limits<T>::max();
+  for (int i = 0; i < int(cut.size()); i++)
+  {
+    if (busy[i])
+      continue;
+
+    T dist = !(p - cut[i].front());
+    if (dist < tolerance && dist < mindist)
+    {
+      front = true;
+      mindist = dist;
+      closest = i;
+    }
+
+    dist = !(p - cut[i].back());
+    if (dist < tolerance && dist < mindist)
+    {
+      front = false;
+      mindist = dist;
+      closest = i;
+    }
+  }
+
+  return closest;
 }
 
 /** Boundary parameter from 0.0 to 4.0. */

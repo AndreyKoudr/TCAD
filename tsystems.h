@@ -803,7 +803,7 @@ template <class T> void makeSystemBoundary(TPoint<T> F0, TPoint<T> G0, TPoint<T>
   }
 }
 
-/** This stuff is for surface-surface intersections. */
+/** This stuff is for surface-surface intersections. A[] is actually A[12], not A[16] */
 template <class T> bool solveSystemUnderdetermined3x4(TPoint<T> F0, TPoint<T> G0, TPoint<T> Fu, TPoint<T> Fv, 
   TPoint<T> Gs, TPoint<T> Gt, 
   T A[16], T B[4])
@@ -827,6 +827,37 @@ template <class T> bool solveSystemUnderdetermined3x4(TPoint<T> F0, TPoint<T> G0
   B[2] = G0.Z - F0.Z;
 
   bool ok = solveSystemOverdetemined<T>(3,4,A,B,DBL_MIN * 10.0);
+
+  return ok;
+}
+
+/** This stuff is for surface-surface intersections. */
+template <class T> bool solveSystemUnderdetermined3x4(TPoint<T> F0, TPoint<T> G0, TPoint<T> Fu, TPoint<T> Fv, 
+  TPoint<T> Gs, TPoint<T> Gt, 
+  std::array<T,12> &A, std::array<T,4> &B, 
+  T tolerance = DBL_MIN * 10.0)
+{
+  A[0 * 4 + 0] = Fu.X;
+  A[0 * 4 + 1] = Fv.X;
+  A[0 * 4 + 2] = -Gs.X;
+  A[0 * 4 + 3] = -Gt.X;
+  B[0] = G0.X - F0.X;
+
+  A[1 * 4 + 0] = Fu.Y;
+  A[1 * 4 + 1] = Fv.Y;
+  A[1 * 4 + 2] = -Gs.Y;
+  A[1 * 4 + 3] = -Gt.Y;
+  B[1] = G0.Y - F0.Y;
+
+  A[2 * 4 + 0] = Fu.Z;
+  A[2 * 4 + 1] = Fv.Z;
+  A[2 * 4 + 2] = -Gs.Z;
+  A[2 * 4 + 3] = -Gt.Z;
+  B[2] = G0.Z - F0.Z;
+
+  B[3] = 0.0;
+
+  bool ok = solveSystemOverdetemined<T>(3,4,&A[0],&B[0],tolerance);
 
   return ok;
 }

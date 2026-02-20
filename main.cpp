@@ -264,7 +264,7 @@ bool rewriteSTLAsBinary(const std::string &filename)
 
 int main(int argc, char* argv[])
 {
-#if 0 //!!!!!!!
+#if 0 
   {
     FILE *fp = nullptr;
     if (fopen_s(&fp,"FONT8X14.FON","rb") != 0)
@@ -286,6 +286,33 @@ int main(int argc, char* argv[])
     }
 
     fclose(fp);
+  }
+#endif
+
+#if 0
+  std::vector<std::array<TPoint<T>,3>> barcoords2;
+  subdivideTriangle(2,barcoords2);
+
+  std::vector<std::array<TPoint<T>,3>> barcoords3;
+  subdivideTriangle(3,barcoords3);
+
+  int gsgsg = 0;
+#endif
+
+#if 0
+  {
+    // 276 -> 201
+    std::vector<TPoint<T>> points;
+    for (int i = 0; i < 276; i++)
+    {
+      points.push_back(TPoint<T>(i,i,i));
+    }
+    decimatePoints<T>(points,201);
+
+    std::vector<int> ranges;
+    getRanges<T>(55,3,ranges);
+
+    int gsgsgsg = 0;
   }
 #endif
 
@@ -1011,9 +1038,11 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> wcintersections; 
   std::vector<std::vector<TPoint<T>>> boundary0,boundary1;
 
+  T tolerance = PARM_TOLERANCE;
+
   // intersect is here
   bool wcok = apsurface.intersect(cylsurface,true,wcintersections,boundary0,boundary1,
-    PARM_TOLERANCE,
+    tolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
@@ -1173,7 +1202,7 @@ int main(int argc, char* argv[])
 
   // intersect is here
   bool tr3ok = apsurface.intersect(cylsurface,true,tr3intersections,tr3boundary0,tr3boundary1,
-    PARM_TOLERANCE,
+    tolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
@@ -1214,7 +1243,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> tr4boundary0,tr4boundary1;
 
   bool tr4ok = apsurface.intersect(cylsurface,true,tr4intersections,tr4boundary0,tr4boundary1,
-    PARM_TOLERANCE,
+    tolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
@@ -1232,7 +1261,7 @@ int main(int argc, char* argv[])
   std::vector<std::vector<TPoint<T>>> tr5boundary0,tr5boundary1;
 
   bool tr5ok = apsurfacelower.intersect(cylsurface,true,tr5intersections,tr5boundary0,tr5boundary1,
-    PARM_TOLERANCE,
+    tolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
 
@@ -1252,23 +1281,32 @@ int main(int argc, char* argv[])
 
   // intersect with upper surface...
   bool tr6ok = cylsurface.intersect(apsurface,true,tr6intersections,tr6boundary0,tr6boundary1,
-    PARM_TOLERANCE,
+    tolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
+
+  // to keep the whole boundary, we will add another part to it
+  // after next intersection
+  std::vector<std::vector<TPoint<T>>> tr6boundary = tr6boundary0;
 
   ASSERT(tr6ok);
 
   // intersect with lower surface...
   bool tr7ok = cylsurface.intersect(apsurfacelower,true,tr6intersections,tr6boundary0,tr6boundary1,
-    PARM_TOLERANCE,
+    tolerance,PARM_TOLERANCE,
     MANY_POINTS2D,MANY_POINTS2D,0.5,1.0,1.0,1.0, // round leading edge at U = 0
     MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0);
+
+  tr6boundary.push_back(tr6boundary0[0]);
+
+  // we need a boolean "minus" from airfoil by cylinder, so reverse the boundary
+  reverse<T>(tr6boundary);
 
   ASSERT(tr7ok);
 
   // close boundary (hole) on first surface
   std::vector<std::vector<std::vector<TPoint<T>>>> tr6closedboundary0;
-  bool tr6ok1 = cylsurface.closeBoundaryLoop(tr6boundary0,tr6closedboundary0);
+  bool tr6ok1 = cylsurface.closeBoundaryLoop(tr6boundary,tr6closedboundary0);
 
   ASSERT(tr6ok1);
 
@@ -1322,7 +1360,7 @@ int main(int argc, char* argv[])
     apsurface.calculateMinMax(&min,&max);
 
     // extend min/max
-    extendMinMax(min,max,1.01);
+    extendMinMax(min,max,MINMAX_COEF);
 
     // create box as Bezier volume around the wing
     TBezierVolume<T> volume(min,max,5,2,6);
@@ -1367,7 +1405,7 @@ int main(int argc, char* argv[])
     apsurface.calculateMinMax(&min,&max);
 
     // extend min/max
-    extendMinMax(min,max,1.01);
+    extendMinMax(min,max,MINMAX_COEF);
 
     // create box as Bezier volume around the wing
     TBezierVolume<T> bvolume(min,max,5,2,6);
@@ -2045,6 +2083,7 @@ int main(int argc, char* argv[])
       subsurfaces,subboundariesUV,
       tolerance,PARM_TOLERANCE,false);
 
+    nameSurfaces<T>(subsurfaces,"sub");
     saveTrimmedSurfacesIges(subsurfaces,subboundariesUV,DEBUG_DIR + "Kilo sub+fin+propeller surfaces trimmed.iges");
 
     std::vector<std::vector<TPoint<T>>> badedges;
@@ -2141,6 +2180,7 @@ int main(int argc, char* argv[])
 
     // name for debugging
     nameSurfaces<T>(subhumpsurfaces,"hump");
+    nameSurfaces<T>(subsurfaces,"sub");
 
     // make boundaries
     closeOuterBoundary<T>(subhumpsurfaces,subhumpboundariesUV);
@@ -2214,8 +2254,6 @@ int main(int argc, char* argv[])
 
     TBrep<T> bruddercut(tolerance);
 
-#if 1
-
     bruddercut.makeBoxRounded2(4.6,0.3,2.4,true,true,false,true,2); //!!!!!!!
 
     t.LoadIdentity();
@@ -2241,50 +2279,6 @@ int main(int argc, char* argv[])
     t.Translate(TPoint<T>(-24.0,0.0,-4.416));
     bshaft1.makeTransform(&t);
 
-#else
-
-    bruddercut.makeBox(TPoint<T>(-28.0,-0.3,-4.4),TPoint<T>(-24.0,0.0,-2.0));
-    bruddercut.makeBox(TPoint<T>(-28.0,0.0,-4.4),TPoint<T>(-24.0,0.3,-2.0));
-
-    bruddercut.deleteFace(8);
-    bruddercut.deleteFace(7);
-    bruddercut.deleteFace(3);
-    bruddercut.deleteFace(1);
-
-    // half of cylinder is part of cutter body
-    TBrep<T> bcylinder(tolerance);
-
-    // this is hollow shaft to hinge plate
-    bshaft0.setTolerance(tolerance);
-    bshaft1.setTolerance(tolerance);
-
-    bcylinder.makeCylinder(2.4,0.3,0.3,"",4,4,1,1,64,MANY_POINTS2D,-90.0,90.0);
-
-    bshaft0.makeCylinder(0.2,0.05,0.05,"",4,4,0,0,64,MANY_POINTS2D,0.0,360.0);
-    bshaft1.makeCylinder(0.2,0.05,0.05,"",4,4,0,0,64,MANY_POINTS2D,0.0,360.0);
-
-    // move half cylinder to stern
-    t.LoadIdentity();
-    t.Translate(TPoint<T>(-24.0,0.0,-3.2));
-    bcylinder.makeTransform(&t);
-
-    // move two shafts to position
-    t.LoadIdentity();
-    t.Translate(TPoint<T>(-24.0,0.0,-2.005));
-    bshaft0.makeTransform(&t);
-
-    t.LoadIdentity();
-    t.Translate(TPoint<T>(-24.0,0.0,-4.416));
-    bshaft1.makeTransform(&t);
-
-    // two boxes + half cylinder
-    bruddercut.addFaces(bcylinder);
-
-    bruddercut.closeOuterBoundary();
-    bruddercut.saveSurfacesIges(DEBUG_DIR + "Rudder cutter surfaces trimmed.iges");
-
-#endif
-
     bshaft0.closeOuterBoundary();
     bshaft0.saveSurfacesIges(DEBUG_DIR + "Rudder shaft 0 surfaces trimmed.iges");
     bshaft1.closeOuterBoundary();
@@ -2292,7 +2286,11 @@ int main(int argc, char* argv[])
 
     //===== Intersect rudder with cutter body to get rudder plane shape =====
 
+    //double starttime1 = GetTime(); //!!! remove
+
     // remember this
+    brudder.nameSurfaces("r");
+    bruddercut.nameSurfaces("c");
     bplane = brudder ^ bruddercut;
 
     // make it a bit smaller to fit the cut, do not rotate it now
@@ -2312,7 +2310,11 @@ int main(int argc, char* argv[])
     t.Translate(TPoint<T>(-24.0,0.0,-3.2));
     bplane10.makeTransform(&t);
 
+   // bplane10.clearNames();
     bplane10.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
+
+    //double endtime = GetTime(); //!!! remove
+    //cout << "Time elapsed " << (endtime - starttime1) << " sec" << endl; 
 
     //===== Subtract cutter body from rudder to make space for rudder plane =====
 
@@ -2353,6 +2355,8 @@ int main(int argc, char* argv[])
     bsub.saveSurfacesIges(DEBUG_DIR + "Kilo sub+fin+hump+propeller+rudder surfaces before.iges");
 
     // plus rudder
+    bsub.nameSurfaces("s");
+    brudder.nameSurfaces("r");
     bsub = bsub + brudder;
 
     // save surfaces
@@ -2436,13 +2440,15 @@ int main(int argc, char* argv[])
     t.LoadIdentity();
     t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
     t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
-    t.Translate(TPoint<T>(-24.0,3.2,0.3));
+    t.Translate(TPoint<T>(-24.0,3.3,0.25)); //!!!!!!! left/right rudders touch each other, if Z = 0.3, not 0.25 boundaries are coincident
+ //!!!!!!!   t.Translate(TPoint<T>(-24.0,3.25,0.25));
     brudder0.makeTransform(&t);
 
     t.LoadIdentity();
     t.Translate(-TPoint<T>(-24.0,0.0,-3.2));
     t.Rotate(TPoint<T>(1.0,0.0,0.0),270.0 * CPI);
-    t.Translate(TPoint<T>(-24.0,-3.2,0.3));
+    t.Translate(TPoint<T>(-24.0,-3.3,0.25)); //!!!!!!! left/right rudders touch each other, if Z = 0.3, not 0.25 boundaries are coincident
+//!!!!!!!    t.Translate(TPoint<T>(-24.0,-3.25,0.25));
     brudder1.makeTransform(&t);
 
     brudder0.saveSurfacesIges(DEBUG_DIR + "Vertical Rudder 0 surfaces trimmed.iges");
@@ -2481,13 +2487,11 @@ int main(int argc, char* argv[])
     }
   }
 
-#endif
-
   /*****************************************************************************
-    5.18 Blocks : two forward horizontal rudders
+    5.18 Blocks : two forward vertical rudders
   *****************************************************************************/
 
-  cout << "5.18 Blocks : two forward horizontal rudders" << endl;
+  cout << "5.18 Blocks : two forward vertical rudders" << endl;
 
   // whole horizontal rudder
   TBrep<T> bfrudder0;
@@ -2594,6 +2598,8 @@ int main(int argc, char* argv[])
 
   {
     // plus rudder
+    bsub.nameSurfaces("s");
+    bcontainer0.nameSurfaces("c");
     bsub = bsub - bcontainer0;
     bsub.saveSurfacesIges(DEBUG_DIR + "Kilo all wings surfaces trimmed.000.iges");
     bsub = bsub - bcontainer1;
@@ -2660,6 +2666,9 @@ int main(int argc, char* argv[])
   }
 
 #endif
+
+#endif
+
 
 #if 0
   /*****************************************************************************
@@ -2736,7 +2745,7 @@ int main(int argc, char* argv[])
   cout << "6.0 B-reps : booleans, box and sphere" << endl;
 
   {
-    T tolerance = 1.0 * PARM_TOLERANCE;
+    T tolerance = 10.0 * PARM_TOLERANCE; //!!!!!!!
 
     // two box positions, second one is hard due to touching face borders
     for (int t = 0; t < 2; t++)
@@ -2762,7 +2771,11 @@ int main(int argc, char* argv[])
 
         if (t == 0)
         {
+#if 0
+          box.makeBox(TPoint<T>(-0.012,0.01,0.01),TPoint<T>(1.012,1.01,1.01));
+#else
           box.makeBox(TPoint<T>(-0.01,0.01,0.01),TPoint<T>(1.01,1.01,1.01));
+#endif
         } else
         {
           box.makeBox(TPoint<T>(0.0,0.0,0.0),TPoint<T>(1.0,1.0,1.0));
@@ -2810,7 +2823,6 @@ int main(int argc, char* argv[])
         sphere.nameSurfaces("s");
         TBrep<T> boxplussphere = box + sphere; 
 
-        boxplussphere.clearNames();
         bool ok4 = boxplussphere.saveSurfacesIges(DEBUG_DIR + "Box+sphere surfaces.iges");
 
         ASSERT(ok4);
@@ -2830,6 +2842,8 @@ int main(int argc, char* argv[])
         {
           cout << "box - sphere" << endl;
 
+          box.nameSurfaces("b");
+          sphere.nameSurfaces("s");
           TBrep<T> boxminussphere = box - sphere; 
 
           bool ok6 = boxminussphere.saveSurfacesIges(DEBUG_DIR + "Box-sphere surfaces.iges");

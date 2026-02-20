@@ -243,6 +243,37 @@ template <class T> bool findFirstNotBusy(
   return false;
 }
 
+/** Update piecesXYZ - boundary pieces in XYZ coordinates. */
+template <class T> void updateXYZ(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &piecesXYZ)
+{
+  piecesXYZ.clear();
+
+  assert(surfaces.size() == boundariesUV.size());
+
+  // busy
+  std::vector<std::vector<std::vector<bool>>> busy;
+
+  for (int i = 0; i < int(boundariesUV.size()); i++)
+  {
+    piecesXYZ.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
+
+    for (int j = 0; j < int(boundariesUV[i].size()); j++)
+    {
+      piecesXYZ.back().push_back(std::vector<std::vector<tcad::TPoint<T>>>());
+
+      for (int k = 0; k < int(boundariesUV[i][j].size()); k++)
+      {
+        // this curve should be XYZ, not UV
+        std::vector<TPoint<T>> points;
+        getBoundaryPartXYZ<T>(surfaces,boundariesUV,i,j,k,points);
+        piecesXYZ.back().back().push_back(points);
+      }
+    }
+  }
+}
+
 /** Find locations (surface number + loop number + loop piece number) for one edge, 
   normally 2 for manifold, maybe one in case of failure.
   piecesXYZ - boundary pieces in XYZ coordinates.
@@ -376,10 +407,12 @@ template <class T> int fixBadEdge(std::array<LINT,3> badedge,
       if (divide<T>(otherXYZ,otherUV,badXYZ.front(),newpoints,newpointsUV,tolerance,parmtolerance))
       {
         divideBoundary(boundariesUV,loc,newpointsUV);
+        updateXYZ(surfaces,boundariesUV,piecesXYZ);
         fixed++;
       } else if (divide<T>(otherXYZ,otherUV,badXYZ.back(),newpoints,newpointsUV,tolerance,parmtolerance))
       {
         divideBoundary(boundariesUV,loc,newpointsUV);
+        updateXYZ(surfaces,boundariesUV,piecesXYZ);
         fixed++;
       }
     } else if (list[i][3] == 2) // bad edge is larger, divide bad edge
@@ -392,10 +425,12 @@ template <class T> int fixBadEdge(std::array<LINT,3> badedge,
       if (divide<T>(badXYZ,badUV,otherXYZ.front(),newpoints,newpointsUV,tolerance,parmtolerance))
       {
         divideBoundary(boundariesUV,loc,newpointsUV);
+        updateXYZ(surfaces,boundariesUV,piecesXYZ);
         fixed++;
       } else if (divide<T>(badXYZ,badUV,otherXYZ.back(),newpoints,newpointsUV,tolerance,parmtolerance))
       {
         divideBoundary(boundariesUV,loc,newpointsUV);
+        updateXYZ(surfaces,boundariesUV,piecesXYZ);
         fixed++;
       }
     }
@@ -453,8 +488,12 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   std::vector<TPoint<T>> &vertices, 
   std::vector<std::array<LINT,11>> &edges,
   T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
-  T closestcoef = 0.5, bool makefix = true, int attempts = 50) //!!!!!!!
- // T closestcoef = 0.1, bool makefix = true, int attempts = 50) //!!!!!!!
+#if 1
+  T closestcoef = 0.5, bool makefix = false, int attempts = 50) //!!!!!!! no fix 
+ //!!!!!!! T closestcoef = 0.5, bool makefix = true, int attempts = 50) 
+#else
+  T closestcoef = 0.1, bool makefix = true, int attempts = 50) 
+#endif
 {
   // step 1 : make vertices and middlevertices
   vertices.clear();

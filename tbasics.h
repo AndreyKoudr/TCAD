@@ -181,5 +181,37 @@ namespace tcad {
 // Min number of points for an export curve
 #define EXPORT_MINPOINTS 8
 
+// Coefficient for min/max expansion
+#define MINMAX_COEF 1.01
+
+// Coefficient for cell expansion in space partitioning
+#define MAXEDGE_COEF 1.1
+
+// Big "closest to" bigtolerance in fractions of edge size
+#define MAXEDGE_RATIO 0.1
+
+// Max number of cells for scape partitioning; more cells increase memory consumtion
+// and decrease CPU load and vice versa
+#define MAX_CELLS 10000 
+
+// Max number of points for a piece of boundary
+#define MAX_BOUNDPOINTS 201
+
+// Number of cycles to refine and decrease number of triangles for surface intersection
+#define PREINTR_CYCLES 4
+
+// Number of cycles to refine triangles for surface intersection
+#define INTR_CYCLES 8
+
+// "Big" tolerance (gaps between intersection lines) to control triangle mesh refinement.
+// This defines the accuracy of linearisation in intersection process
+#define BIGTOLERANCE_COEF 100.0
+
+// Max number of triangle subdivisions during intersections
+#define MAX_TRISUBDIVS 3
+
+// Max number of triangles during intersections (not to refine any further)
+#define MAX_TRIS 100000
+
 }
 

@@ -48,6 +48,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace tcad {
 
+extern bool print;
+
 /** How to straighten three vectors. */
 typedef enum {By13,By12,By23,None} StraightenTypes;
 
@@ -746,9 +748,28 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
                                       // scan each facet side 
   bool inside = true;
 
+#if 0 //!!!
+
+  TPoint<T> c0(-2.404848120000000e+01,-1.206000000000000e-02,-2.000000000000000e+00);
+  TPoint<T> c1(-2.406464160000000e+01,-6.661338147750860e-17,-2.000000000000000e+00);
+  TPoint<T> c2(-2.404848120000000e+01,-6.661338147750861e-17,-2.000000000000000e+00);
+
+  T tol = 0.0004;
+
+  bool ok0 = (!(coords[0] - c0) < tol) || (!(coords[1] - c0) < tol) || (!(coords[2] - c0) < tol);
+  bool ok1 = (!(coords[0] - c1) < tol) || (!(coords[1] - c1) < tol) || (!(coords[2] - c1) < tol);
+  bool ok2 = (!(coords[0] - c2) < tol) || (!(coords[1] - c2) < tol) || (!(coords[2] - c2) < tol);
+
+  if (ok0 && ok1 && ok2)
+  {
+    outputDebugString("0");
+  }
+#endif
+
+
 #if 1 //!!! fix for a very bad bag
                                       // all dirs must have same direction
-  std::vector<TPoint<T>> dirs;
+  TPoint<T> dirs[3];
   for (int i = 0; i < 3; i++)
   {
     int i1 = (i < 2) ? (i + 1) : 0;
@@ -756,7 +777,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
     TPoint<T> v = intersection - coords[i];
     TPoint<T> dv = coords[i1] - coords[i];
     TPoint<T> dir = dv ^ v;
-    dirs.push_back(dir);
+    dirs[i] = dir;
   }
 
   for (int i = 0; i < 3; i++)
@@ -798,6 +819,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
   }
 
 #endif
+
                                       // additional check by projecting intersection on every edge
   bool onedge = false;
   if (!inside)
@@ -814,6 +836,12 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
       if (projectPointOnSegment(intersection,p0,p1,&intr,&t,parmtolerance))
       {
         T dist = !(intersection - intr);
+
+//if (print)
+//{
+//  outputDebugString("dist " + to_string(dist,12));
+//}
+
 //!!! important        if (dist < tolerance)
         if (dist < TOLERANCE(T))
         {
@@ -823,6 +851,13 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
       }
     }
   }
+
+#if 0 //!!!
+  if (ok0 && ok1 && ok2 && (inside || onedge)) 
+  {
+    outputDebugString("onedge = " + to_string(int(onedge)));
+  }
+#endif
 
   return inside || onedge;
 }
@@ -897,7 +932,7 @@ template <class T> T triangleArea(TPoint<T> p1, TPoint<T> p2, TPoint<T> p3)
   return sqrt(area);
 }
 
-/** Get three barythencric coordinate of a point inside triangle. The point MUST BE inside or close
+/** Get three barycentric coordinate of a point inside triangle. The point MUST BE inside or close
   to the edge. */
 template <class T> TPoint<T> barycentricCoord(std::array<TPoint<T>,3> &coords, TPoint<T> &intersection)
 {
@@ -928,6 +963,19 @@ template <class T> TPoint<T> barycentricCoord(std::array<TPoint<T>,3> &coords, T
     // what is not correct it designates failure
     return TPoint<T>();
   }
+}
+
+/** Get linear barycentric value. coord contains barycentric coords in X,Y,Z, v - values at three nodes. */
+template <class T> TPoint<T> barycentricValue(TPoint<T> v0, TPoint<T> v1, TPoint<T> v2, TPoint<T> coord)
+{
+  TPoint<T> sum = v0 * coord.X + v1 * coord.Y + v2 * coord.Z;
+  return sum;
+}
+
+/** Calculate E0, return TPoint<T>(E0,E1,E2). */
+template <class T> TPoint<T> barycentricE0(T E1, T E2)
+{
+  return TPoint<T>(1.0 - E1 - E2,E1,E2);
 }
 
 /** Convert 1D points size (K1 + 1) x (K2 + 1) into 2D points[K2 + 1][K1 + 1]. */
@@ -979,6 +1027,18 @@ template <class T> void extendMinMax(TPoint<T> &min, TPoint<T> &max, T coef = 1.
   max = c + d;
 }
 
+/** Extend min/max parameters in X,Y by coef. */
+template <class T> void extendMinMaxUV(TPoint<T> &min, TPoint<T> &max, T coef = 1.0, TPoint<T> minsizes = TPoint<T>())
+{
+  extendMinMax<T>(min,max,coef,minsizes);
+  LIMIT_MIN(min.X,0.0);
+  LIMIT_MIN(min.Y,0.0);
+  LIMIT_MIN(min.Z,0.0); // just in case
+  LIMIT_MAX(max.X,1.0);
+  LIMIT_MAX(max.Y,1.0);
+  LIMIT_MAX(max.Z,1.0); // just in case
+}
+
 /** Extend min/max box by coef. */
 template <class T> void extendBox(std::pair<TPoint<T>,TPoint<T>> &box, T coef = 1.0, TPoint<T> minsizes = TPoint<T>())
 {
@@ -998,28 +1058,6 @@ template <class T> bool boxesOverlap(std::pair<TPoint<T>,TPoint<T>> &box0,
     box1.first.Z < box0.second.Z;
 
   return overlap;
-}
-
-/** Generates ranges array of numranges + 1 elements. */
-template <class T> void getRanges(T max, int numranges, std::vector<T> &ranges)
-{
-  T step = max / numranges;
-  LIMIT_MIN(step, 1);
-
-  ranges.resize(numranges + 1);
-  T value = T(0);
-
-  for (size_t i = 0; i <= numranges; i++)
-  {
-    if (value >= max)
-      value = max;
-
-    ranges[i] = value;
-
-    value += step;
-  }
-
-  ranges[numranges] = max;
 }
 
 /** Bezier basis. */
@@ -1475,6 +1513,119 @@ template <class T> void reverseColumns(std::vector<std::vector<TPoint<T>>> &poin
     std::reverse(temp.begin(),temp.end());
     setColumn(points,i,temp);
   }
+}
+
+/** Refine list ~twice by inserting points at middle of intervals. */
+template <class T> void refineList(std::vector<T> &list, std::vector<T> &newlist)
+{
+  newlist.clear();
+
+  for (int i = 0; i < int(list.size() - 1); i++)
+  {
+    newlist.push_back(list[i]);
+    newlist.push_back((list[i] + list[i + 1]) * 0.5);
+  }
+
+  newlist.push_back(list.back());
+
+  assert(std::abs(newlist[newlist.size() - 1] - newlist[newlist.size() - 2]) > TOLERANCE(T));
+}
+
+/** Derefine list ~twice by removing any other point. */
+template <class T> void derefineList(std::vector<T> &list, std::vector<T> &newlist)
+{
+  newlist.clear();
+
+  int i = 0;
+  for (i = 0; i < int(list.size()); i += 2)
+  {
+    newlist.push_back(list[i]);
+  }
+
+  if (i != int(list.size()) - 1)
+    newlist.push_back(list.back());
+
+  assert(std::abs(newlist[newlist.size() - 1] - newlist[newlist.size() - 2]) > TOLERANCE(T));
+}
+
+/** Stretch points by Bresenham. */
+template <class T> int stretchBresenhamPoints(const int x1, const int y1, const int x2, const int y2, 
+  std::vector<int> &points)
+{
+  points.clear();
+
+  // use Bresenham to move from 
+  // point 1 to point 2
+  int x = x1; int y = y1;
+
+  // argument/function ranges
+  int dx = x2 - x1; int dy = y2 - y1;
+
+  // parameters for Bresenham algorithm
+  int s1 = (dx >= 0) ? 1 : -1; 
+  int s2 = (dy >= 0) ? 1 : -1;
+  dx = std::abs(dx); 
+  dy = std::abs(dy); 
+
+  // allocate memory
+  points.resize(dx + 1);
+
+  // just single point
+	if (dx == 0)
+  {
+    points[0] = y1;
+    return int(points.size());
+  }
+
+  // other parameters for Bresenham algorithm
+  int dx2 = dx + dx;
+  int dy2 = dy + dy;
+  int e = dy2 - dx;
+
+  // incrementing pointer instead of [] operator (actually a function call)
+  // makes even an optimised code 5% faster
+	int *p = &(points[0]);
+  for (int i = 0; i <= dx; i++)
+  {
+    // fill array
+		*p = y;             
+		p++;
+
+    // correct errors   
+    while (e >= 0)
+    {
+      y += s2;
+      e -= dx2;
+    }
+    x += s1;
+
+    e += dy2;
+  }
+
+  // return number of generated y points
+	return int(points.size());
+}
+
+/** Get ranges for threads. n = size(). */
+template <class T> void getRanges(int n, int numthreads, std::vector<int> &ranges)
+{
+  ranges.clear();
+
+#if 1
+  stretchBresenhamPoints<T>(0,0,numthreads,n,ranges);
+#else
+  ranges.resize(numthreads + 1);
+
+  ranges[0] = 0;
+  int left = n;
+
+  for (int t = 0; t < numthreads; t++)
+  {
+    int d = left / (numthreads - t);
+    ranges[t + 1] = ranges[t] + d;
+    left -= d;
+  }
+#endif
 }
 
 }

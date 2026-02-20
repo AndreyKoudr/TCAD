@@ -154,7 +154,7 @@ public:
     tcad::setColumn(this->cpoints,K1,K2,index,column);
   }
 
-  /** Generate a uniform set of actual points on the surface to
+  /** Generate a regular set of actual points on the surface to
     (1) create another type of surface from these points (new K1 = numpointsU - 1),
         (new K2 = numpointsV - 1) or 
     (2) compare/involve another type of geometry to compare/interact 
@@ -200,13 +200,143 @@ public:
       *k2 = numpointsV - 1;
   }
 
+  /** Generate a uniform set of actual points on the surface to
+    (1) create another type of surface from these points (new K1 = numpointsU - 1),
+        (new K2 = numpointsV - 1) or 
+    (2) compare/involve another type of geometry to compare/interact 
+
+    The mesh is made as unform as possible, no guarantee that the number of points
+    is exactly as specified.
+
+    A set of according parameter values is generated as well. XYZstepU, XYZstepV are 
+    real model coordinates.
+
+    UVpoints, if not null, contain U,V parameter values in X,Y
+  */
+  virtual void createPointsUniform(std::vector<TPoint<T>> &points, 
+    std::vector<TPoint<T>> *UVpoints,
+    T XYZstepU, T XYZstepV, 
+    int *k1 = nullptr, int *k2 = nullptr, int manypoints = MANY_POINTS2D, 
+    T Umin = 0.0, T Umax = 1.0, T Vmin = 0.0, T Vmax = 1.0,
+    int minpoints = 11, int maxpoints = 301) //!!!!!!!
+  {
+    assert(XYZstepU > TOLERANCE(T));
+    assert(XYZstepV > TOLERANCE(T));
+    assert((Umax - Umin) > TOLERANCE(T));
+    assert((Vmax - Vmin) > TOLERANCE(T));
+
+    points.clear();
+
+    // maybe surface is small, we need to decrease step
+    // approximate # divisions
+    T usize = Usize() * (Umax - Umin);
+    T vsize = Vsize() * (Vmax - Vmin);
+
+    int Udivs = int(usize / XYZstepU);
+    int Vdivs = int(vsize / XYZstepV);
+
+    // refine/derefine step
+    if (Udivs < (minpoints - 1))
+      XYZstepU = usize / T(minpoints - 1);
+    if (Vdivs < (minpoints - 1))
+      XYZstepV = vsize / T(minpoints - 1);
+    if (Udivs > (maxpoints - 1))
+      XYZstepU = usize / T(maxpoints - 1);
+    if (Vdivs > (maxpoints - 1))
+      XYZstepV = vsize / T(maxpoints - 1);
+
+    // just in case, default step
+    T defaultstep = 1.0 / T(manypoints - 1);
+
+    // U,V to make an almost regular mesh
+    std::vector<T> Us,Vs;
+
+    // make U divisions along middle line V = (Vmin + Vmax) * 0.5
+    // last used U increment
+    T Ustep = defaultstep;
+    // current U
+    T U = Umin;
+    Us.push_back(U);
+
+    while (U < Umax)
+    {
+      T dleft = Umax - U;
+
+      if (dleft < Ustep * 0.1) //!!!
+      {
+        U = Umax;
+        Us.push_back(U);
+      } else
+      {
+        TPoint<T> der = this->derivative(U,(Vmin + Vmax) * 0.5,PARAMETER_U,1);
+        T len = !der;
+        Ustep = (len > TOLERANCE(T)) ? (XYZstepU / len) : defaultstep;
+
+        U += Ustep;
+        LIMIT_MAX(U,Umax);
+        Us.push_back(U);
+      }
+    }
+
+    // make V divisions along middle line U = (Umin + Umax) * 0.5
+    // last used V increment
+    T Vstep = defaultstep;
+    // current V
+    T V = Vmin;
+    Vs.push_back(V);
+
+    while (V < Vmax)
+    {
+      T dleft = Vmax - V;
+
+      if (dleft < Vstep * 0.1) //!!!
+      {
+        V = Vmax;
+        Vs.push_back(V);
+      } else
+      {
+        TPoint<T> der = this->derivative((Umin + Umax) * 0.5,V,PARAMETER_V,1);
+        T len = !der;
+        Vstep = (len > TOLERANCE(T)) ? (XYZstepV / len) : defaultstep;
+
+        V += Vstep;
+        LIMIT_MAX(V,Vmax);
+        Vs.push_back(V);
+      }
+    }
+
+    for (int i = 0; i < int(Vs.size()); i++)
+    {
+      T V = Vs[i];
+
+      for (int j = 0; j < int(Us.size()); j++)
+      {
+        T U = Us[j];
+
+        TPoint<T> p = this->position(U,V);
+        points.push_back(p);
+
+        if (UVpoints)
+          UVpoints->push_back(TPoint<T>(U,V));
+      }
+    }
+
+    if (k1)
+      *k1 = int(Us.size()) - 1;
+    if (k2)
+      *k2 = int(Vs.size()) - 1;
+  }
+
   /** Create triangles on a regular set points.
     Set refine... to 0.5 at a corresponding end to refine,
     1.0 has no effect. */
   virtual bool createTriangles(TTriangles<T> &tris,
     int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D,
     T refinestartU = 1.0, T refineendU = 1.0, 
-    T refinestartV = 1.0, T refineendV = 1.0)
+    T refinestartV = 1.0, T refineendV = 1.0,
+    T stepU = 0.0, T stepV = 0.0, bool uniform = false,
+    T Umin = 0.0, T Umax = 1.0, T Vmin = 0.0, T Vmax = 1.0,
+    int minpoints = 11, int maxpoints = 301) 
   {
     tris.clear();
 
@@ -215,7 +345,17 @@ public:
     int k1 = 0;
     int k2 = 0;
 
-    createPoints(points,&UVpoints,&k1,&k2,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV);
+    if (uniform)
+    {
+      assert(stepU > TOLERANCE(T));
+      assert(stepV > TOLERANCE(T));
+
+      int numpoints = std::max<int>(numpointsU,numpointsV);
+      createPointsUniform(points,&UVpoints,stepU,stepV,&k1,&k2,numpoints,Umin,Umax,Vmin,Vmax,minpoints,maxpoints);
+    } else
+    {
+      createPoints(points,&UVpoints,&k1,&k2,numpointsU,numpointsV,refinestartU,refineendU,refinestartV,refineendV);
+    }
 
     for (int i = 0; i < k2; i++)
     {
@@ -339,6 +479,28 @@ public:
     return std::max<T>(Usize(),Vsize());
   }
 
+  /** Approximate size. */
+  T minSize()
+  {
+    return std::min<T>(Usize(),Vsize());
+  }
+
+  /** Get XYZ step along U to make approximately numpoints. */
+  T Ustep(int numpoints = MANY_POINTS2D, T Umin = 0.0, T Umax = 1.0)
+  {
+    assert(Umax > Umin);
+    T step = Usize() * (Umax - Umin) / T(numpoints - 1);
+    return step;
+  }
+
+  /** Get XYZ step along V to make approximately numpoints. */
+  T Vstep(int numpoints = MANY_POINTS2D, T Vmin = 0.0, T Vmax = 1.0)
+  {
+    assert(Vmax > Vmin);
+    T step = Vsize() * (Vmax - Vmin) / T(numpoints - 1);
+    return step;
+  }
+
   /** Get curvature. */
   virtual std::pair<T,T> curvature(T U, T V)
   {
@@ -354,6 +516,64 @@ public:
 	  T curvatureV = (Vlen < TOLERANCE(T)) ? 0.0 : (!(Fv ^ Fvv) / (Vlen * Vlen * Vlen));
 
     return std::pair<T,T>(curvatureU,curvatureV);
+  }
+
+  /** Get U curvature. */
+  virtual T curvatureU(T U, T V)
+  {
+    TPoint<T> Fu = this->derivative(U,V,PARAMETER_U,1);
+    TPoint<T> Fuu = this->derivative(U,V,PARAMETER_U,2);
+
+	  T Ulen = !Fu;
+	  T curvatureU = (Ulen < TOLERANCE(T)) ? 0.0 : (!(Fu ^ Fuu) / (Ulen * Ulen * Ulen));
+
+    return curvatureU;
+  }
+
+  /** Get V curvature. */
+  virtual T curvatureV(T U, T V)
+  {
+    TPoint<T> Fv = this->derivative(U,V,PARAMETER_V,1);
+    TPoint<T> Fvv = this->derivative(U,V,PARAMETER_V,2);
+
+	  T Vlen = !Fv;
+	  T curvatureV = (Vlen < TOLERANCE(T)) ? 0.0 : (!(Fv ^ Fvv) / (Vlen * Vlen * Vlen));
+
+    return curvatureV;
+  }
+
+  /** Get XYZ step along U to achieve distance t to straight-line edge. Full U size in case 
+    of failure (curvature radius infinite). */
+  virtual T curvatureStepU(T t, T U, T V)
+  {
+    T curvature = curvatureU(U,V);
+    // straight line
+    if (curvature < TOLERANCE(T))
+    {
+      return this->Usize();
+    } else
+    {
+      T r = 1.0 / curvature;
+      T step = 2.0 * sqrt(2.0 * t * r);
+      return step;
+    }
+  }
+
+  /** Get XYZ step along V to achieve distance t to straight-line edge. Full V size in case 
+    of failure (curvature radius infinite). */
+  virtual T curvatureStepV(T t, T U, T V)
+  {
+    T curvature = curvatureV(U,V);
+    // straight line
+    if (curvature < TOLERANCE(T))
+    {
+      return this->Vsize();
+    } else
+    {
+      T r = 1.0 / curvature;
+      T step = 2.0 * sqrt(2.0 * t * r);
+      return step;
+    }
   }
 
   /** Make transform. */
@@ -556,10 +776,204 @@ public:
     }
   }
 
+  /** Get XYZ difference along two boundary (cut) lines. */
+  template <class T> T boundaryDifference(TBaseSurface<T> &other,
+    std::vector<std::vector<TPoint<T>>> &boundary0,
+    std::vector<std::vector<TPoint<T>>> &boundary1)
+  {
+    assert(boundary0.size() == boundary1.size());
+
+    // calculate difference in boundary lines
+    T maxdiff = 0.0;
+
+    for (int k = 0; k < boundary0.size(); k++)
+    {
+      //std::vector<TPoint<T>> intr0,intr1;
+      for (int l = 0; l < int(boundary0[k].size()); l++)
+      {
+        TPoint<T> p0 = position(boundary0[k][l].X,boundary0[k][l].Y);
+        TPoint<T> p1 = other.position(boundary1[k][l].X,boundary1[k][l].Y);
+        //intr0.push_back(p0);
+        //intr1.push_back(p1);
+
+        T d = !(p1 - p0);
+        maxdiff = std::max<T>(maxdiff,d);
+      }
+    }
+
+    return maxdiff;
+  }
+
+  /** Prepare triangles from UV min/max. This is a cyclic part of intersect(). */
+  template <class T> bool makeIntersectionTriangles(TBaseSurface<T> &other, 
+    TTriangles<T> &tris, TTriangles<T> &othertris, 
+    TPoint<T> &UVmin, TPoint<T> &UVmax, TPoint<T> &oUVmin, TPoint<T> &oUVmax, 
+    int minpoints, int maxpoints, bool makesamestep, T tolerance,
+    T parmtolerance = PARM_TOLERANCE)
+  { 
+    // free memory
+    tris.clear();
+    othertris.clear();
+
+    TPoint<T> UVcentre = (UVmin + UVmax) * 0.5;
+    TPoint<T> oUVcentre = (oUVmin + oUVmax) * 0.5;
+    T stepU = curvatureStepU(tolerance,UVcentre.X,UVcentre.Y); 
+    T stepV = curvatureStepV(tolerance,UVcentre.X,UVcentre.Y);
+    T ostepU = other.curvatureStepU(tolerance,oUVcentre.X,oUVcentre.Y);
+    T ostepV = other.curvatureStepV(tolerance,oUVcentre.X,oUVcentre.Y);
+
+    if (makesamestep)
+    {
+      T stepmax = std::min<T>(stepU,stepV);
+      T ostepmax = std::min<T>(ostepU,ostepV);
+
+      //!!!!!!!stepU = stepV = ostepU = ostepV = (stepmax + ostepmax) * 0.5;
+      stepU = stepV = ostepU = ostepV = std::min<T>(stepmax,ostepmax);
+    }
+
+//outputDebugString(std::string("stepU ") + to_string(stepU) + std::string(" stepV ") + to_string(stepV) +
+//  std::string(" ostepU ") + to_string(ostepU) + std::string(" ostepV ") + to_string(ostepV)); 
+
+    if (createTriangles(tris,MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0,stepU,stepV,true,
+      UVmin.X,UVmax.X,UVmin.Y,UVmax.Y,minpoints,maxpoints) && 
+      other.createTriangles(othertris,MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0,ostepU,ostepV,true,
+      oUVmin.X,oUVmax.X,oUVmin.Y,oUVmax.Y,minpoints,maxpoints)) 
+    {
+      return true;
+    } else
+    {
+      return false;
+    }
+  }
+
+  /** Prepare triangles by refining triangles involved in active cells. */
+  template <class T> bool makeIntersectionTriangles(TBaseSurface<T> &other, 
+    TTriangles<T> &tris, TTriangles<T> &othertris, 
+    OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris, std::vector<std::vector<LINT>> &ocelltris,
+    std::vector<LINT> &activecells)
+  { 
+    TTriangles<T> newtris;
+    TTriangles<T> newothertris;
+
+    for (int i = 0; i < int(activecells.size()); i++)
+    {
+      int index = int(activecells[i]);
+
+      for (int j = 0; j < int(celltris[index].size()); j++)
+      {
+        int face = int(celltris[index][j]);
+        std::array<TPoint<T>,3> corners = tris.threeCorners(face);
+
+        newtris.addTri(corners[0],corners[1],corners[2],0.0);
+        newtris.UVcorners.push_back(tris.UVcorners[face]);
+      }
+      for (int j = 0; j < int(ocelltris[index].size()); j++)
+      {
+        int face = int(ocelltris[index][j]);
+        std::array<TPoint<T>,3> corners = othertris.threeCorners(face);
+
+        newothertris.addTri(corners[0],corners[1],corners[2],0.0);
+        newothertris.UVcorners.push_back(othertris.UVcorners[face]);
+      }
+    }
+
+    tris = newtris;
+    othertris = newothertris;
+
+    return true;
+  }
+
+  /** Refine triangles. */
+  template <class T> bool makeIntersectionTriangles(TBaseSurface<T> &other, 
+    TTriangles<T> &tris, TTriangles<T> &othertris, T coef)
+  { 
+    int divisions = ROUND(coef);
+    LIMIT(divisions,2,MAX_TRISUBDIVS); 
+
+    if (divisions > 1)
+    {
+      // barycentric coordinates of small triangles
+      std::vector<std::array<TPoint<T>,3>> barcoords;
+      subdivideTriangle(divisions,barcoords);
+
+      TTriangles<T> newtris;
+      TTriangles<T> newothertris;
+
+      for (int face = 0; face < tris.numFaces(); face++)
+      {
+        std::array<TPoint<T>,3> UVcorners = tris.UVcorners[face];
+
+        for (int i = 0; i < int(barcoords.size()); i++)
+        {
+          std::array<TPoint<T>,3> uvcorners;
+          std::array<TPoint<T>,3> corners;
+          for (int k = 0; k < 3; k++)
+          {
+            TPoint<T> uv = barycentricValue<T>(UVcorners[0],UVcorners[1],UVcorners[2],barcoords[i][k]);
+            uvcorners[k] = uv;
+            corners[k] = this->position(uv.X,uv.Y);
+          }
+
+          newtris.addTri(corners[0],corners[1],corners[2],0.0);
+          newtris.UVcorners.push_back(uvcorners);
+        }
+      }
+
+      for (int face = 0; face < othertris.numFaces(); face++)
+      {
+        std::array<TPoint<T>,3> UVcorners = othertris.UVcorners[face];
+
+        for (int i = 0; i < int(barcoords.size()); i++)
+        {
+          std::array<TPoint<T>,3> uvcorners;
+          std::array<TPoint<T>,3> corners;
+          for (int k = 0; k < 3; k++)
+          {
+            TPoint<T> uv = barycentricValue<T>(UVcorners[0],UVcorners[1],UVcorners[2],barcoords[i][k]);
+            uvcorners[k] = uv;
+            corners[k] = other.position(uv.X,uv.Y);
+          }
+
+          newothertris.addTri(corners[0],corners[1],corners[2],0.0);
+          newothertris.UVcorners.push_back(uvcorners);
+        }
+      }
+
+      tris = newtris;
+      othertris = newothertris;
+    }
+
+    return true;
+  }
+
+  /** Prepare triangles and cells to cut out intersection part. This is a cyclic 
+    part of intersect(). */
+  template <class T> bool makeIntersectionCells(TBaseSurface<T> &other, 
+    TTriangles<T> &tris, TTriangles<T> &othertris, 
+    OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris, std::vector<std::vector<LINT>> &ocelltris,
+    std::vector<LINT> &activecells,
+    TPoint<T> &UVmin, TPoint<T> &UVmax, TPoint<T> &oUVmin, TPoint<T> &oUVmax, 
+    T parmtolerance = PARM_TOLERANCE, T maxedgecoef = MAXEDGE_COEF, T increaseUVcoef = MINMAX_COEF)
+  { 
+    // cutout intersecting piece and make refined intersection on them
+    T minedge,maxedge;
+    tris.getEdgeMinMax(minedge,maxedge);
+    T ominedge,omaxedge;
+    othertris.getEdgeMinMax(ominedge,omaxedge);
+
+    // max edge length
+    maxedge = std::max(maxedge,omaxedge) * maxedgecoef; 
+
+    // failure if no active cells
+    return tris.prepareCells(othertris,maxedge,cells,celltris,ocelltris,activecells,
+      UVmin,UVmax,oUVmin,oUVmax,parmtolerance,increaseUVcoef,print);
+  }
+
   /** Find intersection curve(s) with another surface. Returns number of intersection curves. 
     boundary0/1 contain U,V in X,Y for every intersection curve for both surfaces. */
   template <class T> int intersect(TBaseSurface<T> &other, bool bodyleft, std::vector<std::vector<TPoint<T>>> &intersections, 
     std::vector<std::vector<TPoint<T>>> &boundary0, std::vector<std::vector<TPoint<T>>> &boundary1,
+    T tolerance,
     T parmtolerance = PARM_TOLERANCE, 
     int numpointsU0 = MANY_POINTS2D, int numpointsV0 = MANY_POINTS2D,
     T refinestartU0 = 1.0, T refineendU0 = 1.0, 
@@ -567,34 +981,100 @@ public:
     int numpointsU1 = MANY_POINTS2D, int numpointsV1 = MANY_POINTS2D,
     T refinestartU1 = 1.0, T refineendU1 = 1.0, 
     T refinestartV1 = 1.0, T refineendV1 = 1.0,
-    bool debug = false)
+    bool debug = false, int preintrcycles = PREINTR_CYCLES, int intrcycles = INTR_CYCLES, 
+    int maxboundarypoints = MAX_BOUNDPOINTS)
   {
+    // generated triangles
     TTriangles<T> tris,othertris;
 
-    if (createTriangles(tris,numpointsU0,numpointsV0,
-      refinestartU0,refineendU0,refinestartV0,refineendV0) &&
-      other.createTriangles(othertris,numpointsU1,numpointsV1,
-      refinestartU1,refineendU1,refinestartV1,refineendV1))
-    {
-#ifdef _DEBUG
-      if (debug)
-      {
-        tris.tcad::TTriangles<T>::saveSTL("intersection0.stl","TCAD",true);
-        othertris.tcad::TTriangles<T>::saveSTL("intersection1.stl","TCAD",true);
-      }
-#endif
+    // cells for space partitioning
+    OBackground<T> cells; 
+    std::vector<std::vector<LINT>> celltris,ocelltris;
+    std::vector<LINT> activecells;
 
-      if (tris.intersect(othertris,bodyleft,intersections,parmtolerance,&boundary0,&boundary1))
+    // parameter limits in active cells (where tris intersect)
+    TPoint<T> UVmin(0.0,0.0);
+    TPoint<T> UVmax(1.0,1.0);
+    TPoint<T> oUVmin(0.0,0.0);
+    TPoint<T> oUVmax(1.0,1.0);
+
+    T tol = tolerance * 100.0; //!!!
+
+    // shrink UVmin/max around intersection line
+    for (int i = 0; i < preintrcycles; i++)
+    {
+      if (!makeIntersectionTriangles(other,tris,othertris,UVmin,UVmax,oUVmin,oUVmax,11,301,(i >= preintrcycles - 1), //!!!!!!!
+        tol,parmtolerance))
+        return 0;
+
+      if (!makeIntersectionCells(other,tris,othertris,
+        cells,celltris,ocelltris,activecells,UVmin,UVmax,oUVmin,oUVmax,parmtolerance))
+        return 0;
+
+      // decrease tolerance, increase refinement
+      tol *= 0.1; //!!!
+    }
+
+    // now try intersection and check accuracy
+    for (int i = 0; i < intrcycles; i++)
+    {
+      // make tris which only used in active cells
+      if (!makeIntersectionTriangles(other,tris,othertris,cells,celltris,ocelltris,activecells))
+        return 0;
+
+      // make intersection
+      if (!tris.intersect(othertris,bodyleft,intersections,parmtolerance,&boundary0,&boundary1))
+        return 0;
+
+      for (int k = 0; k < int(boundary0.size()); k++)
       {
+        decimatePoints(boundary0[k],maxboundarypoints);
+        decimatePoints(boundary1[k],maxboundarypoints);
+      }
+
+      // calculate difference in boundary lines
+      T maxdiff = boundaryDifference(other,boundary0,boundary1);
+
+//outputDebugString( 
+//  std::string("i = ") + to_string(i) +
+//  std::string(" tris ") + to_string(tris.numFaces()) + " " + to_string(othertris.numFaces()) + " " + 
+//  std::string(" cells ") + to_string(activecells.size()) +
+//  std::string(" maxdiff ") + to_string(maxdiff,12) + 
+//  std::string(" bigtolerance ") + to_string(tolerance * BIGTOLERANCE_COEF,12));
+
+      // success
+      bool ok = maxdiff < tolerance * BIGTOLERANCE_COEF;
+      if (ok || i == intrcycles - 1 ||  //!!!!!!!
+        tris.numFaces() > MAX_TRIS || othertris.numFaces() > MAX_TRIS)
+      {
+//if (ok)
+//{
+//  outputDebugString(std::string("ok i = ") + to_string(i)); 
+//} else
+//{
+//  outputDebugString(std::string("exit i = ") + to_string(i));
+//}
         return int(intersections.size());
       } else
       {
-        return 0;
+        // increase refinement
+        T coef = maxdiff * 2.0 / (tolerance * BIGTOLERANCE_COEF);
+
+//outputDebugString(std::string("coef ") + to_string(coef,12) + " i = " + to_string(i)); 
+
+        // refine triangles
+        if (!makeIntersectionTriangles(other,tris,othertris,coef))
+          return 0;
+
+        // make new cells
+        if (!makeIntersectionCells(other,tris,othertris,
+          cells,celltris,ocelltris,activecells,UVmin,UVmax,oUVmin,oUVmax,parmtolerance))
+          return 0;
       }
-    } else
-    {
-      return 0;
     }
+
+    // failure
+    return 0;
   }
 
   /** Find intersection curve(s) by a plane. Returns number of intersection curves. 
@@ -741,31 +1221,6 @@ public:
     return closest;
   }
 
-  /** Find a cut piece (except busy) close to p. p is "tail", cut front is "head" to be
-    connected to tail. */
-  template <class T> int findClosest(std::vector<std::vector<TPoint<T>>> &cut,
-    std::vector<bool> &busy, TPoint<T> p, T tolerance)
-  {
-    // find closest piece to the current loop end among not busy
-    int closest = -1;
-
-    T mindist = std::numeric_limits<T>::max();
-    for (int i = 0; i < int(cut.size()); i++)
-    {
-      if (busy[i])
-        continue;
-
-      T dist = !(p - cut[i].front());
-      if (dist < tolerance && dist < mindist)
-      {
-        mindist = dist;
-        closest = i;
-      }
-    }
-
-    return closest;
-  }
-
   /** Order cuts from starting piece. Pieces all have a correct orientation. */
   template <class T> bool orderCuts(int starting, std::vector<std::vector<TPoint<T>>> &cut, 
     std::vector<std::vector<TPoint<T>>> &ordered, T tolerance, T parmtolerance = PARM_TOLERANCE)
@@ -792,7 +1247,7 @@ public:
       }
 
       // find closest piece to the current ordered end among not busy
-      int closest = findClosest(cut,busy,ordered.back().back(),tolerance);
+      int closest = findClosestFront(cut,busy,ordered.back().back(),tolerance);
 
       if (closest < 0)
       {
@@ -924,7 +1379,7 @@ public:
     while (!allBusy(busy))
     {
       // find closest piece to the current ordered end among not busy
-      int closest = findClosest(cut,busy,loop.back().back(),tolerance);
+      int closest = findClosestFront(cut,busy,loop.back().back(),tolerance);
 
       if (closest < 0)
       {
@@ -995,23 +1450,6 @@ public:
     return count;
   }
 
-  /** Prepare points before intersection. Divide peieces by duplicate points. */
-  template <class T> void cutIntoPoints(std::vector<std::vector<TPoint<T>>> &cut, std::vector<TPoint<T>> &points)
-  {
-    points.clear();
-
-    int count = 0;
-    for (int i = 0; i < int(cut.size()); i++)
-    {
-      for (int j = 0; j < int(cut[i].size()); j++) // points may be duplicate, they mark new part
-      {
-        TPoint<T> p = cut[i][j];
-        p.W = T(count++);
-        points.push_back(p);
-      }
-    }
-  }
-
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. cutFromOuter is true
     for unions. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
@@ -1039,8 +1477,11 @@ public:
 
     // inner loops
     std::vector<std::vector<std::vector<TPoint<T>>>> innerloops;
- //   int n = extractLoops(cut,innerloops,parmtolerance * 1000.0,parmtolerance); //!!!!!!!
-    int n = extractLoops(cut,innerloops,parmtolerance,parmtolerance);
+#if 0
+    int n = extractLoops(cut,innerloops,parmtolerance,parmtolerance); //!!!!!!!
+#else
+    int n = extractLoops(cut,innerloops,parmtolerance * 1000.0,parmtolerance); //!!!!!!!
+#endif
   
     // all done
     if (n)
@@ -1107,6 +1548,56 @@ public:
       }
     }
 
+//if (print)
+//{
+//  TPoint<T> p0 = this->position(allordered[0][0].front().X,allordered[0][0].front().Y);
+//  TPoint<T> p1 = this->position(allordered[1][0].back().X,allordered[1][0].back().Y);
+//
+//  T UVdist = !(allordered[0][0].front() - allordered[1][0].back());
+//  T dist = !(p1 - p0);
+//
+//  outputDebugString("dist " + to_string(dist,12) + " UVdist " + to_string(UVdist,12));
+//}
+
+    // two cuts from boundary to boundary with one same point
+    // combine two boundary pieces into one to make a single loop
+    bool twocutsfromboundarytoboundary = false;
+    if (allordered.size() == 2)
+    {
+      if (boundaryPoint<T>(allordered[0].front().front(),parmtolerance) &&
+        boundaryPoint<T>(allordered[0].front().back(),parmtolerance) &&
+        boundaryPoint<T>(allordered[1].front().front(),parmtolerance) &&
+        boundaryPoint<T>(allordered[1].front().back(),parmtolerance))
+      {
+        T dist0 = !(allordered[0].front().back() - allordered[1].front().front());
+        T dist1 = !(allordered[1].front().back() - allordered[0].front().front());
+
+        if (dist0 < parmtolerance * 1000.0) //!!!!!!!
+        {
+          allordered[0].front().back() = allordered[1].front().front() = 
+            (allordered[0].front().back() + allordered[1].front().front()) * 0.5;
+
+          std::vector<std::vector<std::vector<TPoint<T>>>> newallordered;
+          newallordered.push_back(allordered[0]);
+          newallordered[0].insert(newallordered[0].end(),allordered[1].begin(),allordered[1].end());
+          allordered = newallordered;
+
+          twocutsfromboundarytoboundary = true;
+        } else if (dist1 < parmtolerance * 1000.0) //!!!!!!!
+        {
+          allordered[1].front().back() = allordered[0].front().front() = 
+            (allordered[1].front().back() + allordered[0].front().front()) * 0.5;
+
+          std::vector<std::vector<std::vector<TPoint<T>>>> newallordered;
+          newallordered.push_back(allordered[1]);
+          newallordered[0].insert(newallordered[0].end(),allordered[0].begin(),allordered[0].end());
+          allordered = newallordered;
+
+          twocutsfromboundarytoboundary = true;
+        }
+      }
+    }
+
     // step 4 : embed cut into outer loop or close cuts
     // outerloop contains parts; cut is a single curve
     for (int i = 0; i < int(allordered.size()); i++)
@@ -1121,79 +1612,22 @@ redo:
       // make a single continuous curve from outer loop with marking sharp corners :
       // they mark every START of new curve piece
       std::vector<TPoint<T>> allpoints;
-      cutIntoPoints(outerloop,allpoints);
-
-      // set W for cut
       std::vector<TPoint<T>> cutpoints;
-      cutIntoPoints(cut,cutpoints);
 
       // find intersections, construct new points
-      std::vector<TPoint<T>> newpoints;
       std::vector<TPoint<T>> UV;
 
-      // cut curve specifies a correct direction of the loop, it must go first here
-      int numintrs = findIntersections(cutpoints,allpoints,UV,parmtolerance); 
+      int numintrs = intersectLoopByCut(outerloop,cut,allpoints,cutpoints,UV,parmtolerance * 1000.0);
 
-      // cleanup duplicate points
-      if (UV.size() > 1)
+      // remove middle point
+      if (twocutsfromboundarytoboundary && numintrs == 3)
       {
-        std::vector<TPoint<T>> UVclean;
-
-        for (int k = 0; k < int(UV.size()); k++)
-        {
-          bool found = false;
-          for (int l = k + 1; l < int(UV.size()); l++)
-          {
-            T d0 = UV[l].X - UV[k].X;
-            T d1 = UV[l].Y - UV[k].Y;
-            T dist0 = std::abs(d0);
-            T dist1 = std::abs(d1);
-
-            found = (
-              dist0 < parmtolerance ||
-              dist1 < parmtolerance
-            );
-
-            if (found)
-              break;
-          }
-          if (!found)
-            UVclean.push_back(UV[k]);
-        }
-
-        UV = UVclean;
-
-        numintrs = int(UV.size());
+        UV.erase(UV.begin() + 1);
+        numintrs--;
       }
 
       // new loop all inside single face
-      if (numintrs == 0)
-      {
-        T dist = !(cut.front().front() - cut.back().back());
-        if (dist < parmtolerance)
-        {
-          cut.front().front() = cut.back().back() = (cut.front().front() + cut.back().back()) * 0.5;
-
-          // if this is a hole, we need an outer loop as loop[0]
-          TPoint<T> loopnormal = getLoopNormal(cut,parmtolerance);
-          bool hole = !(loopnormal > TPoint<T>(0.0,0.0,1.0));
-
-          if (loops.empty())
-            loops.push_back(outerloop);
-
-          loops.push_back(cut);
-        } else
-        {
-          if (!newloop)
-          {
-            // it maybe another loop, recreate full outer loop
-            closeOuterBoundaryLoop(outerloop,numdivisions);
-
-            newloop = true;
-            goto redo;
-          }
-        }
-      } else if (numintrs == 1)
+      if (numintrs < 2)
       {
         if (!newloop)
         {
@@ -1205,59 +1639,11 @@ redo:
         }
       } else if (numintrs == 2)
       {
-        // first intersection point is from cutpoints start, cutpoints direction from
-        // first to second intersection point defines cutting direction : void is to
-        // the right, surface is to the left
+        // these will be cut points from intersection 1 to intersection 2
+        std::vector<TPoint<T>> newpoints;
 
-        if (UV[1].X < UV[0].X)
-        {
-          SWAP(TPoint<T>,UV[0],UV[1]);
-        }
-
-        // all points
-        int Useg0 = int(UV[0].X);
-        T U0 = UV[0].X - T(Useg0);
-        int Useg1 = int(UV[1].X);
-        T U1 = UV[1].X - T(Useg1);
-
-        // now go all cut points
-        int Vseg0 = int(UV[0].Y);
-        T V0 = UV[0].Y - T(Vseg0);
-        int Vseg1 = int(UV[1].Y);
-        T V1 = UV[1].Y - T(Vseg1);
-
-        // just take all cut points void is to the right, surface is to the left
-        cutOut(cutpoints,Useg0,U0,Useg1,U1,newpoints);
-
-        if (newpoints.size() < 2) 
-        {
-          if (!newloop)
-          {
-            // it maybe another loop, recreate full outer loop
-            closeOuterBoundaryLoop(outerloop,numdivisions);
-
-            newloop = true;
-            goto redo;
-          }
-        }
-
-     //   std::vector<TPoint<T> corners;
-     //   bool ok = goRoundBoundary<T>(newpoints.back(),newpoints.front(),corners,parmtolerance);
-
-        // we need to proceed from newpoints last point to newpoints first
-        // point; we always leave surface to the left, so there are TWO CASES here : 
-        // point 1 has "greater" UV position when going along the boundary or "less"
-        int n3 = 0;
-        bool ok = cutOutGoingRound<T>(allpoints,Vseg1,V1,newpoints,n3,parmtolerance);
-        if (n3 > 0)
-        {
-          ok = false;
-        }
-
-        // it must be always ok
-        assert(ok);
-
-        if (!ok)
+        // combine cut parts from cut and loop
+        if (!makeNewLoopPoints<T>(cutpoints,allpoints,UV,newpoints,true,parmtolerance))
           return false;
 
         // divide outer loop back into parts
@@ -1265,17 +1651,7 @@ redo:
         divideByDuplicates<T>(newpoints,newouterloop,parmtolerance);
 
         // correct points on the boundary
-        for (int i = 0; i < int(newouterloop.size()); i++)
-        {
-          if (boundaryPoint(newouterloop[i].front(),parmtolerance))
-          {
-            correctBoundaryPoint(newouterloop[i].front(),parmtolerance);
-          }
-          if (boundaryPoint(newouterloop[i].back(),parmtolerance))
-          {
-            correctBoundaryPoint(newouterloop[i].back(),parmtolerance);
-          }
-        }
+        correctBoundaryPoints(newouterloop);
 
         // update outer loops[0]
         if (loops.empty() || newloop)
@@ -1742,9 +2118,42 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
 
   for (int i = 0; i < maxiter; i++)
   {
+    bool systemsolved = true;
+
+#if 1
+    std::array<T,12> A; 
+    std::array<T,4> B;
+
+    TPoint<T> F0 = F->position(parms.X,parms.Y);
+    TPoint<T> G0 = G->position(parms.Z,parms.W);
+    TPoint<T> Fu = F->derivative(parms.X,parms.Y,PARAMETER_U,1);
+    TPoint<T> Fv = F->derivative(parms.X,parms.Y,PARAMETER_V,1);
+    TPoint<T> Gs = G->derivative(parms.Z,parms.W,PARAMETER_U,1);
+    TPoint<T> Gt = G->derivative(parms.Z,parms.W,PARAMETER_V,1);
+
+    if (!solveSystemUnderdetermined3x4(F0,G0,Fu,Fv,Gs,Gt,A,B))
+    {
+      parms = bestparms;
+      systemsolved = false;
+      break;
+    }
+
+    if (systemsolved)
+    {
+      parms.X += B[0] * relaxcoef;
+      parms.Y += B[1] * relaxcoef;
+      parms.Z += B[2] * relaxcoef;
+      parms.W += B[3] * relaxcoef;
+
+      LIMIT(parms.X,0,1);
+      LIMIT(parms.Y,0,1);
+      LIMIT(parms.Z,0,1);
+      LIMIT(parms.W,0,1);
+    }
+
+#else
                               // right-hand size and solution
     T B[4] = {0};
-    bool systemsolved = true;
 
                               // matrix 4 x 4
     T A[16] = {0};
@@ -1755,7 +2164,6 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
  #ifdef _DEBUG
       memmove(AA,A,sizeof(A));
  #endif
-
                               // solve system
     if (!solveSystem4x4<T>(A,B,TOLERANCE(T)))
     {
@@ -1775,6 +2183,8 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
       LIMIT(parms.Z,0,1);
       LIMIT(parms.W,0,1);
     }
+
+#endif
 
     T dist = !(F->position(parms.X,parms.Y) - G->position(parms.Z,parms.W));
     if (dist < tolerance)
@@ -1844,7 +2254,7 @@ template <class T> bool cutInsideLoops(std::vector<std::vector<TPoint<T>>> &cut,
     if (boundaryPoints(loops[0],parmtolerance))
       return true;
 
-    //// one outer loop and holes //!!!!!!!
+    //// one outer loop and holes //!!!
     //if (cutInsideLoop(cut,loops[0],parmtolerance)) 
     //  return true;
 

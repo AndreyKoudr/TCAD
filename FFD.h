@@ -69,7 +69,7 @@ public:
   FFD(std::vector<TBaseSurface<T> *> &surfaces, std::vector<TPoint<T>> &oldpositions, 
     std::vector<TPoint<T>> &newpositions, int numsegsU = 1, int numsegsV = 1, int numsegsW = 1,
     int numpointsU = 2, int numpointsV = 2, int numpointsW = 2,
-    T boxextension = 1.01) : TBezierVolume<T>() 
+    T boxextension = MINMAX_COEF) : TBezierVolume<T>() 
   {
     // get min/max for all surfaces
     TPoint<T> min,max;

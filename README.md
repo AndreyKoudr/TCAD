@@ -189,7 +189,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Important fix. Much less memory eaten. Now trying to make the whole thing faster and more accurate.<br /> 
+Much more accurate (~0.7mm gaps between edges for a sub of length 74m) but still not fast enough.<br /> 
 
 
 

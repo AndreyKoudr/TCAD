@@ -542,7 +542,8 @@ public:
     TSplineSurface<T> cambersurface(camberpoints,K1,SPLINE_DEGREE,K2,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
 
-    //saveSurfaceIges(&cambersurface,DEBUG_DIR + "Kilo wing 1 (rudder) camber surface.iges");
+    //#define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/")
+    //::saveSurfaceIges(&cambersurface,DEBUG_DIR + "Camber surface.iges");
 
     // step 3 : make 3D wing of two upper and lower spline surfaces
 
@@ -550,6 +551,8 @@ public:
 
     makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+
+    //::saveSurfacesIges(surfaces,DEBUG_DIR + "Surfaces.iges"); 
 
     // step 4 : close and round tips
 
