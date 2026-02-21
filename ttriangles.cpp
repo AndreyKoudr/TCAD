@@ -27,10 +27,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "ttriangles.h"
+#include <mutex>
 
 namespace tcad {
 
+// debug print of intersection traingles and active cells
 bool print = false; 
+
+// mutex for fillCells()
+std::mutex cmutex;
 
 bool edgeComp(const std::pair<LINT,LINT> &a, const std::pair<LINT,LINT> &b)
 {

@@ -212,9 +212,15 @@ public:
 
       for (int i = 0; i <= this->K1; i++)
       {
-        for (int j = 0; j <= this->K2; j++)
+        if (std::abs(bs[i]) > TOLERANCE(T))
         {
-          result = result + this->cpoints[j * (this->K1 + 1) + i] * (bs[i] * bt[j]);
+          for (int j = 0; j <= this->K2; j++)
+          {
+            if (std::abs(bt[j]) > TOLERANCE(T))
+            {
+              result = result + this->cpoints[j * (this->K1 + 1) + i] * (bs[i] * bt[j]);
+            }
+          }
         }
       }
 

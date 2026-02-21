@@ -2286,7 +2286,7 @@ int main(int argc, char* argv[])
 
     //===== Intersect rudder with cutter body to get rudder plane shape =====
 
-    //double starttime1 = GetTime(); //!!! remove
+    //double starttime1 = GetTime(); 
 
     // remember this
     brudder.nameSurfaces("r");
@@ -2313,7 +2313,7 @@ int main(int argc, char* argv[])
    // bplane10.clearNames();
     bplane10.saveSurfacesIges(DEBUG_DIR + "Rudder plane surfaces trimmed.iges");
 
-    //double endtime = GetTime(); //!!! remove
+    //double endtime = GetTime(); 
     //cout << "Time elapsed " << (endtime - starttime1) << " sec" << endl; 
 
     //===== Subtract cutter body from rudder to make space for rudder plane =====
@@ -2339,8 +2339,6 @@ int main(int argc, char* argv[])
 
     brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.002.iges");
   }
-
-#if 1
 
   /*****************************************************************************
     5.15 Blocks : submarine with rudder
@@ -2664,8 +2662,6 @@ int main(int argc, char* argv[])
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
-
-#endif
 
 #endif
 

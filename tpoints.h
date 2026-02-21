@@ -2674,7 +2674,7 @@ template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpo
   assert(!(points.back() - newpoints.back()) < TOLERANCE(T));
 #endif
 
-  points = newpoints;
+  points.swap(newpoints);
 }
 
 

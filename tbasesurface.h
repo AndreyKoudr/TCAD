@@ -998,11 +998,13 @@ public:
     TPoint<T> oUVmin(0.0,0.0);
     TPoint<T> oUVmax(1.0,1.0);
 
-    T tol = tolerance * 100.0; //!!!
+    T tol = tolerance * pow(10.0,preintrcycles - 1); 
 
     // shrink UVmin/max around intersection line
     for (int i = 0; i < preintrcycles; i++)
     {
+//outputDebugString("coarsening " + to_string(i)); 
+
       if (!makeIntersectionTriangles(other,tris,othertris,UVmin,UVmax,oUVmin,oUVmax,11,301,(i >= preintrcycles - 1), //!!!!!!!
         tol,parmtolerance))
         return 0;
@@ -1012,12 +1014,14 @@ public:
         return 0;
 
       // decrease tolerance, increase refinement
-      tol *= 0.1; //!!!
+      tol *= 0.1; 
     }
 
     // now try intersection and check accuracy
     for (int i = 0; i < intrcycles; i++)
     {
+//outputDebugString("intersecting " + to_string(i));
+
       // make tris which only used in active cells
       if (!makeIntersectionTriangles(other,tris,othertris,cells,celltris,ocelltris,activecells))
         return 0;
@@ -1047,7 +1051,7 @@ public:
       if (ok || i == intrcycles - 1 ||  //!!!!!!!
         tris.numFaces() > MAX_TRIS || othertris.numFaces() > MAX_TRIS)
       {
-//if (ok)
+//if (ok) 
 //{
 //  outputDebugString(std::string("ok i = ") + to_string(i)); 
 //} else

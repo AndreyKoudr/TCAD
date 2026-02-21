@@ -189,7 +189,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Much more accurate (~0.7mm gaps between edges for a sub of length 74m) but still not fast enough.<br /> 
+Much more accurate (~0.7mm gaps between edges for a sub of length 74m), much faster but still not very fast. Needs a good cleanup.<br /> 
 
 
 

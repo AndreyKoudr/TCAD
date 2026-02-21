@@ -67,6 +67,8 @@ namespace tcad {
 
 extern bool print; 
 
+extern std::mutex cmutex;
+
 
 /**
   Class TTriangles - a collection of triangles
@@ -489,6 +491,9 @@ public:
   bool intersectByPlane(TPlane<T> &plane, std::vector<std::vector<TPoint<T>>> &lines, T tolerance,
     T parmtolerance = PARM_TOLERANCE,
     std::vector<std::vector<TPoint<T>>> *boundary = nullptr);
+
+  /** Fill celltris array with tri numbers. */
+  void fillCells(OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris);
 
   /** Prepare cells for space partitioning. */
   bool prepareCells(TTriangles<T> &other, T maxedge,
@@ -2332,6 +2337,120 @@ template <class T> void intersectMultiCells(std::vector<LINT> *activecells, LINT
   }
 }
 
+#if 0
+//#ifdef USE_THREADS
+
+/** Fill cells from i0 to i1 triangles. */
+template <class T> void fillCellsPrim(TTriangles<T> *tris, int i0, int i1,
+  OBackground<T> *cells,
+  // output :
+  std::vector<std::vector<LINT>> *celltristemp)
+{
+  celltristemp->resize(cells->numBackgroundCells());
+
+  for (int i = i0; i <= i1; i++)
+  {
+    // important, do not remove
+    std::array<TPoint<T>,8> box;
+    tris->faceBox(i,box);
+
+    for (int j = 0; j < 8; j++)
+    {
+      LINT index = cells->findCell(box[j]);
+      assert(index >= 0);
+
+    // cmutex.lock();
+      celltristemp->at(index).push_back(i);
+  //    celltristemp->at(index).insert(i);
+    //  cmutex.unlock();
+    }
+  }
+}
+
+template <class T> void TTriangles<T>::fillCells(OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris)
+{
+  celltris.clear();
+
+  LINT numcells = cells.numBackgroundCells();
+  int nfaces = int(numFaces());
+
+  int numthreads = NUM_THREADS;
+  LIMIT(numthreads,1,nfaces);
+
+  std::vector<int> ranges;
+  getRanges<T>(nfaces,numthreads,ranges);
+
+  std::vector<std::thread> threads;
+  std::vector<std::vector<std::vector<LINT>>> celltristempprim(numthreads);
+
+  for (int t = 0; t < numthreads; t++)
+  {
+    int j1 = ranges[t];
+    int j2 = ranges[t + 1] - 1;
+
+    std::thread th;
+    th = std::thread(fillCellsPrim<T>,this,j1,j2,&cells,&celltristempprim[t]);
+
+    threads.push_back(std::move(th));
+  }
+
+  for (auto &th : threads) {     
+    th.join();
+  }
+
+  // convert sets into vectors to divide for threading
+  for (int i = 0; i < numcells; i++)
+  {
+    std::set<LINT> list;
+    for (int j = 0; j < int(celltristempprim.size()); j++) // numthreads
+    {
+      for (int k = 0; k < int(celltristempprim[j][i].size()); k++)
+        list.insert(celltristempprim[j][i][k]);
+    }
+
+    std::vector<LINT> slist(list.begin(),list.end());
+
+    celltris.push_back(slist);
+  }
+}
+
+#else
+
+template <class T> void TTriangles<T>::fillCells(OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris)
+{
+  celltris.clear();
+
+  LINT numcells = cells.numBackgroundCells();
+  LINT nfaces = numFaces();
+
+  // temp set to fill with unique numbers
+  std::vector<std::set<LINT>> celltristemp(numcells);
+
+  for (LINT i = 0; i < nfaces; i++)
+  {
+    // important, do not remove
+    std::array<TPoint<T>,8> box;
+    faceBox(i,box);
+
+    for (int j = 0; j < 8; j++)
+    {
+      LINT index = cells.findCell(box[j]);
+      assert(index >= 0);
+
+      celltristemp[index].insert(i);
+    }
+  }
+
+  // convert sets into vectors to divide for threading
+  for (int i = 0; i < int(celltristemp.size()); i++)
+  {
+    std::vector<LINT> list(celltristemp[i].begin(),celltristemp[i].end());
+    celltris.push_back(list);
+  }
+}
+
+#endif
+
 template <class T> bool TTriangles<T>::prepareCells(TTriangles<T> &other, T maxedge,
   OBackground<T> &cells, std::vector<std::vector<LINT>> &celltris, std::vector<std::vector<LINT>> &ocelltris,
   std::vector<LINT> &activecells, TPoint<T> &UVmin, TPoint<T> &UVmax, 
@@ -2381,65 +2500,11 @@ template <class T> bool TTriangles<T>::prepareCells(TTriangles<T> &other, T maxe
   LINT numcells = cells.numBackgroundCells();
 
   // now distribute all tris over cells
-  {
-  #if 0
-    std::vector<std::unordered_set<LINT>> celltristemp(numcells);
-  #else
-    std::vector<std::set<LINT>> celltristemp(numcells);
-  #endif
-    for (LINT i = 0; i < numFaces(); i++)
-    {
-      // important, do not remove
-      std::array<TPoint<T>,8> box;
-      faceBox(i,box);
-
-      for (int j = 0; j < 8; j++)
-      {
-        LINT index = cells.findCell(box[j]);
-        assert(index >= 0);
-
-        celltristemp[index].insert(i);
-      }
-    }
-
-    // convert sets into vectors to divide for threading
-    for (int i = 0; i < int(celltristemp.size()); i++)
-    {
-      std::vector<LINT> list(celltristemp[i].begin(),celltristemp[i].end());
-      celltris.push_back(list);
-    }
-  }
-
-  {
-  #if 0
-    std::vector<std::unordered_set<LINT>> ocelltristemp(numcells);
-  #else
-    std::vector<std::set<LINT>> ocelltristemp(numcells);
-  #endif
-    for (LINT i = 0; i < other.numFaces(); i++)
-    {
-      // important, do not remove
-      std::array<TPoint<T>,8> box;
-      other.faceBox(i,box);
-
-      for (int j = 0; j < 8; j++)
-      {
-        LINT index = cells.findCell(box[j]);
-        assert(index >= 0);
-
-        ocelltristemp[index].insert(i);
-      }
-    }
-
-    for (int i = 0; i < int(ocelltristemp.size()); i++)
-    {
-      std::vector<LINT> list(ocelltristemp[i].begin(),ocelltristemp[i].end());
-      ocelltris.push_back(list);
-    }
-  }
+  fillCells(cells,celltris);
+  other.fillCells(cells,ocelltris);
 
   // now distinguish cells which are (1) not empty (2) contain triangles from
-  // this and other triangles
+  // both this and other triangles
   for (LINT i = 0; i < numcells; i++)
   {
     if (!celltris[i].empty() && !ocelltris[i].empty())
@@ -2449,7 +2514,7 @@ template <class T> bool TTriangles<T>::prepareCells(TTriangles<T> &other, T maxe
   }
 
 //outputDebugString(std::string("numcells ") + to_string(numcells) + 
-//  std::string(" numactivecells ") + to_string(activecells.size())); //!!!!!!!
+//  std::string(" numactivecells ") + to_string(activecells.size())); 
 
   if (activecells.empty())
     return false;
@@ -2569,7 +2634,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   TPoint<T> UVmin,UVmax,oUVmin,oUVmax;
 
 //outputDebugString(std::string("max edge ") + to_string(maxedge,12) + 
-//  std::string(" tolerance ") + to_string(tolerance,12)); //!!!!!!!
+//  std::string(" tolerance ") + to_string(tolerance,12)); 
 
   prepareCells(other,maxedge,cells,celltris,ocelltris,activecells,UVmin,UVmax,oUVmin,oUVmax,
     parmtolerance,extendcoef,print); 

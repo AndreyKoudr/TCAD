@@ -192,13 +192,13 @@ namespace tcad {
 
 // Max number of cells for scape partitioning; more cells increase memory consumtion
 // and decrease CPU load and vice versa
-#define MAX_CELLS 10000 
+#define MAX_CELLS 10000
 
 // Max number of points for a piece of boundary
 #define MAX_BOUNDPOINTS 201
 
 // Number of cycles to refine and decrease number of triangles for surface intersection
-#define PREINTR_CYCLES 4
+#define PREINTR_CYCLES 6
 
 // Number of cycles to refine triangles for surface intersection
 #define INTR_CYCLES 8
