@@ -2677,5 +2677,9 @@ template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpo
   points.swap(newpoints);
 }
 
+/** Approach points to expoints at the end at len fractions of the whole length. */
+template <class T> void approachPoints(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &expoints, T len = 0.05)
+{
+}
 
 }

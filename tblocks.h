@@ -53,7 +53,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //  #undef DEBUG_BLOCKS
 //#endif
 
-#ifdef DEBUG_BLOCKS
+#if 1 //!!!!!!!!
+//#ifdef DEBUG_BLOCKS
   #include "export.h"
 #endif
 
@@ -689,7 +690,8 @@ template <class T> void makeBladeCamberThickness(std::vector<TPoint<T>> &upperlo
   }
 }
 
-/** Make points for surfaces of revolution around Z. 
+/** Make points for surfaces of revolution around Z. If contour point.W < 0.0, ellipse
+  defnerates to a straight line. Resuly is Points! 
   The contour has axial coordinate in countourAxisCoord and radial coordinate in countourRadialCoord.
   numpoints is that along circumference. */
 template <class T> void makeSurfaceOfRevolution(std::vector<TPoint<T>> &contour, 
@@ -704,6 +706,13 @@ template <class T> void makeSurfaceOfRevolution(std::vector<TPoint<T>> &contour,
 
     std::vector<TPoint<T>> section;
     makeEllipseXY(numpoints,TPoint<T>(),r,r,section,adegfrom,adegto);
+
+    if (contour[i].W < 0.0) //!!!!!!
+    {
+      std::vector<TPoint<T>> newpoints;
+      makeStraightLine<T>(section.front(),section.back(),int(section.size()),newpoints);
+      section = newpoints;
+    }
 
     TTransform<T> t;
     t.Translate(TPoint<T>(0.0,0.0,contour[i][countourAxialCoord]));
@@ -762,7 +771,7 @@ template <class T> void makeSurfacesOfRevolution(std::vector<TPoint<T>> &contour
   }
 }
 
-/** Make surfaces of revolution around Z (multiple faces around Z from 0 t0 360 deg). 
+/** Make surfaces of revolution around Z (multiple faces around Z from 0 to 360 deg). 
   The contour has axial coordinate in countourAxisCoord and radial coordinate in countourRadialCoord.
   numfaces and pointsperface are those along circumference. 
   Resulting faces have U as circumferential and V - parametric axial coordinate. */
@@ -1015,7 +1024,7 @@ template <class T> bool makeTrimming(
         outputDebugString("");
   #endif
 
-//print = (i == 2 && j == 26); 
+//print = (i == 55 && (j == 13 || j == 14)); 
 //if (print)
 //{
 //  outputDebugString("");
@@ -1518,5 +1527,261 @@ template <class T> void contourToBlade(std::vector<std::array<TPoint<T>,2>> &con
   }
 }
   
+/** Axis is along Z. Contour has axial Z coordinate in X and radial coordinate in Y. X (Z) 
+  must increase. step is dX for full rotation 0->360. */
+template <class T> void makeSpiral(std::vector<TPoint<T>> &contour, T step, 
+  std::vector<TPoint<T>> &points, int numdivsper360 = 90, T startangledeg = 0.0, int opower = 5)
+{
+  points.clear();
+
+  T Zmax = contour.back().X;
+  T Zmin = contour.front().X;
+  assert(Zmax > Zmin);
+
+  T len = Zmax - Zmin;
+
+  TPointCurve<T> bcontour(contour);
+ //!!!!!!!! TOrthoSegment<T> bcontour(contour,0.0,0.0,opower);
+
+  // assume diameter not changing
+  int numsteps = ROUND(len * T(numdivsper360) / step);
+
+  // angle increment for every step in degrees
+  T da = 360.0 / T(numdivsper360);
+  T a = startangledeg;
+
+  for (int i = 0; i <= numsteps; i++)
+  {
+    T U = T(i) / T(numsteps);
+ //!!!!!!!!   T U = T(i) / T(numsteps);
+
+    TPoint<T> c = bcontour.position(U);
+
+    // Z
+    T Z = c.X;
+
+    // radius
+    T R = c.Y;
+
+    TPoint<T> p(R * cos(a * CPI),R * sin(a * CPI),Z);
+    points.push_back(p);
+
+    a += da;
+  }
+
+  std::reverse(points.begin(),points.end());
+//!!!!!!!! saveLinesIges<T>(points,"spiral.iges");
+}
+  
+/** Prepare points on the thread surface. */
+template <class T> void makeThreadPoints(std::vector<TPoint<T>> &contour, 
+  T threadstep, T threadheight, T a, T coef, int numbottomtopdivs, T applen, T apppower,
+  int numdivsper360, int opower, std::vector<TPoint<T>> &points)
+{
+  points.clear();
+
+  // prepare contour for thread top
+  std::vector<TPoint<T>> topcontour = contour;
+  // make it higher by threadheight with its ends approaching zero height
+  for (int i = 0; i < int(topcontour.size()); i++)
+  {
+    topcontour[i].Y += threadheight * coef;
+  }
+
+  // base (not elevated) points
+  std::vector<TPoint<T>> basepoints;
+  makeSpiral(contour,threadstep,basepoints,numdivsper360,a,opower);
+
+  // elevated points
+  makeSpiral(topcontour,threadstep,points,numdivsper360,a,opower);
+
+  // cut point ends to zero heights
+  TPointCurve<T> base(basepoints);
+  base.approachCurve(points,applen,apppower);
+
+  // other end
+  base.reverse();
+  std::reverse(points.begin(),points.end());
+  base.approachCurve(points,applen,apppower);
+
+  // back
+  std::reverse(points.begin(),points.end());
+}
+
+/** Make thread of three surfaces. contour defines the CYLINDRICAL base of the thread. */
+template <class T> void makeThread(std::vector<TPoint<T>> &contour, 
+  T threadstep, T threadheight, T threadwidth, 
+  bool bottom, bool top,
+  std::vector<TSplineSurface<T> *> &surfaces,  
+  int numbottomtopdivs = 4, 
+  T applen = 0.01, T apppower = 1.0, 
+  int numdivsper360 = 90, int opower = 5,
+  int degree = SPLINE_DEGREE)
+{
+  // starting radius
+  T R = contour.front().Y;
+  // length around circumference
+  T len = 2.0 * PI10 * R;
+
+  // number of spirals we need to cover cylindrical surfaces with step of
+  // HALF thread width
+  int numspirals = int(len * 2.0 / threadstep) * numbottomtopdivs; // we need numbottomtopdivs boundary pieces where thread starts and ends
+
+  // make many many points (spirals) with step da
+  std::vector<std::vector<TPoint<T>>> spirals;
+
+  // angular step
+  T da = 360.0 / numspirals;
+
+  // half width in spirals
+  T contourlen = std::abs(contour.back().X - contour.front().X);
+  int halfwidth = ROUND(threadwidth * 0.5 * T(numspirals) / threadstep); 
+  LIMIT_MIN(halfwidth,1);
+
+  for (int i = 0; i < numspirals; i++)
+  {
+    T a = da * T(i);
+    std::vector<TPoint<T>> points;
+
+    // uplift spirals 0..numbottomtopdivs
+    if (i < halfwidth)
+    {
+      T coef = 1.0 - T(i) / T(halfwidth);
+      LIMIT(coef,0.0,1.0);
+
+      makeThreadPoints<T>(contour,threadstep,threadheight,a,coef,numbottomtopdivs,applen,apppower,
+        numdivsper360,opower,points);
+    } else if (i >= numspirals - halfwidth)
+    {
+      T coef = 1.0 - T(numspirals - i - 1) / T(halfwidth);
+      LIMIT(coef,0.0,1.0);
+
+      makeThreadPoints<T>(contour,threadstep,threadheight,a,coef,numbottomtopdivs,applen,apppower,
+        numdivsper360,opower,points);
+    } else
+    {
+      makeSpiral(contour,threadstep,points,numdivsper360,a,opower);
+    }
+
+    spirals.push_back(points);
+  }
+
+  // make two THREAD surfaces
+  std::vector<std::vector<TPoint<T>>> points;
+
+  // we will have numbottomtopdivs spiral surfaces
+  for (int i = 0; i < numbottomtopdivs; i++)
+  {
+    points.clear();
+
+    int i1 = i * int(spirals.size()) / numbottomtopdivs;
+    int i2 = i1 + int(spirals.size()) / numbottomtopdivs;
+
+    for (int j = i1; j <= i2; j++)
+    {
+      int j1 = j;
+      if (j1 >= spirals.size())
+        j1 = 0;
+
+      points.push_back(spirals[j1]);
+    }
+  
+    TSplineSurface<T> *surface = new TSplineSurface<T>(points, 
+      //1,1,END_FIXED,END_FIXED,END_FIXED,END_FIXED,COPIED);
+      degree,degree,END_FIXED,END_FIXED,END_FIXED,END_FIXED,COPIED);
+
+    surfaces.push_back(surface);
+  }
+
+  TPoint<T> centreleft(0.0,0.0,contour.back().X);
+  TPoint<T> centreright(0.0,0.0,contour.front().X);
+
+  if (bottom)
+  {
+    for (int i = 0; i < numbottomtopdivs; i++)
+    {
+      std::vector<TPoint<T>> col;
+      surfaces[i]->getColumn(0,col);
+
+      points.clear();
+
+      for (int j = 0; j < int(col.size()); j++)
+      {
+        points.push_back({col[j],centreleft});
+      }
+
+      // linear along U
+      TSplineSurface<T> *surface = new TSplineSurface<T>(points, 
+        1,degree,END_FIXED,END_FIXED,END_FIXED,END_FIXED,COPIED);
+
+      surface->reverseU(); //!!!!!!!!
+
+      surfaces.push_back(surface);
+    }
+  }
+
+  if (top)
+  {
+    for (int i = 0; i < numbottomtopdivs; i++)
+    {
+      std::vector<TPoint<T>> col;
+      surfaces[i]->getColumn(surfaces[i]->K1,col);
+
+      points.clear();
+
+      for (int j = 0; j < int(col.size()); j++)
+      {
+        points.push_back({col[j],centreright});
+      }
+
+      // linear along U
+      TSplineSurface<T> *surface = new TSplineSurface<T>(points, 
+        1,degree,END_FIXED,END_FIXED,END_FIXED,END_FIXED,COPIED);
+
+      surfaces.push_back(surface);
+    }
+  }
+}
+
+/** Make a bolt. Bolt diameter is that of cylindrical part. threadheight is over 
+  cylindrical part. shanklength must be > 0.0! */
+template <class T> void makeBolt(T diameter, T threadlength, T shanklength, 
+  T headlength, T headradius,
+  T threadstep, T threadheight, T threadwidth, 
+  std::vector<TSplineSurface<T> *> &surfaces,  
+  int numfaces = 6, 
+  T applen = 0.01, T apppower = 1.0, 
+  int numdivsper360 = 90, int opower = 5,
+  int K1 = 60, int K2 = 40, int degree = SPLINE_DEGREE)
+{
+  T r = diameter * 0.5;
+
+  // step 1 : make thread from Z = 0.0 to Z = threadlength
+
+  // make thread with bottom but no top
+  std::vector<TPoint<T>> threadcontour = {TPoint<T>(0.0,r),TPoint<T>(threadlength,r)};
+
+  std::vector<TSplineSurface<T> *> threadsurfaces;
+  makeThread<T>(threadcontour,threadstep,threadheight,threadwidth,false,true,surfaces,
+    numfaces,applen,apppower,numdivsper360,opower,degree);
+
+  // step 2 : cylindrical part from Z > threadlength
+  assert(shanklength > TOLERANCE(T));
+
+  // shank + head contour
+  std::vector<std::vector<TPoint<T>>> contour = {
+    {TPoint<T>(threadlength,r),
+    TPoint<T>(threadlength + shanklength,r)},
+    {TPoint<T>(threadlength + shanklength,r),
+    TPoint<T>(threadlength + shanklength,headradius,0.0,-1.0)},              // W < 0 to make faceted head
+    {TPoint<T>(threadlength + shanklength,headradius,0.0,-1.0),              // W < 0 to make faceted head
+    TPoint<T>(threadlength + shanklength + headlength,headradius,0.0,-1.0)}, // W < 0 to make faceted head
+    {TPoint<T>(threadlength + shanklength + headlength,headradius,0.0,-1.0), // W < 0 to make faceted head
+    TPoint<T>(threadlength + shanklength + headlength,0.0)}
+  };
+
+  // make cylindrical part
+  makeSurfacesOfRevolution(contour,AxisX,AxisY,numfaces,numdivsper360,K1,K2,surfaces);
+}
 
 }

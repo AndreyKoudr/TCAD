@@ -554,6 +554,52 @@ public:
     return len;
   }
 
+  /** Find a closest point to percentage length from the start. */
+  int closestPoint(T U)
+  {
+    TPoint<T> pos = this->position(U);
+    int index = findClosest(this->cpoints,pos);
+
+    return index;
+  }
+
+  /** Get point parameter. */
+  T pointU(int index)
+  {
+    assert(index >= 0 && index < this->cpoints.size());
+
+    return parms[index]; 
+  }
+
+  /** Make points from the start approach this curve. The number of points must be same. */
+  bool approachCurve(std::vector<TPoint<T>> &points, T applen = 0.05, T power = 0.5)
+  {
+    assert(points.size() == this->cpoints.size());
+
+    int index = closestPoint(applen);
+    if (index > 0 && points.size() == this->cpoints.size())
+    {
+      T Umax = pointU(index);
+
+      for (int i = 0; i <= index; i++)
+      {
+        T U = pointU(i);
+        T u = U / Umax;
+        T coef = pow(u,power);
+
+//!!!!!!!!
+T z = points[i].Z;
+        points[i] = this->cpoints[i] + (points[i] - this->cpoints[i]) * coef; 
+points[i].Z = z;
+      }
+
+      return true;
+    } else
+    {
+      return false;
+    }
+  }
+
 public:
 
   // parameterisation by numbers or by length

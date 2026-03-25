@@ -507,7 +507,7 @@ public:
       m2 = this->M2;
     }
 
-    TSplineSurface<T> *face = new TSplineSurface<T>(points,m1,m2,startU,endU,startV,endV);
+    TSplineSurface<T> *face = new TSplineSurface<T>(points,m1,m2,startU,endU,startV,endV,INTERPOLATED);
 
     return face;
   }

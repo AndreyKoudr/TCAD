@@ -1454,8 +1454,18 @@ public:
     return count;
   }
 
-  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. cutFromOuter is true
-    for unions. */
+  /** Get number of boundary divisions. Not very logic, but maybe good to keep the old behaviour. */
+  template <class T> void getBoundaryDivs(int &numdivisionsU, int &numdivisionsV, int numdivisions = 100)
+  {
+    numdivisionsU = numdivisions;
+    numdivisionsV = numdivisions;
+    if (K1 > numdivisionsU)
+      numdivisionsU *= 10;
+    if (K2 > numdivisionsV)
+      numdivisionsV *= 10;
+  }
+
+  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
     std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
     T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
@@ -1465,6 +1475,9 @@ public:
     if (cutUV.empty())
       return false;
 
+    int numdivisionsU,numdivisionsV;
+    this->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
+
     // step 1 : prepare outer loop
     std::vector<std::vector<TPoint<T>>> outerloop;
 
@@ -1473,7 +1486,7 @@ public:
       outerloop = loops[0];
     } else
     {
-      closeOuterBoundaryLoop(outerloop,numdivisions);
+      closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
     }
 
     // step 2 : combine cut pieces into a single line
@@ -1482,9 +1495,10 @@ public:
     // inner loops
     std::vector<std::vector<std::vector<TPoint<T>>>> innerloops;
 #if 0
-    int n = extractLoops(cut,innerloops,parmtolerance,parmtolerance); //!!!!!!!
+    int n = extractLoops(cut,innerloops,parmtolerance,parmtolerance); //!!!!!!
 #else
-    int n = extractLoops(cut,innerloops,parmtolerance * 1000.0,parmtolerance); //!!!!!!!
+    int n = extractLoops(cut,innerloops,parmtolerance * 100.0,parmtolerance); //!!!!!! small bolt
+  // int n = extractLoops(cut,innerloops,parmtolerance * 1000.0,parmtolerance); 
 #endif
   
     // all done
@@ -1636,7 +1650,7 @@ redo:
         if (!newloop)
         {
           // it maybe another loop, recreate full outer loop
-          closeOuterBoundaryLoop(outerloop,numdivisions);
+          closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
 
           newloop = true;
           goto redo;
@@ -1702,7 +1716,7 @@ protected:
 
 /** Close outer UV boundary by 4 pieces. */
 template <class T> void closeOuterBoundaryLoop(std::vector<std::vector<TPoint<T>>> &closedboundary, 
-  int numdivisions = 100)
+  int numdivisionsU, int numdivisionsV)
 {
   closedboundary.clear();
 
@@ -1715,7 +1729,7 @@ template <class T> void closeOuterBoundaryLoop(std::vector<std::vector<TPoint<T>
     TPoint<T> UV = cornerUV<T>[i];
     TPoint<T> nextUV = cornerUV<T>[i1];
 
-    TPointCurve<T> line(UV,nextUV,numdivisions);
+    TPointCurve<T> line(UV,nextUV,(i == 0 || i == 2) ? numdivisionsU : numdivisionsV);
 
     // we shall keep a checksum at fronts of boundary pieces
     line.controlPoints().front().W = 0.0;

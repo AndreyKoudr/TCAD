@@ -480,7 +480,8 @@ template <class T> void prepareLoopsXYZ(
       curves.back().push_back(std::vector<TPointCurve<T>>());
 
       // create default outer boundary
-      closeOuterBoundary(boundariesUV[i]);
+      surfaces[i]->closeOuterBoundary(boundariesUV[i]);
+
       std::vector<std::vector<TPoint<T>>> loop;
       getLoopXYZ(surfaces,boundariesUV,i,0,loop); // 0 - outer loop
 
@@ -512,8 +513,11 @@ template <class T> void prepareLoopsXYZ(
       // in addition, add additional full loop at the end
       curves.back().push_back(std::vector<TPointCurve<T>>());
 
+      int numdivisionsU,numdivisionsV;
+      surfaces[i]->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
+
       std::vector<std::vector<TPoint<T>>> outerloop;
-      closeOuterBoundaryLoop(outerloop,numdivisions);
+      closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
 
       assert(outerloop.size() == 4);
 
@@ -602,7 +606,7 @@ template <class T> void closeFaceLoops(std::vector<TSplineSurface<T> *> &surface
             exlist.push_back(i);
           } else
           {
-            closeOuterBoundary(boundariesUV[i]);
+            surfaces[i]->closeOuterBoundary(boundariesUV[i]);
           }
         // normal cut
         } else
@@ -704,7 +708,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
             if (reversed)
             {
               inout[i] = 2;
-              closeOuterBoundaryIfEmpty(boundariesUV[i]);
+              surfaces[i]->closeOuterBoundaryIfEmpty(boundariesUV[i]);
               inlist.push_back(i);
             }
           } else
@@ -725,7 +729,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
 
     for (int i : inlist)
     {
-      closeOuterBoundaryIfEmpty(boundariesUV[i]);
+      surfaces[i]->closeOuterBoundaryIfEmpty(boundariesUV[i]);
       inout[i] = 2;
     }
 
@@ -745,7 +749,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
   {
     if (inout[i] == 2)
     {
-      closeOuterBoundaryIfEmpty(boundariesUV[i]);
+      surfaces[i]->closeOuterBoundaryIfEmpty(boundariesUV[i]);
     } else if (inout[i] == 3)
     {
       boundariesUV[i].clear();

@@ -155,6 +155,16 @@ Booleans
 - 5.21 Blocks : 3D text<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_text.png)<br />
 
+Threads, bolts, small bolt screwed into submarine
+=================================================
+
+- 7.1 Blocks : thread and bolt<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_thread.png)<br />
+- 7.2 Blocks : small bolt screwed into submarine, sub still solid<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt0.png)<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt1.png)<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt2.png)<br />
+
 Important parameters in main.cpp
 ================================
 
@@ -189,7 +199,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Much more accurate (~0.7mm gaps between edges for a sub of length 74m), much faster but still not very fast. Needs a good cleanup.<br /> 
+Threads, bolts, small threaded bolt of diameter 10mm screwed into submarine. Submarine is still solid.<br /> 
 
 
 

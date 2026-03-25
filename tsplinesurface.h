@@ -45,6 +45,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace tcad {
 
+// how to make spline surface control points from original set of points
+enum ControlPointsType {
+  APPROXIMATED,       // approximation
+
+  INTERPOLATED,       // interpolate (hard as it requires solution to the system),
+                      // not always possible, points are approximated in case of failure
+
+  COPIED              // make original points control points
+};
+
 template <class T> class TSplineSurface : public TBaseSurface<T> {
 public:
 
@@ -111,14 +121,12 @@ public:
 
     this->cpoints.clear();
 
-    allocate(k1,m1,k2,m2,false);
+    allocate(k1,m1,k2,m2,APPROXIMATED);
 
     clampedstartU = (startU == END_CLAMPED);
     clampedendU = (endU == END_CLAMPED);
     clampedstartV = (startV == END_CLAMPED);
     clampedendV = (endV == END_CLAMPED);
-
-    interpolate = false;
 
     update();
   }
@@ -127,7 +135,8 @@ public:
   TSplineSurface(std::vector<std::vector<TPoint<T>>> &ppoints, 
     int m1, int m2, 
     CurveEndType startU, CurveEndType endU,
-    CurveEndType startV, CurveEndType endV) : TBaseSurface<T>()
+    CurveEndType startV, CurveEndType endV,
+    ControlPointsType controlpoints) : TBaseSurface<T>()
   {
     int k1 = int(ppoints[0].size()) - 1;
     int k2 = int(ppoints.size()) - 1;
@@ -136,14 +145,12 @@ public:
 
     this->cpoints.clear();
 
-    allocate(k1,m1,k2,m2,false);
+    allocate(k1,m1,k2,m2,controlpoints);
 
     clampedstartU = (startU == END_CLAMPED);
     clampedendU = (endU == END_CLAMPED);
     clampedstartV = (startV == END_CLAMPED);
     clampedendV = (endV == END_CLAMPED);
-
-    interpolate = true;
 
     update();
   }
@@ -161,21 +168,19 @@ public:
     int tempK1 = 0;
     int tempK2 = 0;
     surface.createPoints(temp,nullptr,&tempK1,&tempK2, 
-       k1 + 1,k2 + 1,refinestartU,refineendU,refinestartV,refineendV);
+      k1 + 1,k2 + 1,refinestartU,refineendU,refinestartV,refineendV);
 
     // make 2D points
     points1Dto2D(temp,tempK1,tempK2,this->points);
 
     this->cpoints.clear();
 
-    allocate(k1,m1,k2,m2,false);
+    allocate(k1,m1,k2,m2,APPROXIMATED);
 
     clampedstartU = (startU == END_CLAMPED);
     clampedendU = (endU == END_CLAMPED);
     clampedstartV = (startV == END_CLAMPED);
     clampedendV = (endV == END_CLAMPED);
-
-    interpolate = false;
 
     update();
   }
@@ -197,6 +202,9 @@ public:
     No UV derivatives. */
   virtual TPoint<T> derivative(T U, T V, Parameter onparameter, int k)
   {
+    if (this->M1 < 0 || this->M2 < 0)
+      return TPoint<T>();
+
     LIMIT(U,0.0,1.0);
     LIMIT(V,0.0,1.0);
 
@@ -312,7 +320,7 @@ public:
 
     assert(kpoints.size() == this->K2 + 1 && kpoints[0].size() == this->K1 + 1);
 
-    if (interpolate)
+    if (interpolate == INTERPOLATED)
     {
       // clamping is done inside, do not do it twice; if interpolatePoints() fails
       // it means that the points are approximated
@@ -328,7 +336,7 @@ public:
           setVClamping(points,clampedstartV,clampedendV);
         }
       }
-    } else
+    } else if (interpolate == APPROXIMATED)
     {
       approximatePoints(kpoints);
   
@@ -341,7 +349,28 @@ public:
       {
         setVClamping(points,clampedstartV,clampedendV);
       }
+    } else if (interpolate == COPIED)
+    {
+      this->cpoints.clear();
+      for (int i = 0; i < int(kpoints.size()); i++)
+      {
+        this->cpoints.insert(this->cpoints.end(),kpoints[i].begin(),kpoints[i].end());
+      }
+  
+      if (clampedstartU || clampedendU)
+      {
+        setUClamping(points,clampedstartU,clampedendU);
+      }
+  
+      if (clampedstartV || clampedendV)
+      {
+        setVClamping(points,clampedstartV,clampedendV);
+      }
+    } else
+    {
+      assert(false);
     }
+
 
     // prepare two derivatives
     if (Uderivative == nullptr)
@@ -964,10 +993,43 @@ public:
     return clampedendV;
   }
 
+  /** Close outer boundary. */
+  template <class T> void closeOuterBoundary(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop, 
+    int numdivisions = 100)
+  {
+    if (loop.empty())
+    {
+      loop.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
+    } else
+    {
+      loop[0].clear();
+    }
+
+    int numdivisionsU,numdivisionsV;
+    this->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
+
+    closeOuterBoundaryLoop<T>(loop[0],numdivisionsU,numdivisionsV);
+  }
+
+  /** Close outer boundary if empty. */
+  template <class T> void closeOuterBoundaryIfEmpty(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop, 
+    int numdivisions = 100)
+  {
+    if (loop.empty())
+    {
+      loop.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
+
+      int numdivisionsU,numdivisionsV;
+      this->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
+
+      closeOuterBoundaryLoop<T>(loop[0],numdivisionsU,numdivisionsV);
+    }
+  }
+
 protected:
 
   /** Set main parameters. */
-  void allocate(int k1, int m1, int k2, int m2, bool interpolation)
+  void allocate(int k1, int m1, int k2, int m2, ControlPointsType interpolation)
   {
     this->K1 = k1;
     this->M1 = m1;
@@ -1004,7 +1066,7 @@ private:
   //std::vector<TPoint<T>> cpoints;
 
   // interpolate or approximate
-  bool interpolate = false; 
+  ControlPointsType interpolate = APPROXIMATED; 
 
   // clamped (first derivative specified from points) or 
   // natural (second derivative zero) ends
@@ -1043,37 +1105,19 @@ template <class T> void clearNames(std::vector<TSplineSurface<T> *> &surfaces)
 }
 
 /** Close outer boundary. */
-template <class T> void closeOuterBoundary(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop)
-{
-  if (loop.empty())
-  {
-    loop.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
-  } else
-  {
-    loop[0].clear();
-  }
-  closeOuterBoundaryLoop<T>(loop[0]);
-}
-
-/** Close outer boundary if empty. */
-template <class T> void closeOuterBoundaryIfEmpty(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop)
-{
-  if (loop.empty())
-  {
-    loop.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
-    closeOuterBoundaryLoop<T>(loop[0]);
-  }
-}
-
-/** Close outer boundary. */
 template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
   // surface  // loop 0   // 4 pieces // piece contents
-  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  int numdivisions = 100)
 {
   for (int i = 0; i < int(surfaces.size()); i++)
   {
     std::vector<std::vector<TPoint<T>>> loop;
-    closeOuterBoundaryLoop<T>(loop);
+
+    int numdivisionsU,numdivisionsV;
+    surfaces[i]->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
+
+    closeOuterBoundaryLoop<T>(loop,numdivisionsU,numdivisionsV);
 
     boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
     boundariesUV.back().push_back(loop);

@@ -41,6 +41,7 @@ using namespace tcad;
 #define DEBUG_COMMON 
 #define DEBUG_SUBMARINE
 #define DEBUG_BOOLEANS
+#define DEBUG_BOLTS
 
 // save debugging files here, end this with slash "/"
 #define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/") //!!!!!!!
@@ -963,7 +964,7 @@ int main(int argc, char* argv[])
 
   // create a point surface
   TSplineSurface<T> issurface(NACAsurfpoints,SPLINE_DEGREE,SPLINE_DEGREE,
-    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE,INTERPOLATED);
 
   saveSurfaceIges(&issurface,DEBUG_DIR + "spline surface interpolated.iges");
 
@@ -1025,7 +1026,7 @@ int main(int argc, char* argv[])
 
   // create cylindrical surface
   TSplineSurface<T> cylsurface(cylpoints,SPLINE_DEGREE,SPLINE_DEGREE,
-    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+    END_CLAMPED,END_CLAMPED,END_FREE,END_FREE,INTERPOLATED);
 
   TTransform<T> cylt;
   cylt.Rotate(TPoint<T>(0.0,1.0,0.0),90.0 * CPI);
@@ -1550,7 +1551,7 @@ int main(int argc, char* argv[])
 
     // create camber surface
     TSplineSurface<T> cambersurface(camberpoints,SPLINE_DEGREE,SPLINE_DEGREE,
-      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE,INTERPOLATED);
 
     saveSurfaceIges(&cambersurface,DEBUG_DIR + "camber surface step 1.iges");
 
@@ -2901,6 +2902,128 @@ int main(int argc, char* argv[])
   }
 
 #endif
+
+
+#ifdef DEBUG_BOLTS
+
+  /*****************************************************************************
+
+    Part 7 : small bolt screwed into submarine
+
+  *****************************************************************************/
+
+  cout << "    Part 7 : small bolt screwed into submarine" << endl;
+
+  /*****************************************************************************
+    7.1 Blocks : thread and bolt
+  *****************************************************************************/
+
+  cout << "7.1 Blocks : thread and bolt" << endl;
+
+  TBrep<T> bsbolt;
+
+  {
+    std::vector<TSplineSurface<T> *> surfaces;
+
+    std::vector<TPoint<T>> contour = {TPoint<T>(0.0,0.25),TPoint<T>(0.75,0.25)};
+
+    makeThread<T>(contour,0.075,0.02,0.02,true,true,surfaces,6); 
+
+    saveSurfacesIges(surfaces,DEBUG_DIR + "thread.iges");
+
+    std::vector<std::vector<TPoint<T>>> badedges;
+
+    TBrep<T> bthread(surfaces);
+    // make boundaries
+    bthread.closeOuterBoundary();
+
+    bool ok0 = bthread.saveSolidIges(DEBUG_DIR + "bthread solid.iges",
+      1.0 * PARM_TOLERANCE,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges); //!!!!!!!
+    ASSERT(ok0);
+
+    if (!ok0)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+
+    std::vector<TSplineSurface<T> *> bsurfaces;
+
+//template <class T> void makeBolt(T diameter, T threadlength, T shanklength, 
+//  T headlength, T headradius,
+//  T threadstep, T threadheight, T threadwidth, 
+//  std::vector<TSplineSurface<T> *> &surfaces,  
+
+    makeBolt<T>(0.005,0.05,0.05, 0.005,0.01, 0.0025,0.0004,0.0004, bsurfaces);
+
+    saveSurfacesIges(bsurfaces,DEBUG_DIR + "bolt.iges");
+
+    TBrep<T> bbolt(bsurfaces);
+    bbolt.closeOuterBoundary();
+
+    bool ok1 = bbolt.saveSolidIges(DEBUG_DIR + "bbolt solid.iges",
+      0.1 * PARM_TOLERANCE,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+    ASSERT(ok1);
+
+    if (!ok1)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+
+    bsbolt = bbolt;
+  }
+
+#ifdef DEBUG_SUBMARINE
+
+  cout << "7.2 Blocks : bolt screwed into submarine" << endl;
+
+  {
+    T tolerance = 0.1 * PARM_TOLERANCE;
+
+    // move bolt into position
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+    //t.Translate(TPoint<T>(-19.8,-2.7 + 0.03,0.025));
+    t.Translate(TPoint<T>(-19.8,-2.7 + 0.06,0.025));
+
+    bsbolt.makeTransform(&t);
+
+    std::vector<std::vector<TPoint<T>>> badedges;
+
+    bool ok0 = bsbolt.saveSolidIges(DEBUG_DIR + "bolt solid before.iges",
+      0.1 * PARM_TOLERANCE,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+    ASSERT(ok0);
+
+    if (!ok0)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+
+    // "big" sub tolerance is 67.0 * 0.0000001 = 0.000007
+    // thread height is 0.0004
+    //bsub.setTolerance(0.0004);
+    bsub.nameSurfaces("s");
+    bsbolt.nameSurfaces("b");
+    bsub = bsub - bsbolt;
+
+  //  bsub.clearNames();
+    bsub.saveSurfacesIges(DEBUG_DIR + "Kilo - bolt surfaces.iges");
+
+    // save solid
+    bool ok = bsub.saveSolidIges(DEBUG_DIR + "Kilo - bolt solid.iges",
+      bsub.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+    ASSERT(ok);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#endif
+
+#endif
+
 
   double endtime = GetTime();
 

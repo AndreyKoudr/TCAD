@@ -995,7 +995,11 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     std::string name = to_string(int(e[3])) + "-" + to_string(int(e[7]));
 
     // make spline curve
+#if 1 //!!!!!!
+    tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_FREE,tcad::END_FREE); //!!!
+#else
     tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
+#endif
 
     lines[sdirline] = makeIgesDirectoryLine0(dirline1260,pcount,-1,&dcount);
     sdirline++;
