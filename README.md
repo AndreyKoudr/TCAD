@@ -161,9 +161,9 @@ Threads, bolts, small bolt screwed into submarine
 - 7.1 Blocks : thread and bolt<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_thread.png)<br />
 - 7.2 Blocks : small bolt screwed into submarine, sub still solid<br />
-![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt0.png)<br />
-![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt1.png)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt2.png)<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt1.png)<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt0.png)<br />
 
 Important parameters in main.cpp
 ================================
