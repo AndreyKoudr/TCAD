@@ -1365,6 +1365,11 @@ public:
       return false;
     }
 
+    // DYNAMIC_TOLERANCE
+    if (tolerance < 0.0)
+      tolerance = calculateLength<T>(cut) * std::abs(tolerance); 
+
+    //===== this part never works (closed loop of single piece) ===== 
     // contour closed?
     T dist = !(loop.front().front() - loop.back().back());
     if (dist < tolerance)
@@ -1464,6 +1469,197 @@ public:
     if (K2 > numdivisionsV)
       numdivisionsV *= 10;
   }
+
+  /** Cut loop by a cut between two boundary points. */
+  template <class T> int cutLoop(
+    std::vector<std::vector<TPoint<T>>> &outerloop, 
+    std::vector<std::vector<TPoint<T>>> &cut, 
+    std::vector<std::vector<TPoint<T>>> &newouterloop,
+    T parmtolerance = PARM_TOLERANCE)
+  {
+    newouterloop.clear();
+
+    // make a single continuous curve from outer loop with marking sharp corners :
+    // they mark every START of new curve piece
+    std::vector<TPoint<T>> allpoints;
+    std::vector<TPoint<T>> cutpoints;
+
+    // find intersections, construct new points
+    std::vector<TPoint<T>> UV;
+
+    int numintrs = intersectLoopByCut(outerloop,cut,allpoints,cutpoints,UV,parmtolerance);
+
+    if (numintrs == 2)
+    {
+      // these will be cut points from intersection 1 to intersection 2
+      std::vector<TPoint<T>> newpoints;
+
+      // combine cut parts from cut and loop
+      if (!makeNewLoopPoints<T>(cutpoints,allpoints,UV,newpoints,parmtolerance))
+      {
+        return false;
+      }
+
+      // divide outer loop back into parts
+      divideByDuplicates<T>(newpoints,newouterloop,parmtolerance);
+
+      // correct points on the boundary
+      correctBoundaryPoints(newouterloop);
+    }
+
+    return numintrs;
+  }
+
+#if 1
+
+  /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
+  template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
+    std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
+    T bigtolerance = 0.01, T parmtolerance = PARM_TOLERANCE, int numdivisions = 100,
+    T maxparmgap = 0.001)
+  {
+    if (cutUV.empty())
+      return false;
+
+    int numdivisionsU,numdivisionsV;
+    this->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
+
+    // step 1 : prepare outer loop
+    std::vector<std::vector<TPoint<T>>> outerloop;
+
+    if (!loops.empty()) 
+    {
+      // this is correct, do not remove
+      outerloop = loops[0];
+    } else
+    {
+      closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
+    }
+
+    // step 2 : combine cut pieces into a single line
+    std::vector<std::vector<TPoint<T>>> cut = cutUV;
+
+    // inner loops
+    std::vector<std::vector<std::vector<TPoint<T>>>> innerloops;
+#ifdef DYNAMIC_TOLERANCE
+    int n = extractLoops(cut,innerloops,DYNAMIC_TOLERANCECOEF,parmtolerance); 
+#else
+    int n = extractLoops(cut,innerloops,parmtolerance * 100.0,parmtolerance); //!!! small bolt
+#endif
+  
+    // all done
+    if (n)
+    {
+      // get loop direction, is it a hole or space around the hole?
+      int numholes = 0;
+      int numpatches = 0;
+      for (int i = 0; i < n; i++)
+      {
+        // this is a hole, we need an outer loop as loop[0]
+        //!!! incorrect - sure it is not possible to have both holes and patches at the same time
+        // it is possible if a hole is inside another hole, it has the "outer" direction
+        bool hole = !outerLoop(innerloops[i],parmtolerance);
+        if (hole)
+        {
+          numholes++;
+        } else
+        {
+          numpatches++;
+        }
+      }
+
+      // there are holes, we need an outer loop as loop[0]
+      if (numholes)
+      {
+        if (loops.empty()) //!!!
+          loops.insert(loops.end(),outerloop); 
+      }
+
+      if (cut.empty()) 
+      {
+        loops.insert(loops.end(),innerloops.begin(),innerloops.end());
+        return true;
+      }
+    }
+
+    // step 3 : order pieces to connect start to ends
+    std::vector<std::vector<std::vector<TPoint<T>>>> allordered;
+    if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
+    {
+      loops.insert(loops.end(),innerloops.begin(),innerloops.end());
+      return false;
+    }
+
+    // step 4 : weld "close ends" into sinle points
+    if (allordered.size() > 1)
+    {
+      std::vector<TPoint<T> *> ends;
+      for (int i = 0; i < int(allordered.size()); i++)
+      {
+        ends.push_back(&(allordered[i].front().front()));
+        ends.push_back(&(allordered[i].back().back()));
+      }
+
+      for (int i = 0; i < int(ends.size()); i++)
+      {
+        for (int j = i + 1; j < int(ends.size()); j++)
+        {
+          T dist = !(*(ends[i]) - *(ends[j]));
+          if (dist < parmtolerance * 100.0) //!!!!!!!!!
+          {
+            *(ends[i]) = *(ends[j]) = (*(ends[i]) + *(ends[j])) * 0.5;
+          }
+        }
+      }
+    }
+
+    // step 5 : embed allordered cuts into outerloop;
+    // outerloop may be divided into two or more closed loops
+
+    for (int i = 0; i < int(allordered.size()); i++)
+    {
+      // special case
+      bool newloop = false;
+
+redo:
+      std::vector<std::vector<TPoint<T>>> cut = allordered[i];
+
+      std::vector<std::vector<TPoint<T>>> newouterloop; 
+      int numintrs = cutLoop(outerloop,cut,newouterloop,parmtolerance);
+      if (numintrs < 2)
+      {
+        if (!newloop)
+        {
+          // it maybe another loop, recreate full outer loop
+          closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
+
+          newloop = true;
+          goto redo;
+        }
+      } else if (numintrs == 2)
+      {
+        // update outer loops[0]
+        if (loops.empty() || newloop)
+        {
+          loops.push_back(newouterloop);
+        } else
+        {
+          loops[0] = newouterloop;
+        }
+        outerloop = newouterloop;
+      } else
+      {
+        // coincident boundaries like t == 1 in main DEBUG_BOOLEANS makes coincident
+        // intersection lines
+        continue;
+      }
+    }
+
+    loops.insert(loops.end(),innerloops.begin(),innerloops.end());
+    return true;
+  }
+
+#else
 
   /** Close UV boundary. cutUV is a cut across surface in UV coordinates. */
   template <class T> bool closeBoundaryLoop(std::vector<std::vector<TPoint<T>>> &cutUV,
@@ -1635,7 +1831,7 @@ redo:
       // find intersections, construct new points
       std::vector<TPoint<T>> UV;
 
-      int numintrs = intersectLoopByCut(outerloop,cut,allpoints,cutpoints,UV,parmtolerance * 1000.0);
+      int numintrs = intersectLoopByCut(outerloop,cut,allpoints,cutpoints,UV,parmtolerance);
 
       // remove middle point
       if (twocutsfromboundarytoboundary && numintrs == 3)
@@ -1661,7 +1857,7 @@ redo:
         std::vector<TPoint<T>> newpoints;
 
         // combine cut parts from cut and loop
-        if (!makeNewLoopPoints<T>(cutpoints,allpoints,UV,newpoints,true,parmtolerance))
+        if (!makeNewLoopPoints<T>(cutpoints,allpoints,UV,newpoints,parmtolerance))
           return false;
 
         // divide outer loop back into parts
@@ -1688,6 +1884,8 @@ redo:
 
     return true;
   }
+
+#endif
 
   /** Get min/max from control points. */
   virtual std::pair<TPoint<T>,TPoint<T>> getMinMax()

@@ -150,6 +150,15 @@ namespace tcad {
 // default b-spline
 #define SPLINE_DEGREE 3
 
+// in some places, parmtolerance is divided by number of segments
+//#define DYNAMIC_PARMTOLERANCE
+
+// tolerance is taken as total segment (cut) length times abs value of this coefficient
+// if negative in parameters passed
+#define DYNAMIC_TOLERANCE
+// 0.001 and 0.0001 work, this is average
+#define DYNAMIC_TOLERANCECOEF -0.00055
+
 // default number of points used for output, linearisation etc.
 #define MANY_POINTS 501
 

@@ -36,6 +36,8 @@ bool print = false;
 
 // mutex for fillCells()
 std::mutex cmutex;
+// for tblocks.h
+std::mutex seglenmutex;
 
 bool edgeComp(const std::pair<LINT,LINT> &a, const std::pair<LINT,LINT> &b)
 {

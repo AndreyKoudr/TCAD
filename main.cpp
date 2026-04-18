@@ -265,6 +265,23 @@ bool rewriteSTLAsBinary(const std::string &filename)
 
 int main(int argc, char* argv[])
 {
+#if 0
+  bool okk0 = isBetween<T>(270,90,180);
+  bool okk1 = isBetween<T>(310,20,0);
+  bool okk2 = isBetween<T>(20,30,0);
+  bool okk3 = isBetween<T>(20,30,360);
+  bool okk4 = isBetween<T>(30,20,0);
+  bool okk5 = isBetween<T>(30,20,360);
+
+  T d0 = boundaryParmSignedDiff(3.9,0.1);
+  T d1 = boundaryParmSignedDiff(0.1,0.2);
+  T d2 = boundaryParmSignedDiff(0.2,0.1);
+  T d4 = boundaryParmSignedDiff(0.1,3.9);
+  T d5 = boundaryParmSignedDiff(0.018,1.981);
+  T d6 = boundaryParmSignedDiff(1.981,0.018);
+
+#endif
+
 #if 0 
   {
     FILE *fp = nullptr;
@@ -2768,7 +2785,7 @@ int main(int argc, char* argv[])
 
         if (t == 0)
         {
-#if 0
+#if 0 
           box.makeBox(TPoint<T>(-0.012,0.01,0.01),TPoint<T>(1.012,1.01,1.01));
 #else
           box.makeBox(TPoint<T>(-0.01,0.01,0.01),TPoint<T>(1.01,1.01,1.01));
@@ -2983,7 +3000,7 @@ int main(int argc, char* argv[])
     TTransform<T> t;
     t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
     //t.Translate(TPoint<T>(-19.8,-2.7 + 0.03,0.025));
-    t.Translate(TPoint<T>(-19.8,-2.7 + 0.06,0.025));
+    t.Translate(TPoint<T>(-19.8,-2.7 + 0.06,0.025)); //!!!!!!!!
 
     bsbolt.makeTransform(&t);
 

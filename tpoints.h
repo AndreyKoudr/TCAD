@@ -266,6 +266,19 @@ template <class T> T calculateLength(std::vector<TPoint<T>> &points)
   return len;
 }
 
+/** Calculate length. */
+template <class T> T calculateLength(std::vector<std::vector<TPoint<T>>> &points)
+{
+  T len = 0.0;
+
+  for (auto &p : points)
+  {
+    len += calculateLength(p);
+  }
+
+  return len;
+}
+
 /** Calculate length TILL segment, i.e. length is 0 if seg = 0, the whole line length
   if seg = points.size() - 1. */
 template <class T> T calculateLength(std::vector<TPoint<T>> &points, int seg)
@@ -664,8 +677,8 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
       TPoint<T> ip,iv;
       if (intersectSegments(p0,p1,v0,v1,t1,t2,dist,&ip,&iv))
       {
-#if 0
-        T parmtolerance0 = (d0 < TOLERANCE(T)) ? parmtolerance : parmtolerance / d0; //!!!!!!!
+#ifdef DYNAMIC_PARMTOLERANCE
+        T parmtolerance0 = (d0 < TOLERANCE(T)) ? parmtolerance : parmtolerance / d0; 
         T parmtolerance1 = (d1 < TOLERANCE(T)) ? parmtolerance : parmtolerance / d1;
 #else
         T parmtolerance0 = parmtolerance;
@@ -675,7 +688,7 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
         if ((t1 >= 0.0 - parmtolerance0) && (t1 <= 1.0 + parmtolerance0) && 
           (t2 >= 0.0 - parmtolerance1) && (t2 <= 1.0 + parmtolerance1))
         { 
-          if (dist < tolerance) //!!!
+          if (dist < tolerance) 
           {
             LIMIT(t1,0.0,1.0);
             LIMIT(t2,0.0,1.0);
@@ -690,7 +703,7 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
   }
 
   // remove all duplicates
-  removeDuplicates(UV,true,parmtolerance * 4.0); //!!!!!!!
+  removeDuplicates(UV,true,parmtolerance);
 
   return int(UV.size());
 }
@@ -1247,6 +1260,33 @@ template <class T> bool segmentLenMinMax(std::vector<TPoint<T>> &line, T &min, T
     *imax = index1;
 
   return true;
+} 
+
+template <class T> bool segmentLenMinMax(std::vector<std::vector<TPoint<T>>> &lines, T &min, T &max)
+{
+  bool inited = false;
+
+  for (int i = 0; i < int(lines.size()); i++)
+  {
+    std::vector<TPoint<T>> &line = lines[i];
+
+    T lmin,lmax;
+    if (segmentLenMinMax(line,lmin,lmax))
+    {
+      if (!inited)
+      {
+        min = lmin;
+        max = lmax;
+        inited = true;
+      } else
+      {
+        min = std::min<T>(min,lmin);
+        max = std::max<T>(max,lmax);
+      }
+    }
+  }
+
+  return inited;
 } 
 
 /** Find projection of point on points segments. */
@@ -2680,6 +2720,31 @@ template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpo
 /** Approach points to expoints at the end at len fractions of the whole length. */
 template <class T> void approachPoints(std::vector<TPoint<T>> &points, std::vector<TPoint<T>> &expoints, T len = 0.05)
 {
+}
+
+/** Get average cross product of points with a beam. */
+template <class T> TPoint<T> crossToBeamSide(TPoint<T> beam0, TPoint<T> beam1,
+  std::vector<TPoint<T>> &points)
+{
+  assert(points.size());
+
+  TPoint<T> cross;
+
+  // return incorrect cross (zero length)
+  if (points.empty())
+    return cross;
+
+  TPoint<T> db = beam1 - beam0;
+  for (auto &p : points)
+  {
+    TPoint<T> d = p - beam0;
+    TPoint<T> c = +(d ^ db);
+    cross += c;
+  }
+
+  cross /= T(points.size());
+
+  return cross;
 }
 
 }

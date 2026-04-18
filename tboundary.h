@@ -369,6 +369,64 @@ template <class T> T oppositeParm(T parm)
   return oparm;
 }
 
+template <class T> int mod(int a, int n)
+{
+  return ((a % n) + n) % n;
+}
+
+template <class T> bool isBetween1(T start, T end, T mid, T range = 4.0) {
+  T end_norm = (end - start < 0) ? (end - start + range) : (end - start);
+  T mid_norm = (mid - start < 0) ? (mid - start + range) : (mid - start);
+  return mid_norm < end_norm;
+}
+
+template <class T> bool isBetween(T start, T end, T mid) {     
+  end = (end - start) < 0.0 ? end - start + 360.0 : end - start;    
+  mid = (mid - start) < 0.0 ? mid - start + 360.0 : mid - start; 
+  return (mid < end); 
+}
+
+/** Signed difference between y - x. */
+template <class T> T boundaryParmSignedDiff(T x, T y)
+{
+#if 0
+//  end = (end - mid) < 0.0 ? end - mid + 4.0 : end - mid;    
+//  return end; 
+
+//  if (isBetween1(x,y,4.0))
+  if (y > x && isBetween1(x,y,4.0))
+    y += 4.0;
+
+  return y - x;
+
+//  // into degreees 0..360
+//  int B = ROUND(x * 360.0 / 4.0);
+//  int A = ROUND(y * 360.0 / 4.0);
+//
+////  T a = mod<T>((an1 - an0),360) * 4.0 / 360.0;
+//
+//  T a = mod<T>(((A % 360) - (B % 360) + 720) , 360) * 4.0 / 360.0;
+//
+//  return a;
+
+#else
+  T an0 = x * 360.0 * CPI / 4.0;
+  T an1 = y * 360.0 * CPI / 4.0;
+  TPoint<T> a0(cos(an0),sin(an0));
+  TPoint<T> a1(cos(an1),sin(an1));
+
+  T a = atan2(sin(an1 - an0),cos(an1 - an0));
+
+  //T a = a0.getAngleBetween0360(a1);
+
+  return a * PCI * 4.0 / 360.0;
+
+ // TPoint<T> cross = a0 ^ a1;
+
+ // return asin(!cross) * PCI * 4.0 * sign(cross.Z) / 360.0;
+#endif
+}
+
 /** Get next parameter value when closing the intersection curve. */
 template <class T> bool nextBoundaryParm(T parm, T endparm, T &nextparm,
   T parmtolerance = PARM_TOLERANCE)
@@ -536,7 +594,7 @@ template <class T> int intersectLoopByCut(
 
   // find intersections, UV contain segment number + fraction of intersections
   // cut curve specifies a correct direction of the loop, it must go first here
-  int numintrs = findIntersections(cutpoints,looppoints,UV,parmtolerance); 
+  int numintrs = findIntersections(cutpoints,looppoints,UV,parmtolerance,parmtolerance); 
 
   // cleanup duplicate points
   if (UV.size() > 1)
@@ -552,11 +610,31 @@ template <class T> int intersectLoopByCut(
         T d1 = UV[l].Y - UV[k].Y;
         T dist0 = std::abs(d0);
         T dist1 = std::abs(d1);
+        T dist2 = std::abs(d1 - T(looppoints.size() - 1));
 
+#ifdef DYNAMIC_PARMTOLERANCE
         found = (
           dist0 < parmtolerance / T(cutpoints.size()) ||
           dist1 < parmtolerance / T(looppoints.size())
         );
+#else
+  #if 1 //!!!!!!!!!
+        dist0 /= T(cutpoints.size() - 1);
+        dist1 /= T(looppoints.size() - 1);
+        dist2 /= T(looppoints.size() - 1);
+
+        found = (
+          dist0 < parmtolerance ||
+          dist1 < parmtolerance ||
+          dist2 < parmtolerance
+        );
+  #else
+        found = (
+          dist0 < parmtolerance ||
+          dist1 < parmtolerance
+        );
+  #endif
+#endif
 
         if (found)
           break;
@@ -749,10 +827,11 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
   return cutOutGoingRound(points,seg0,U0,startUV,endUV,newpoints,n3,parmtolerance);
 }
 
-/** Combine new loop points for 2 intersection points. They have duplicates bewteen pieces. */
+/** Combine new loop points for 2 intersection points. They have duplicates between pieces. 
+  codirected is between the cut and loop curves. */
 template <class T> bool makeNewLoopPoints(std::vector<TPoint<T>> &cutpoints,
   std::vector<TPoint<T>> &looppoints, std::vector<TPoint<T>> &UV, 
-  std::vector<TPoint<T>> &newpoints, bool insertcut, T parmtolerance = PARM_TOLERANCE)
+  std::vector<TPoint<T>> &newpoints, T parmtolerance = PARM_TOLERANCE)
 {
   newpoints.clear();
 
@@ -767,11 +846,11 @@ template <class T> bool makeNewLoopPoints(std::vector<TPoint<T>> &cutpoints,
   // just take all cut points void is to the right, surface is to the left
   cutOut(cutpoints,Useg0,U0,Useg1,U1,newpoints);
 
+  // cut size
+  int cutsize = int(newpoints.size());
+
   TPoint<T> startUV = newpoints.back();
   TPoint<T> endUV = newpoints.front();
-
-  if (!insertcut)
-    newpoints.clear();
 
   // we need to proceed from newpoints last point to newpoints first
   // point; we always leave surface to the left, so there are TWO CASES here : 
