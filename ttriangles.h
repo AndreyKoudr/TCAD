@@ -186,7 +186,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
 //  T angdeg = (normal < onormal) * PCI;
 //
 //if (std::abs(angdeg) < 2.0 || std::abs(angdeg - 180.0) < 2.0)
-//outputDebugString(std::string("ang = ") + to_string(angdeg,14));
+//debugString(std::string("ang = ") + to_string(angdeg,14));
 
 //!!! remove
 //bool found0 = false;
@@ -1283,14 +1283,14 @@ template <class T> bool TTriangles<T>::buildConnectivityArray(const T tolerance,
   assert(corners.size() > 0);
 
 #ifdef DEBUG_TRIS
-  outputDebugString(std::string("coords size before ") + std::to_string(int(coords.size())));
+  debugString(std::string("coords size before ") + std::to_string(int(coords.size())));
 #endif
                             // exclude duplicate nodes
   if (!removeDuplicates(coords,true,tolerance,&replacement))    
     return false;
 
 #ifdef DEBUG_TRIS
-  outputDebugString(std::string("coords size after ") + std::to_string(int(coords.size())));
+  debugString(std::string("coords size after ") + std::to_string(int(coords.size())));
 #endif
 
                             // renumber all indices
@@ -1311,20 +1311,20 @@ template <class T> bool TTriangles<T>::buildConnectivityArray(const T tolerance,
   bool check = checkSliver(fixsliver);
 
 #ifdef DEBUG_TRIS
-  outputDebugString("NODES");
+  debugString("NODES");
   for (int i = 0; i < coords.size(); i++)
   {
-    outputDebugString(
+    debugString(
       std::to_string(i) + std::string(" ") +
       std::to_string(coords[i].X) + std::string(" ") +
       std::to_string(coords[i].Y) + std::string(" ") +
       std::to_string(coords[i].Z)
     );
   }
-  outputDebugString("CORNERS");
+  debugString("CORNERS");
   for (int i = 0; i < corners.size(); i += 3)
   {
-    outputDebugString(
+    debugString(
       std::string("face ") + std::to_string(i / 3) + std::string(" corner ") + std::to_string(i) + std::string(" ") +
       std::to_string(int(corners[i])) + std::string(" ") +
       std::to_string(int(corners[i + 1])) + std::string(" ") +
@@ -2513,7 +2513,7 @@ template <class T> bool TTriangles<T>::prepareCells(TTriangles<T> &other, T maxe
     }
   }
 
-//outputDebugString(std::string("numcells ") + to_string(numcells) + 
+//debugString(std::string("numcells ") + to_string(numcells) + 
 //  std::string(" numactivecells ") + to_string(activecells.size())); 
 
   if (activecells.empty())
@@ -2633,7 +2633,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
   // parameter limits in active cells (where tris intersect)
   TPoint<T> UVmin,UVmax,oUVmin,oUVmax;
 
-//outputDebugString(std::string("max edge ") + to_string(maxedge,12) + 
+//debugString(std::string("max edge ") + to_string(maxedge,12) + 
 //  std::string(" tolerance ") + to_string(tolerance,12)); 
 
   prepareCells(other,maxedge,cells,celltris,ocelltris,activecells,UVmin,UVmax,oUVmin,oUVmax,
@@ -2655,7 +2655,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 #endif
 
 #ifdef DEBUG_TRIS
-  outputDebugString(
+  debugString(
     std::string("num threads = ") + to_string(numthreads) +
     std::string(" num cells = ") + to_string(numcells) +
     std::string(" active cells = ") + to_string(numactive));
@@ -2715,7 +2715,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
     if (numactive == 1)
     {
   #ifdef DEBUG_TRIS
-    outputDebugString(
+    debugString(
       std::string(" num active 1, active cell size = ") + 
       to_string(int(celltris[activecells[0]].size())) + " " +
       to_string(int(ocelltris[activecells[0]].size())));
@@ -3191,7 +3191,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 #endif
 
 #ifdef DEBUG_TRIS
-  outputDebugString(
+  debugString(
     std::string("num threads = ") + to_string(numthreads) +
     std::string(" num cells = ") + to_string(numcells) +
     std::string(" active cells = ") + to_string(numactive));
@@ -3251,7 +3251,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
     if (numactive == 1)
     {
   #ifdef DEBUG_TRIS
-    outputDebugString(
+    debugString(
       std::string(" num active 1, active cell size = ") + 
       to_string(int(celltris[activecells[0]].size())) + " " +
       to_string(int(ocelltris[activecells[0]].size())));

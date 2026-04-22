@@ -350,17 +350,15 @@ int countCharFromEnd(std::string str, unsigned char ch, unsigned char skipch)
 	return count;
 }
 
-void outputDebugString(const std::string &str)
+void debugString(const std::string &str)
 {
   OutputDebugStringA((str + std::string("\n")).c_str());
 }
 
-void errorMessage(std::string s)
+void message(std::string s, int col)
 {
   if (hConsole)
   {
-    int col = 12;
-
     // color your text in Windows console mode
     // colors are 0=black 1=blue 2=green and so on to 15=white  
     // colorattribute = foreground + background * 16
@@ -378,6 +376,16 @@ void errorMessage(std::string s)
   {
     printf("%s\n",s.c_str());
   }
+}
+
+void errorMessage(std::string s)
+{
+  message(s,12);
+}
+
+void headerMessage(std::string s)
+{
+  message(s,15);
 }
 
 bool startConsole()

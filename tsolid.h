@@ -71,6 +71,40 @@ template <class T> int findBadEdges(std::vector<std::vector<std::array<LINT,3>>>
   return int(badedges.size());
 }
 
+/** Find all first edges in edge pairs. */
+template <class T> int findFirstEdges(std::vector<std::vector<std::array<LINT,3>>> &edgepairs,
+  std::vector<std::array<LINT,3>> &alledges)
+{
+  alledges.clear();
+
+  for (auto &e : edgepairs)
+  {
+    if (e.size() >= 1)
+    {
+      alledges.push_back(e[0]);
+    }
+  }
+
+  return int(alledges.size());
+}
+
+/** Find all second edges in edge pairs. */
+template <class T> int findSecondEdges(std::vector<std::vector<std::array<LINT,3>>> &edgepairs,
+  std::vector<std::array<LINT,3>> &alledges)
+{
+  alledges.clear();
+
+  for (auto &e : edgepairs)
+  {
+    if (e.size() >= 2)
+    {
+      alledges.push_back(e[1]);
+    }
+  }
+
+  return int(alledges.size());
+}
+
 /** Remove degenerated pieces of boundary. */
 template <class T> int removeDegeneratedBoundaryPieces(std::vector<tcad::TSplineSurface<T> *> &surfaces, 
 //surface     loop        part        points
@@ -92,7 +126,7 @@ template <class T> int removeDegeneratedBoundaryPieces(std::vector<tcad::TSpline
 
         TPointCurve<T> curve(points);
 
-//outputDebugString("len " + to_string(curve.length()) + " tol " + to_string(tolerance));
+//debugString("len " + to_string(curve.length()) + " tol " + to_string(tolerance));
         if (curve.length() < tolerance) 
         {
           // remove this degenerated piece of boundary, only ONE! piece of boundary can 
@@ -104,7 +138,7 @@ template <class T> int removeDegeneratedBoundaryPieces(std::vector<tcad::TSpline
     } 
   }
 
-//outputDebugString("count " + to_string(count)); 
+//debugString("count " + to_string(count)); 
 
   return count;
 }
@@ -177,11 +211,12 @@ template <class T> bool findLocation(
   return false;
 }
 
-/** Find piece closest to middle point. */
+/** Find piece closest to middle point. After a lattice bug, not one but three
+  points are compared : at start, middle and at end. */
 template <class T> bool findClosestPiece(
-  std::vector<std::vector<std::vector<TPoint<T>>>> &middles,
+  std::vector<std::vector<std::vector<std::array<TPoint<T>,3>>>> &middles,
   std::vector<std::vector<std::vector<bool>>> &busy,
-  TPoint<T> middle, std::array<LINT,3> midlocation, 
+  std::array<TPoint<T>,3> &middle, std::array<LINT,3> midlocation, 
   std::array<LINT,3> &location, T bigtolerance)
 {
   T mindist = std::numeric_limits<T>::max();
@@ -199,7 +234,15 @@ template <class T> bool findClosestPiece(
         if (!busy.empty() && busy[i][j][k])
           continue;
 
-        T dist = !(middles[i][j][k] - middle);
+        // three points : one at start, second at middle, third at end
+        T dist0 = (!(middles[i][j][k][0] - middle[0]) + 
+          !(middles[i][j][k][1] - middle[1]) +
+          !(middles[i][j][k][2] - middle[2])) / 3.0;
+        T dist1 = (!(middles[i][j][k][0] - middle[2]) + 
+          !(middles[i][j][k][1] - middle[1]) +
+          !(middles[i][j][k][2] - middle[0])) / 3.0;
+        T dist = std::min<T>(dist0,dist1);
+
         if (dist < mindist)
         {
           mindist = dist;
@@ -212,7 +255,7 @@ template <class T> bool findClosestPiece(
 #ifdef DEBUG_SOLID
   if (mindist >= bigtolerance)
   {
-    outputDebugString(std::string("failure! ") +
+    debugString(std::string("failure! ") +
       " mindist " + to_string(mindist) +  " bigtolerance " + to_string(bigtolerance));
   }
 #endif
@@ -283,7 +326,7 @@ template <class T> void makeEdgePairs(std::vector<tcad::TSplineSurface<T> *> &su
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<std::vector<std::array<LINT,3>>> &edgepairs,
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &piecesXYZ,
-  std::vector<std::vector<std::vector<TPoint<T>>>> &middlesXYZ,
+  std::vector<std::vector<std::vector<std::array<TPoint<T>,3>>>> &middlesXYZ,
   T closestcoef = 0.1)
 {
   edgepairs.clear();
@@ -298,13 +341,13 @@ template <class T> void makeEdgePairs(std::vector<tcad::TSplineSurface<T> *> &su
   for (int i = 0; i < int(boundariesUV.size()); i++)
   {
     piecesXYZ.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
-    middlesXYZ.push_back(std::vector<std::vector<tcad::TPoint<T>>>());
+    middlesXYZ.push_back(std::vector<std::vector<std::array<tcad::TPoint<T>,3>>>());
     busy.push_back(std::vector<std::vector<bool>>());
 
     for (int j = 0; j < int(boundariesUV[i].size()); j++)
     {
       piecesXYZ.back().push_back(std::vector<std::vector<tcad::TPoint<T>>>());
-      middlesXYZ.back().push_back(std::vector<tcad::TPoint<T>>());
+      middlesXYZ.back().push_back(std::vector<std::array<tcad::TPoint<T>,3>>());
       busy.back().push_back(std::vector<bool>());
 
       for (int k = 0; k < int(boundariesUV[i][j].size()); k++)
@@ -315,7 +358,10 @@ template <class T> void makeEdgePairs(std::vector<tcad::TSplineSurface<T> *> &su
         piecesXYZ.back().back().push_back(points);
 
         TPointCurve<T> curve(points);
-        TPoint<T> middle = curve.position(0.5);
+        std::array<TPoint<T>,3> middle;
+        middle[0] = curve.position(0.0);
+        middle[1] = curve.position(0.5);
+        middle[2] = curve.position(1.0);
         middlesXYZ.back().back().push_back(middle);
 
         busy.back().back().push_back(false);
@@ -329,7 +375,7 @@ template <class T> void makeEdgePairs(std::vector<tcad::TSplineSurface<T> *> &su
     if (!findFirstNotBusy<T>(busy,start))
       break;
 
-    TPoint<T> middle = middlesXYZ[start[0]][start[1]][start[2]];
+    std::array<TPoint<T>,3> middle = middlesXYZ[start[0]][start[1]][start[2]];
     std::vector<TPoint<T>> pieceXYZ = piecesXYZ[start[0]][start[1]][start[2]];
     std::vector<TPoint<T>> pieceUV = boundariesUV[start[0]][start[1]][start[2]];
 
@@ -357,7 +403,7 @@ template <class T> void makeEdgePairs(std::vector<tcad::TSplineSurface<T> *> &su
       T dist1 = !(piece.back() - pieceXYZ.back());
       T dist2 = !(piece.front() - pieceXYZ.back());
       T dist3 = !(piece.back() - pieceXYZ.front());
-      outputDebugString(std::string("failure! ") +
+      debugString(std::string("failure! ") +
         " dist 0 " + to_string(dist0) +
         " dist 1 " + to_string(dist1) +
         " dist 2 " + to_string(dist2) +
@@ -487,12 +533,17 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices, 
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
+  T tolerance, T parmtolerance, 
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,       // bad edges
+  std::vector<std::vector<TPoint<T>>> *pedges = nullptr,          // all edges as pairs of two ending vertices
+  std::vector<std::vector<TPoint<T>>> *pfirstedges = nullptr,     // first edges in edge pairs
+  std::vector<std::vector<TPoint<T>>> *psecondedges = nullptr,    // second edges in edge pairs
 #if 1
-  //T closestcoef = 0.5, bool makefix = false, int attempts = 50) //!!!!!!! no fix 
-  T closestcoef = 0.5, bool makefix = true, int attempts = 50) 
+  T closestcoef = 0.1, bool makefix = false, int attempts = 50) //!!!!!!! no fix, 0.1
+  //T closestcoef = 0.5, bool makefix = false, int attempts = 50)
+  //T closestcoef = 0.5, bool makefix = true, int attempts = 50) 
 #else
-  T closestcoef = 0.1, bool makefix = true, int attempts = 50) 
+  T closestcoef = 0.1, bool makefix = true, int attempts = 50)
 #endif
 {
   // step 1 : make vertices and middlevertices
@@ -508,7 +559,7 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   // boundary pieces in XYZ coordinates
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> piecesXYZ;
   // middle points of boundary pieces in XYZ coordinates
-  std::vector<std::vector<std::vector<TPoint<T>>>> middlesXYZ;
+  std::vector<std::vector<std::vector<std::array<TPoint<T>,3>>>> middlesXYZ;
 
   for (int a = 0; a < attempts; a++)
   {
@@ -579,6 +630,52 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
     e[1] = vreplacement[e[1]];
   }
 
+#ifdef DEBUG_SOLID
+  {
+    // edges as pairs of ending vertices
+    if (pedges != nullptr)
+    {
+      for (int k = 0; k < int(edges.size()); k++)
+      {
+        TPoint<T> v0 = vertices[edges[k][0]];
+        TPoint<T> v1 = vertices[edges[k][1]];
+        std::vector<TPoint<T>> points = {v0,v1};
+        pedges->push_back(points);
+      }
+    }
+  }
+  {
+    // list of edges first in edge pairs
+    std::vector<std::array<LINT,3>> alledges;
+
+    int n = findFirstEdges<T>(edgepairs,alledges);
+
+    if (n && pfirstedges != nullptr)
+    {
+      for (int k = 0; k < int(alledges.size()); k++)
+      {
+        std::vector<TPoint<T>> points = piecesXYZ[alledges[k][0]][alledges[k][1]][alledges[k][2]];
+        pfirstedges->push_back(points);
+      }
+    }
+  }
+  {
+    // list of edges second in edge pairs
+    std::vector<std::array<LINT,3>> alledges;
+
+    int n = findSecondEdges<T>(edgepairs,alledges);
+
+    if (n && psecondedges != nullptr)
+    {
+      for (int k = 0; k < int(alledges.size()); k++)
+      {
+        std::vector<TPoint<T>> points = piecesXYZ[alledges[k][0]][alledges[k][1]][alledges[k][2]];
+        psecondedges->push_back(points);
+      }
+    }
+  }
+#endif
+
   // list of bad edges which do not have two face neighbours
   std::vector<std::array<LINT,3>> badedges;
 
@@ -594,7 +691,7 @@ template <class T> bool createSolidEdgesPrim(std::vector<tcad::TSplineSurface<T>
   }
 
 #ifdef DEBUG_SOLID
-  outputDebugString(std::string("num bad edges ") + to_string(n));
+  debugString(std::string("num bad edges ") + to_string(n));
 #endif
 
   return (n == 0);
@@ -624,11 +721,16 @@ template <class T> bool createSolidEdges(std::vector<tcad::TSplineSurface<T> *> 
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<TPoint<T>> &vertices,  
   std::vector<std::array<LINT,11>> &edges,
-  T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  T tolerance, T parmtolerance, std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
+  std::vector<std::vector<TPoint<T>>> *pedges = nullptr,          // all edges as pairs of two ending vertices
+  std::vector<std::vector<TPoint<T>>> *pfirstedges = nullptr,     // first edges in edge pairs
+  std::vector<std::vector<TPoint<T>>> *psecondedges = nullptr     // second edges in edge pairs
+  )
 {
   edges.clear();
 
-  bool ok = createSolidEdgesPrim<T>(surfaces,boundariesUV,vertices,edges,tolerance,parmtolerance,pbadedges);
+  bool ok = createSolidEdgesPrim<T>(surfaces,boundariesUV,vertices,edges,tolerance,parmtolerance,pbadedges,
+    pedges,pfirstedges,psecondedges);
 
   return ok;
 }
@@ -697,7 +799,7 @@ template <class T> bool loopOK(std::vector<tcad::TSplineSurface<T> *> &surfaces,
   std::vector<std::vector<tcad::TPoint<T>>> &loop = boundariesUV[nsurface][nloop];
 
 #ifdef DEBUG_SOLID
-  outputDebugString(string(""));
+  debugString(string(""));
 #endif
 
   dloop0.clear();
@@ -747,7 +849,7 @@ template <class T> bool loopOK(std::vector<tcad::TSplineSurface<T> *> &surfaces,
     dloop1.push_back(points);
 
 #ifdef DEBUG_SOLID
-    outputDebugString(std::string("rev ") + to_string(int(reversed)) + std::string(" rev01 ") + to_string(int(reversed01)));
+    debugString(std::string("rev ") + to_string(int(reversed)) + std::string(" rev01 ") + to_string(int(reversed01)));
 #endif
   }
 

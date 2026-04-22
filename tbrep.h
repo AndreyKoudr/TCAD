@@ -890,10 +890,14 @@ public:
   /** Save trimmed surfaces as solid in IGES. All surfaces must have closed boundaries. */
   bool saveSolidIges(const std::string &filename,
     T tolerance, T parmtolerance = PARM_TOLERANCE, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
-    std::vector<std::vector<TPoint<T>>> *badedges = nullptr)
+    std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
+    std::vector<std::vector<TPoint<T>>> *pedges = nullptr,          // all edges as pairs of two ending vertices
+    std::vector<std::vector<TPoint<T>>> *pfirstedges = nullptr,     // first edges in edge pairs
+    std::vector<std::vector<TPoint<T>>> *psecondedges = nullptr     // second edges in edge pairs
+    )
   {
     return ::saveSolidIges<T>(surfaces,boundariesUV,filename,
-      tolerance,parmtolerance,SPLINE_DEGREE,18,badedges);
+      tolerance,parmtolerance,SPLINE_DEGREE,18,pbadedges,pedges,pfirstedges,psecondedges);
   }
 
 };

@@ -762,7 +762,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
 
   if (ok0 && ok1 && ok2)
   {
-    outputDebugString("0");
+    debugString("0");
   }
 #endif
 
@@ -839,7 +839,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
 
 //if (print)
 //{
-//  outputDebugString("dist " + to_string(dist,12));
+//  debugString("dist " + to_string(dist,12));
 //}
 
 //!!! important        if (dist < tolerance)
@@ -855,7 +855,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
 #if 0 //!!!
   if (ok0 && ok1 && ok2 && (inside || onedge)) 
   {
-    outputDebugString("onedge = " + to_string(int(onedge)));
+    debugString("onedge = " + to_string(int(onedge)));
   }
 #endif
 

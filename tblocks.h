@@ -873,7 +873,7 @@ template <class T> bool intersectSurfaces(
     }
 
 #ifdef DEBUG_BLOCKS
-    outputDebugString(std::string(" maxseglen = ") + to_string(*maxseglen));
+    debugString(std::string(" maxseglen = ") + to_string(*maxseglen));
 #endif
   }
 
@@ -969,7 +969,7 @@ template <class T> bool makeTrimming(
   // the same edge on another surface (defined by intersections), 100% reliable, no tolerances
   T tolerance, T parmtolerance = PARM_TOLERANCE, 
   bool clearboundaries = false, bool bodyleft = true, int manypoints = MANY_POINTS2D,
-  bool improveintersection = false, int maxiter = 100, T relaxcoef = 0.5, //!!!!!!!!! improveintersection not used
+  bool improveintersection = false, int maxiter = 100, T relaxcoef = 0.5, //!!!!!! improveintersection not used
 #if 0 //!!!!!!!
   T refinestartU = 0.5, T refineendU = 0.5, 
   T refinestartV = 0.5, T refineendV = 0.5,
@@ -1156,7 +1156,7 @@ template <class T> bool makeTrimming(
   {
     LINT acell = activecells[cl];
 
-//outputDebugString("numactive " + to_string(numactive) +
+//debugString("numactive " + to_string(numactive) +
 //  " acell " + to_string(acell) + 
 //  " faces0 " + to_string(cellfaces0[acell].size()) +
 //  " faces1 " + to_string(cellfaces1[acell].size()));
@@ -1196,7 +1196,7 @@ template <class T> bool makeTrimming(
     for (auto i : cellfaces0[acell])
     {
 #ifdef DEBUG_BLOCKS
-      outputDebugString(std::string("i ") + to_string(i));
+      debugString(std::string("i ") + to_string(i));
 #endif
 
       TSplineSurface<T> *surface0 = tsurfaces0[i];
@@ -1204,7 +1204,7 @@ template <class T> bool makeTrimming(
       for (auto j : cellfaces1[acell])
       {
 #ifdef DEBUG_BLOCKS
-        outputDebugString(std::string("j ") + to_string(j));
+        debugString(std::string("j ") + to_string(j));
 #endif
 
         // simple measure
@@ -1216,7 +1216,7 @@ template <class T> bool makeTrimming(
         std::vector<std::vector<TPoint<T>>> boundary0,boundary1;
 
   #ifdef DEBUG_BLOCKS
-        outputDebugString("");
+        debugString("");
   #endif
 
 #if 1
@@ -1290,7 +1290,7 @@ template <class T> bool makeTrimming(
           }
 
   #ifdef DEBUG_BLOCKS
-          outputDebugString(std::string(" maxseglen = ") + to_string(maxseglen));
+          debugString(std::string(" maxseglen = ") + to_string(maxseglen));
   #endif
         }
 
@@ -1336,10 +1336,10 @@ template <class T> bool makeTrimming(
   closeFaceLoops(tsurfaces1,tboundariesUV1,boundaries1,exlist1,maxseglen,parmtolerance,manypoints); 
 
   // extend faces from cut faces keeping orientation
-  closeConnectedFaces(tsurfaces0,tboundariesUV0,boundaries0,exlist0,tolerance,tolerance * 1000.0,parmtolerance); //!!!!!!!
+  closeConnectedFaces(tsurfaces0,tboundariesUV0,boundaries0,exlist0,tolerance,tolerance * 1000.0,parmtolerance); //!!!!!!
 
   // extend faces from cut faces keeping orientation
-  closeConnectedFaces(tsurfaces1,tboundariesUV1,boundaries1,exlist1,tolerance,tolerance * 1000.0,parmtolerance); //!!!!!!!
+  closeConnectedFaces(tsurfaces1,tboundariesUV1,boundaries1,exlist1,tolerance,tolerance * 1000.0,parmtolerance); //!!!!!!
 
 //for (int i = 0; i < int(surfaces1.size()); i++)
 //{
@@ -1356,14 +1356,45 @@ template <class T> bool makeTrimming(
 
   ASSERT(surfaces.size() == boundariesUV.size());
 
-  //!!! clean surfaces
-  for (int i = int(surfaces.size()) - 1; i >= 0; i--)
+  // no intersections?
+  bool nointrs = true;
+
+  for (auto &b : boundaries0)
   {
-    if (boundariesUV[i].empty())
+    if (b.size())
     {
-      boundariesUV.erase(boundariesUV.begin() + i);
-      DELETE_CLASS(surfaces[i]);
-      surfaces.erase(surfaces.begin() + i);
+      nointrs = false;
+      break;
+    }
+  }
+  if (nointrs)
+  {
+    for (auto &b : boundaries1)
+    {
+      if (b.size())
+      {
+        nointrs = false;
+        break;
+      }
+    }
+  }
+
+  // unite empty surface with another surface without intersections
+  if (nointrs && operation == UNITE)
+  {
+    //boundariesUV.clear();
+    //closeOuterBoundary(surfaces,boundariesUV);
+  } else
+  {
+    //!!! clean surfaces
+    for (int i = int(surfaces.size()) - 1; i >= 0; i--)
+    {
+      if (boundariesUV[i].empty())
+      {
+        boundariesUV.erase(boundariesUV.begin() + i);
+        DELETE_CLASS(surfaces[i]);
+        surfaces.erase(surfaces.begin() + i);
+      }
     }
   }
 

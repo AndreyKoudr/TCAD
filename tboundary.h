@@ -618,7 +618,7 @@ template <class T> int intersectLoopByCut(
           dist1 < parmtolerance / T(looppoints.size())
         );
 #else
-  #if 1 //!!!!!!!!!
+  #if 1 //!!!!!!
         dist0 /= T(cutpoints.size() - 1);
         dist1 /= T(looppoints.size() - 1);
         dist2 /= T(looppoints.size() - 1);

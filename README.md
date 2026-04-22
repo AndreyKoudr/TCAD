@@ -104,33 +104,33 @@ Free form deformation (FFD)
 - 4.1 FFD : distort wing shape by displacement of some points<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/FFD.png)
 
-Blocks
-======
+Blocks (submarine)
+==================
 
-- 5.1 Blocks : airfoil : preparing data to make an airfoil
-- 5.2 Blocks : airfoil : how to make an airfoil from camber surface and thickness
-- 5.3 Blocks : box : solid output
-- 5.4 Blocks : blade<br />
+- 5.1 Submarine : airfoil : preparing data to make an airfoil
+- 5.2 Submarine : airfoil : how to make an airfoil from camber surface and thickness
+- 5.3 Submarine : box : solid output
+- 5.4 Submarine : blade<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Blade.png)
-- 5.5 Blocks : surfaces of revolution : propeller hub
-- 5.6 Blocks : surfaces of revolution : propeller hub solid<br />
+- 5.5 Submarine : surfaces of revolution : propeller hub
+- 5.6 Submarine : surfaces of revolution : propeller hub solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hub_solid.png)
-- 5.7 Blocks : propeller, trimmed and solid<br />
+- 5.7 Submarine : propeller, trimmed and solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_propeller_solid_autodesk.png)
-- 5.8 Blocks : submarine hull, axisymmetric solid<br />
+- 5.8 Submarine : submarine hull, axisymmetric solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_hull_solid.png)
-- 5.9 Blocks : attach propeller to submarine hull by shaft<br />
+- 5.9 Submarine : attach propeller to submarine hull by shaft<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_connection.png)<br />
 ... with the result as propeller + hull + shaft solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Propeller_hull_shaft_solid.png)
-- 5.10 Blocks : submarine fin<br />
-- 5.11 Blocks : submarine hull + propeller + fin, all single solid<br />
+- 5.10 Submarine : submarine fin<br />
+- 5.11 Submarine : submarine hull + propeller + fin, all single solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Submarine_prop_hull_fin_solid.png)
-- 5.12 Blocks : sub hump<br />
-- 5.13 Blocks : submarine hull + propeller + fin + hump, all single solid<br />
+- 5.12 Submarine : sub hump<br />
+- 5.13 Submarine : submarine hull + propeller + fin + hump, all single solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_solid.png)
-- 5.14 Blocks : filleted sub wings<br />
-- 5.15 Blocks : sub with rudder<br />
+- 5.14 Submarine : filleted sub wings<br />
+- 5.15 Submarine : sub with rudder<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_with_hump_rudder_solid.png)
 
 Booleans
@@ -140,30 +140,35 @@ Booleans
 - 6.1 B-reps : booleans, box and sphere, union, subraction and intersection
 - 6.2 B-reps : booleans, box and sphere, hard case (cutting along face edges)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Booleans.png)
-- 5.15 Blocks : applying booleans to cut part of rudder<br />
+- 5.15 Submarine : applying booleans to cut part of rudder<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shaft_0.png)<br />
 ... and connect to the whole solid by shaft<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_cut.png)
-- 5.16 Blocks : vertical rudders<br />
-- 5.17 Blocks : submarine with vertical rudders<br />
+- 5.16 Submarine : vertical rudders<br />
+- 5.17 Submarine : submarine with vertical rudders<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Rudder_shafts.png)
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Vertical_rudders.png)
-- 5.18 Blocks : two forward horizontal rudders<br />
-- 5.19 Blocks : two rudder containers<br />
-- 5.20 Blocks : submarine with all wings<br />
+- 5.18 Submarine : two forward horizontal rudders<br />
+- 5.19 Submarine : two rudder containers<br />
+- 5.20 Submarine : submarine with all wings<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_all_wings.png)<br />
-- 5.21 Blocks : 3D text<br />
+- 5.21 Submarine : 3D text<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_text.png)<br />
 
 Threads, bolts, small bolt screwed into submarine
 =================================================
 
-- 7.1 Blocks : thread and bolt<br />
+- 7.1 Submarine : thread and bolt<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_thread.png)<br />
-- 7.2 Blocks : small bolt screwed into submarine, sub still solid<br />
+- 7.2 Submarine : small bolt screwed into submarine, sub still solid<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt2.png)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt1.png)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Kilo_bolt0.png)<br />
+
+Lattice
+=======
+- 8.1 Lattice<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Lattice6x6.png)<br />
 
 Important parameters in main.cpp
 ================================
@@ -199,7 +204,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Threads, bolts, small threaded bolt of diameter 10mm screwed into submarine. Submarine is still solid.<br /> 
+Lattice done. Doing a turbomachine.<br /> 
 
 
 

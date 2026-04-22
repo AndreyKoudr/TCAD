@@ -631,7 +631,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
 {
   assert(boundariesUV.size() == boundaries.size());
 
-  int numattempts = int(surfaces.size()) * 10;
+  int numattempts = int(surfaces.size()) * 100;
 
   // faces with visibility set, 0 : unknown or invisible (cut out), 1 : visible (cut in), 
   // 2 : "in" but not cut
@@ -697,28 +697,22 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
         }
 
         std::array<int,3> res;
-        bool reversed = false;
         bool in = false;
         T mindist = 0.0;
+        // search over reversed curves only
         if (findClosest<T>(i,curves,boundariesUV,busy,inout,res,in,tolerance,bigtolerance,parmtolerance,
-          &reversed,&mindist))
+          &mindist))
         {
           if (in)
           {
-            if (reversed)
-            {
-              inout[i] = 2;
-              surfaces[i]->closeOuterBoundaryIfEmpty(boundariesUV[i]);
-              inlist.push_back(i);
-            }
+            inout[i] = 2;
+            surfaces[i]->closeOuterBoundaryIfEmpty(boundariesUV[i]);
+            inlist.push_back(i);
           } else
           {
-            if (reversed)
-            {
-              inout[i] = 3;
-              boundariesUV[i].clear();
-              outlist.push_back(i);
-            }
+            inout[i] = 3;
+            boundariesUV[i].clear();
+            outlist.push_back(i);
           }
         }
       }
@@ -740,10 +734,10 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
     }
   }
 
-  //for (int i = 0; i < int(exlist.size()); i++)
-  //{
-  //  inout[exlist[i]] = 0;
-  //}
+  for (int i = 0; i < int(exlist.size()); i++) //!!!!!!
+  {
+    inout[exlist[i]] = 0;
+  }
 
   for (int i = 0; i < int(inout.size()); i++)
   {
@@ -778,7 +772,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
 
     prepareLoopsXYZ<T>(surfaces,boundariesUV,curves);
 
-//outputDebugString(""); 
+//debugString(""); 
 
     for (int i = 0; i < int(boundariesUV.size()); i++)
     {
@@ -801,7 +795,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
         if (findClosest<T>(i,curves,busy,res,tolerance,bigtolerance,&reversed,&mindist))
         {
 
-//outputDebugString("i+ " + to_string(i) + " j " + to_string(res.first) + " k " + to_string(res.second) + 
+//debugString("i+ " + to_string(i) + " j " + to_string(res.first) + " k " + to_string(res.second) + 
 //  " mindist " + to_string(mindist) + 
 //  " tolerance " + to_string(tolerance,12) + " bigtolerance " + to_string(bigtolerance,12));
 
@@ -812,7 +806,7 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
             list.push_back(i);
         } else
         {
-//outputDebugString("i- " + to_string(i) + " mindist " + to_string(mindist) + 
+//debugString("i- " + to_string(i) + " mindist " + to_string(mindist) + 
 //  " tolerance " + to_string(tolerance,12) + " bigtolerance " + to_string(bigtolerance,12)); 
         }
       }

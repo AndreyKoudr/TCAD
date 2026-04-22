@@ -782,7 +782,7 @@ template <class T> bool findClosest(TPointCurve<T> &curve,
     }
 
     // intersection curves have two "loops" the second is full untrimmed
-    if (curves[i].size() > 1)
+    if (curves[i].size() > 1 && !boundariesUV[i].empty())
     {
       std::array<int,4> used;
       getUsedBoundaryPieces(boundariesUV[i][0],used,parmtolerance);
@@ -833,13 +833,14 @@ template <class T> bool findClosest(TPointCurve<T> &curve,
   return ok;
 }
 
-/** Find closest curve. Used to find a boundary piece coincident with one of curves[i]. */
+/** Find closest curve. Used to find a boundary piece coincident with one of curves[i]. 
+  Search is implemented over reversed curves only. */
 template <class T> bool findClosest(int i, 
   std::vector<std::vector<std::vector<TPointCurve<T>>>> &curves,
   std::vector<std::vector<std::vector<std::vector<TPoint<T>>>>> &boundariesUV, 
   std::vector<bool> &busy, std::vector<int> &inout, std::array<int,3> &res, bool &in, 
   T tolerance, T bigtolerance, T parmtolerance = PARM_TOLERANCE,
-  bool *reversed = nullptr, T *pmindist = nullptr)
+  T *pmindist = nullptr)
 {
   // result
   res = {-1,-1,-1};
@@ -856,13 +857,12 @@ template <class T> bool findClosest(int i,
     if (findClosest(curves[i][0][k],curves,boundariesUV,busy,inout,res0,in0,tolerance,bigtolerance,
       parmtolerance,&reversed0,&mindist0))
     {
-      if (mindist0 < mindist)
+      if (mindist0 < mindist && reversed0 && (res0[0] >= 0) && (inout[res0[0]] > 0)) //!!!!!!
+      //if (mindist0 < mindist)
       {
         mindist = mindist0;
         res = res0;
         in = in0;
-        if (reversed)
-          *reversed = reversed0;
       }
     }
   }

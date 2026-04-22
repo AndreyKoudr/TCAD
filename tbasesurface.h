@@ -831,7 +831,7 @@ public:
       stepU = stepV = ostepU = ostepV = std::min<T>(stepmax,ostepmax);
     }
 
-//outputDebugString(std::string("stepU ") + to_string(stepU) + std::string(" stepV ") + to_string(stepV) +
+//debugString(std::string("stepU ") + to_string(stepU) + std::string(" stepV ") + to_string(stepV) +
 //  std::string(" ostepU ") + to_string(ostepU) + std::string(" ostepV ") + to_string(ostepV)); 
 
     if (createTriangles(tris,MANY_POINTS2D,MANY_POINTS2D,1.0,1.0,1.0,1.0,stepU,stepV,true,
@@ -1003,7 +1003,7 @@ public:
     // shrink UVmin/max around intersection line
     for (int i = 0; i < preintrcycles; i++)
     {
-//outputDebugString("coarsening " + to_string(i)); 
+//debugString("coarsening " + to_string(i)); 
 
       if (!makeIntersectionTriangles(other,tris,othertris,UVmin,UVmax,oUVmin,oUVmax,11,301,(i >= preintrcycles - 1), //!!!!!!!
         tol,parmtolerance))
@@ -1020,7 +1020,7 @@ public:
     // now try intersection and check accuracy
     for (int i = 0; i < intrcycles; i++)
     {
-//outputDebugString("intersecting " + to_string(i));
+//debugString("intersecting " + to_string(i));
 
       // make tris which only used in active cells
       if (!makeIntersectionTriangles(other,tris,othertris,cells,celltris,ocelltris,activecells))
@@ -1039,7 +1039,7 @@ public:
       // calculate difference in boundary lines
       T maxdiff = boundaryDifference(other,boundary0,boundary1);
 
-//outputDebugString( 
+//debugString( 
 //  std::string("i = ") + to_string(i) +
 //  std::string(" tris ") + to_string(tris.numFaces()) + " " + to_string(othertris.numFaces()) + " " + 
 //  std::string(" cells ") + to_string(activecells.size()) +
@@ -1053,10 +1053,10 @@ public:
       {
 //if (ok) 
 //{
-//  outputDebugString(std::string("ok i = ") + to_string(i)); 
+//  debugString(std::string("ok i = ") + to_string(i)); 
 //} else
 //{
-//  outputDebugString(std::string("exit i = ") + to_string(i));
+//  debugString(std::string("exit i = ") + to_string(i));
 //}
         return int(intersections.size());
       } else
@@ -1064,7 +1064,7 @@ public:
         // increase refinement
         T coef = maxdiff * 2.0 / (tolerance * BIGTOLERANCE_COEF);
 
-//outputDebugString(std::string("coef ") + to_string(coef,12) + " i = " + to_string(i)); 
+//debugString(std::string("coef ") + to_string(coef,12) + " i = " + to_string(i)); 
 
         // refine triangles
         if (!makeIntersectionTriangles(other,tris,othertris,coef))
@@ -1489,6 +1489,13 @@ public:
 
     int numintrs = intersectLoopByCut(outerloop,cut,allpoints,cutpoints,UV,parmtolerance);
 
+    // remove middle point
+    if (numintrs == 3)
+    {
+      UV.erase(UV.begin() + 1);
+      numintrs--;
+    }
+
     if (numintrs == 2)
     {
       // these will be cut points from intersection 1 to intersection 2
@@ -1525,7 +1532,7 @@ public:
     this->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
 
     // step 1 : prepare outer loop
-    std::vector<std::vector<TPoint<T>>> outerloop;
+    std::vector<std::vector<TPoint<T>>> outerloop,origouterloop;
 
     if (!loops.empty()) 
     {
@@ -1535,6 +1542,8 @@ public:
     {
       closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
     }
+
+    origouterloop = outerloop;
 
     // step 2 : combine cut pieces into a single line
     std::vector<std::vector<TPoint<T>>> cut = cutUV;
@@ -1590,9 +1599,74 @@ public:
       return false;
     }
 
-    // step 4 : weld "close ends" into sinle points
+    // step 4 : weld "close ends" into single points
     if (allordered.size() > 1)
     {
+#if 1
+      int numattempts = int(allordered.size());
+
+      for (int i = 0; i < numattempts; i++)
+      {
+        bool found = false;
+
+        for (int j = 0; j < int(allordered.size()); j++)
+        {
+          for (int k = j + 1; k < int(allordered.size()); k++)
+          {
+            T dist = !(allordered[j].back().back() - allordered[k].front().front());
+            if (dist < parmtolerance * 100.0) //!!!!!!
+            {
+              // average concident end/start
+              allordered[j].back().back() = allordered[k].front().front() = 
+                (allordered[j].back().back() + allordered[k].front().front()) * 0.5;
+
+              // combine two pieces
+              std::vector<std::vector<TPoint<T>>> combinedpiece = allordered[j];
+              combinedpiece.insert(combinedpiece.end(),allordered[k].begin(),allordered[k].end());
+
+              // delete two old pieces
+              allordered.erase(allordered.begin() + k);
+              allordered.erase(allordered.begin() + j);
+
+              // add combined to the place of the first deleted
+              allordered.insert(allordered.begin() + j,combinedpiece);
+
+              found = true;
+              break;
+            }
+
+            dist = !(allordered[j].front().front() - allordered[k].back().back());
+            if (dist < parmtolerance * 100.0) //!!!!!!
+            {
+              // average concident end/start
+              allordered[j].front().front() = allordered[k].back().back() = 
+                (allordered[j].front().front() + allordered[k].back().back()) * 0.5;
+
+              // combine two pieces
+              std::vector<std::vector<TPoint<T>>> combinedpiece = allordered[k];
+              combinedpiece.insert(combinedpiece.end(),allordered[j].begin(),allordered[j].end());
+
+              // delete two old pieces
+              allordered.erase(allordered.begin() + k);
+              allordered.erase(allordered.begin() + j);
+
+              // add combined to the place of the first deleted
+              allordered.insert(allordered.begin() + j,combinedpiece);
+
+              found = true;
+              break;
+            }
+          }
+
+          if (found)
+            break;
+        }
+
+        if (!found)
+          break;
+      }
+
+#else
       std::vector<TPoint<T> *> ends;
       for (int i = 0; i < int(allordered.size()); i++)
       {
@@ -1605,12 +1679,13 @@ public:
         for (int j = i + 1; j < int(ends.size()); j++)
         {
           T dist = !(*(ends[i]) - *(ends[j]));
-          if (dist < parmtolerance * 100.0) //!!!!!!!!!
+          if (dist < parmtolerance * 100.0) //!!!!!!
           {
             *(ends[i]) = *(ends[j]) = (*(ends[i]) + *(ends[j])) * 0.5;
           }
         }
       }
+#endif
     }
 
     // step 5 : embed allordered cuts into outerloop;
@@ -1631,7 +1706,8 @@ redo:
         if (!newloop)
         {
           // it maybe another loop, recreate full outer loop
-          closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
+          //closeOuterBoundaryLoop(outerloop,numdivisionsU,numdivisionsV);
+          outerloop = origouterloop;
 
           newloop = true;
           goto redo;
@@ -1770,7 +1846,7 @@ redo:
 //  T UVdist = !(allordered[0][0].front() - allordered[1][0].back());
 //  T dist = !(p1 - p0);
 //
-//  outputDebugString("dist " + to_string(dist,12) + " UVdist " + to_string(UVdist,12));
+//  debugString("dist " + to_string(dist,12) + " UVdist " + to_string(UVdist,12));
 //}
 
     // two cuts from boundary to boundary with one same point

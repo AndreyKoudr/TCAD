@@ -1122,6 +1122,8 @@ template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &sur
     boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
     boundariesUV.back().push_back(loop);
   }
+
+  assert(surfaces.size() == boundariesUV.size());
 }
 
 /** Clear outer boundary. */

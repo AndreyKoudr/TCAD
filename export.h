@@ -366,7 +366,7 @@ template <class T> bool makeCurveLinesIges(std::vector<std::vector<tcad::TPoint<
     int after = int(lines.size());
 
     // modify directory
-    lines[dir126line] = makeIgesDirectoryLine1(dirline1261, -1,(after - before),&dcount,"");
+    lines[dir126line] = makeIgesDirectoryLine1(dirline1261, -1,(after - before),&dcount,to_string(i).c_str()); //!!!
     dir126line++;
   }
 
@@ -825,7 +825,11 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 //surface     loop        piece       points
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
   std::vector<std::string> &lines, T tolerance, T parmtolerance, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
-  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
+  std::vector<std::vector<TPoint<T>>> *pedges = nullptr,          // all edges as pairs of two ending vertices
+  std::vector<std::vector<TPoint<T>>> *pfirstedges = nullptr,     // first edges in edge pairs
+  std::vector<std::vector<TPoint<T>>> *psecondedges = nullptr     // second edges in edge pairs
+)
 {
   lines.clear();
 
@@ -844,7 +848,8 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
   removeDegeneratedBoundaryPieces(surfaces,boundariesUV,tolerance);
 
   // Create non-manifold solid model
-  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,parmtolerance,pbadedges))
+  if (!createSolidEdges(surfaces,boundariesUV,vertices,edges,tolerance,parmtolerance,pbadedges,
+    pedges,pfirstedges,psecondedges))
   {
     boundariesUV = oldboundariesUV;
     return false;
@@ -1270,12 +1275,15 @@ template <class T> bool saveSolidIges(std::vector<tcad::TSplineSurface<T> *> &su
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV, 
   const std::string &filename,
   T tolerance, T parmtolerance = PARM_TOLERANCE, int splinedegree = SPLINE_DEGREE, int numdigits = 18, 
-  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr)
+  std::vector<std::vector<TPoint<T>>> *pbadedges = nullptr,
+  std::vector<std::vector<TPoint<T>>> *pedges = nullptr,          // all edges as pairs of two ending vertices
+  std::vector<std::vector<TPoint<T>>> *pfirstedges = nullptr,     // first edges in edge pairs
+  std::vector<std::vector<TPoint<T>>> *psecondedges = nullptr)    // second edges in edge pairs
 {
   std::vector<std::string> lines;
 
   if (makeSolidLinesIges(surfaces,boundariesUV,lines,tolerance,parmtolerance,splinedegree,
-    numdigits,pbadedges))
+    numdigits,pbadedges,pedges,pfirstedges,psecondedges))
   {
     bool ok = writeLines(lines,filename);
     return ok;

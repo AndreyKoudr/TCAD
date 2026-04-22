@@ -35,13 +35,16 @@
 
 using namespace tcad;
 
-//==============================================================================
-// SET WHAT TO DEBUG (below)
-//==============================================================================
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// SET WHAT TO DEBUG
+
 #define DEBUG_COMMON 
 #define DEBUG_SUBMARINE
 #define DEBUG_BOOLEANS
 #define DEBUG_BOLTS
+#define DEBUG_LATTICE
+
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 // save debugging files here, end this with slash "/"
 #define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/") //!!!!!!!
@@ -349,7 +352,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 1 : CURVES" << endl;
+  headerMessage("    Part 1 : CURVES");
 
   // Let us take points of NACA0012 airfoil, they are in XY but of course
   // all your curves are 3-dimensional
@@ -751,7 +754,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 2 : SURFACES" << endl;
+  headerMessage("    Part 2 : SURFACES");
 
   /*****************************************************************************
     2.1 Surfaces : triangles : save in STL
@@ -1365,7 +1368,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 3 : VOLUMES" << endl;
+  headerMessage("    Part 3 : VOLUMES");    
 
   /*****************************************************************************
     3.1 Volumes : create a Bezier volume around our wing, check definition of
@@ -1472,7 +1475,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 4 : FFD" << endl;
+  headerMessage("    Part 4 : FFD");
 
   /*****************************************************************************
     4.1 FFD : distort wing shape by displacement of two points
@@ -1538,13 +1541,13 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 5 : BLOCKS" << endl;
+  headerMessage("    Part 5 : SUBMARINE");
 
   /*****************************************************************************
-    5.1 Blocks : airfoild : preparing data to make an airfoil
+    5.1 Submarine : airfoild : preparing data to make an airfoil
   *****************************************************************************/
 
-  cout << "5.1 Blocks : airfoil : preparing data to make an airfoil" << endl;
+  cout << "5.1 Submarine : airfoil : preparing data to make an airfoil" << endl;
 
   {
     // step 1 : camber surface, cylindrical
@@ -1614,11 +1617,11 @@ int main(int argc, char* argv[])
     };
 
   /*****************************************************************************
-    5.2 Blocks : airfoil : how to make an airfoil from camber surface and 
+    5.2 Submarine : airfoil : how to make an airfoil from camber surface and 
     thickness
   *****************************************************************************/
 
-  cout << "5.2 Blocks : airfoil : how to make an airfoil from camber surface and thickness" << endl;
+  cout << "5.2 Submarine : airfoil : how to make an airfoil from camber surface and thickness" << endl;
 
     // make camber points from FFD-distorted wing
     std::vector<TPoint<T>> temp;
@@ -1640,10 +1643,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.3 Blocks : box : solid output
+    5.3 Submarine : box : solid output
   *****************************************************************************/
 
-  cout << "5.3 Blocks : box : solid output" << endl;
+  cout << "5.3 Submarine : box : solid output" << endl;
 
   {
     TPoint<T> min(0.0,0.0,0.0);
@@ -1680,10 +1683,10 @@ int main(int argc, char* argv[])
 #ifdef DEBUG_SUBMARINE
 
   /*****************************************************************************
-    5.4 Blocks : blade
+    5.4 Submarine : blade
   *****************************************************************************/
 
-  cout << "5.4 Blocks : blade" << endl;
+  cout << "5.4 Submarine : blade" << endl;
 
   {
     T subL = 74.0;
@@ -1709,10 +1712,10 @@ int main(int argc, char* argv[])
     deleteSurfaces(surfaces);
 
   /*****************************************************************************
-    5.5 Blocks : surfaces of revolution : propeller hub
+    5.5 Submarine : surfaces of revolution : propeller hub
   *****************************************************************************/
 
-    cout << "5.5 Blocks : surfaces of revolution : propeller hub" << endl;
+    cout << "5.5 Submarine : surfaces of revolution : propeller hub" << endl;
 
     makeSurfacesOfRevolution<T>(KiloPropHub<T>,AxisZ,AxisX,7,9,8,8,surfaces,0.0,360.0,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE); 
@@ -1727,10 +1730,10 @@ int main(int argc, char* argv[])
     saveSurfacesIges(surfaces,DEBUG_DIR + "Kilo propeller hub surfaces.iges");
 
   /*****************************************************************************
-    5.6 Blocks : surfaces of revolution : propeller hub solid
+    5.6 Submarine : surfaces of revolution : propeller hub solid
   *****************************************************************************/
 
-    cout << "5.6 Blocks : surfaces of revolution : propeller hub solid" << endl;
+    cout << "5.6 Submarine : surfaces of revolution : propeller hub solid" << endl;
 
     // name for debugging
     nameSurfaces<T>(surfaces,"hub");
@@ -1748,10 +1751,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.7 Blocks : propeller, trimmed and solid
+    5.7 Submarine : propeller, trimmed and solid
   *****************************************************************************/
 
-  cout << "5.7 Blocks : propeller, trimmed and solid" << endl;
+  cout << "5.7 Submarine : propeller, trimmed and solid" << endl;
 
 #ifdef _DEBUG
   errorMessage("This thing (makeTrimming()) may be slow in Debug, try Release instead.");
@@ -1887,10 +1890,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.8 Blocks : submarine hull, axisymmetric solid
+    5.8 Submarine : submarine hull, axisymmetric solid
   *****************************************************************************/
 
-  cout << "5.8 Blocks : submarine hull, axisymmetric solid" << endl;
+  cout << "5.8 Submarine : submarine hull, axisymmetric solid" << endl;
 
   // hull surfaces
   std::vector<TSplineSurface<T> *> hullsurfaces;
@@ -1934,12 +1937,12 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.9 Blocks : attach propeller to submarine hull by shaft
+    5.9 Submarine : attach propeller to submarine hull by shaft
   *****************************************************************************/
 
   //!!! The process is not very fast, making it faster !!!
 
-  cout << "5.9 Blocks : attach propeller to submarine hull by shaft" << endl;
+  cout << "5.9 Submarine : attach propeller to submarine hull by shaft" << endl;
 
   // shaft : axisymmetric faces, not solid, to connect propeller to hull
   // and make single solid
@@ -2007,10 +2010,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.10 Blocks : submarine fin
+    5.10 Submarine : submarine fin
   *****************************************************************************/
 
-  cout << "5.10 Blocks : sub fin" << endl;
+  cout << "5.10 Submarine : sub fin" << endl;
 
   // sub fin
   std::vector<TSplineSurface<T> *> subfinsurfaces;
@@ -2079,10 +2082,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.11 Blocks : submarine hull + propeller + fin, all single solid
+    5.11 Submarine : submarine hull + propeller + fin, all single solid
   *****************************************************************************/
 
-  cout << "5.11 Blocks : submarine hull + propeller + fin, all single solid" << endl;
+  cout << "5.11 Submarine : submarine hull + propeller + fin, all single solid" << endl;
 
   {
     T hullL = 74.0;
@@ -2117,10 +2120,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.12 Blocks : submarine hump
+    5.12 Submarine : submarine hump
   *****************************************************************************/
 
-  cout << "5.12 Blocks : sub hump" << endl;
+  cout << "5.12 Submarine : sub hump" << endl;
 
   // sub hump
   std::vector<TSplineSurface<T> *> subhumpsurfaces;
@@ -2187,10 +2190,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.13 Blocks : submarine hull + propeller + fin + hump, all single solid
+    5.13 Submarine : submarine hull + propeller + fin + hump, all single solid
   *****************************************************************************/
 
-  cout << "5.13 Blocks : submarine hull + propeller + fin + hump, all single solid" << endl;
+  cout << "5.13 Submarine : submarine hull + propeller + fin + hump, all single solid" << endl;
 
   {
     T hullL = 74.0;
@@ -2225,10 +2228,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.14 Blocks : filleted wing with rudder cut out
+    5.14 Submarine : filleted wing with rudder cut out
   *****************************************************************************/
 
-  cout << "5.14 Blocks : filleted wing with rudder cut out" << endl;
+  cout << "5.14 Submarine : filleted wing with rudder cut out" << endl;
 
   // whole horizontal rudder
   TBrep<T> brudder;
@@ -2359,10 +2362,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.15 Blocks : submarine with rudder
+    5.15 Submarine : submarine with rudder
   *****************************************************************************/
 
-  cout << "5.15 Blocks : sub with rudder" << endl;
+  cout << "5.15 Submarine : sub with rudder" << endl;
 
   TBrep<T> bsub = TBrep<T>(subsurfaces,subboundariesUV);
 
@@ -2392,10 +2395,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.16 Blocks : vertical rudders
+    5.16 Submarine : vertical rudders
   *****************************************************************************/
 
-  cout << "5.16 Blocks : vertical rudders" << endl;
+  cout << "5.16 Submarine : vertical rudders" << endl;
 
   // two stern vertical rudders
   TBrep<T> brudder0;
@@ -2472,10 +2475,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.17 Blocks : submarine with vertical rudders
+    5.17 Submarine : submarine with vertical rudders
   *****************************************************************************/
 
-  cout << "5.17 Blocks : submarine with vertical rudders" << endl;
+  cout << "5.17 Submarine : submarine with vertical rudders" << endl;
 
   {
     // plus rudder
@@ -2504,10 +2507,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.18 Blocks : two forward vertical rudders
+    5.18 Submarine : two forward vertical rudders
   *****************************************************************************/
 
-  cout << "5.18 Blocks : two forward vertical rudders" << endl;
+  cout << "5.18 Submarine : two forward vertical rudders" << endl;
 
   // whole horizontal rudder
   TBrep<T> bfrudder0;
@@ -2566,10 +2569,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.19 Blocks : two rudder containers
+    5.19 Submarine : two rudder containers
   *****************************************************************************/
 
-  cout << "5.19 Blocks : two rudder containers" << endl;
+  cout << "5.19 Submarine : two rudder containers" << endl;
 
   TBrep<T> bcontainer0;
   TBrep<T> bcontainer1;
@@ -2607,10 +2610,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.20 Blocks : submarine with all wings
+    5.20 Submarine : submarine with all wings
   *****************************************************************************/
 
-  cout << "5.20 Blocks : submarine with all wings" << endl;
+  cout << "5.20 Submarine : submarine with all wings" << endl;
 
   {
     // plus rudder
@@ -2640,10 +2643,10 @@ int main(int argc, char* argv[])
   }
 
   /*****************************************************************************
-    5.21 Blocks : 3D text
+    5.21 Submarine : 3D text
   *****************************************************************************/
 
-  cout << "5.21 Blocks : 3D text" << endl;
+  cout << "5.21 Submarine : 3D text" << endl;
 
   {
     T subL = 74.0;
@@ -2686,10 +2689,10 @@ int main(int argc, char* argv[])
 
 #if 0
   /*****************************************************************************
-    5.22 Blocks : 3D text simple defect
+    5.22 Submarine : 3D text simple defect
   *****************************************************************************/
 
-  cout << "5.22 Blocks : 3D text simple defect" << endl;
+  cout << "5.22 Submarine : 3D text simple defect" << endl;
 
   {
     T tolerance = 1.0 * PARM_TOLERANCE;
@@ -2750,7 +2753,7 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 6 : BOOLEANS" << endl;
+  headerMessage("    Part 6 : BOOLEANS");
 
   /*****************************************************************************
     6.0 B-reps : booleans, box and sphere
@@ -2929,13 +2932,13 @@ int main(int argc, char* argv[])
 
   *****************************************************************************/
 
-  cout << "    Part 7 : small bolt screwed into submarine" << endl;
+  headerMessage("    Part 7 : SMALL BOLT screwed into submarine");
 
   /*****************************************************************************
-    7.1 Blocks : thread and bolt
+    7.1 Submarine : thread and bolt
   *****************************************************************************/
 
-  cout << "7.1 Blocks : thread and bolt" << endl;
+  cout << "7.1 Submarine : thread and bolt" << endl;
 
   TBrep<T> bsbolt;
 
@@ -2991,7 +2994,7 @@ int main(int argc, char* argv[])
 
 #ifdef DEBUG_SUBMARINE
 
-  cout << "7.2 Blocks : bolt screwed into submarine" << endl;
+  cout << "7.2 Submarine : bolt screwed into submarine" << endl;
 
   {
     T tolerance = 0.1 * PARM_TOLERANCE;
@@ -3041,6 +3044,102 @@ int main(int argc, char* argv[])
 
 #endif
 
+#ifdef DEBUG_LATTICE
+
+  /*****************************************************************************
+
+    Part 8 : lattice
+
+  *****************************************************************************/
+
+  headerMessage("    Part 8 : LATTICE");
+
+  /*****************************************************************************
+    8.1 Lattice 6 x 6
+  *****************************************************************************/
+
+  cout << "8.1 Lattice 6 x 6 (takes time)" << endl;
+
+  {
+    // bar, a cylinder of radius R and length L
+    T L = 1.0;
+    T R = 0.005;
+
+    T tolerance = L * PARM_TOLERANCE;
+
+    TBrep<T> bar(tolerance);
+    bar.makeCylinder(L,R,R,"bar",4,4,1,1);
+
+    // # bars in every direction
+    int numbars = 6;
+    T step = 1.0 / T(numbars - 1);
+
+    TBrep<T> lattice(tolerance);
+
+    // horizontal bar with axis along X and centre at (0,-L/2,0)
+    TBrep<T> horbar = bar;
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,1.0,0.0),90.0 * CPI);
+    t.Translate(TPoint<T>(0.0,-L * 0.5,0.0));
+    horbar.makeTransform(&t);
+
+    // horizontal bars
+    for (int i = 0; i < numbars; i++)
+    {
+      lattice = lattice + horbar;
+
+      TTransform<T> t;
+      t.Translate(TPoint<T>(0.0,step,0.0));
+      horbar.makeTransform(&t);
+    }
+
+    // vertical bar with axis along Y and centre at (-L/2,0,0)
+    TBrep<T> verbar = bar;
+    t.LoadIdentity();
+    t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+    t.Translate(TPoint<T>(-L * 0.5,0.0,0.0));
+    verbar.makeTransform(&t);
+
+    // verizontal bars
+    for (int i = 0; i < numbars; i++)
+    {
+      // for debugging
+      //lattice.nameSurfaces("l");
+      //verbar.nameSurfaces("v");
+      //lattice.saveSurfacesIges(DEBUG_DIR + "Lattice.iges");
+      //lattice.saveSurfacesIges(DEBUG_DIR + "Verbar.iges");
+
+      lattice = lattice + verbar;
+
+      TTransform<T> t;
+      t.Translate(TPoint<T>(step,0.0,0.0));
+      verbar.makeTransform(&t);
+    }
+
+    lattice.nameSurfaces("");
+    lattice.saveSurfacesIges(DEBUG_DIR + "Lattice surfaces.iges");
+
+    // save solid
+    std::vector<std::vector<TPoint<T>>> badedges;
+    std::vector<std::vector<TPoint<T>>> edges,firstedges,secondedges;
+    bool ok = lattice.saveSolidIges(DEBUG_DIR + "Lattice solid.iges",
+      lattice.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges);
+
+    // for debugging
+    //  lattice.tolerance * 100.0,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges,&edges,&firstedges,&secondedges);
+    //saveLinesIges<T>(edges,DEBUG_DIR + "edges.iges");
+    //saveLinesIges<T>(firstedges,DEBUG_DIR + "firstedges.iges");
+    //saveLinesIges<T>(secondedges,DEBUG_DIR + "secondedges.iges");
+
+    ASSERT(ok);
+
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#endif
 
   double endtime = GetTime();
 

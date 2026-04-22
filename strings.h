@@ -39,7 +39,7 @@ using namespace std;
 
     to_string(double d, int len) - make a good real string of a specified length.
     trimReal() - make a good rel string.
-    outputDebugString(const std::string &str) - very useful function for debug output 
+    debugString(const std::string &str) - very useful function for debug output 
       into VS "Output" window.
 */
                               // double to string
@@ -105,9 +105,13 @@ bool containsOnlyChars(const string &s, char from, char to);
 int countCharFromEnd(std::string str, unsigned char ch, unsigned char skipch= '.');
 
                               // output debug string
-void outputDebugString(const std::string &str);
+void debugString(const std::string &str);
+                              // message to console in color
+void message(std::string s, int col);
                               // error message to console in red color
 void errorMessage(std::string s);
+                              // header message to console in bright white
+void headerMessage(std::string s);
                               // start console output
 bool startConsole();
 
