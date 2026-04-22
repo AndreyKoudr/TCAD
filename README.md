@@ -5,7 +5,7 @@ See updates at the bottom!
 
 - (1) C++ templates
 - (2) As simple as all STLs
-- (3) All in front of you, no first-, second- or third-party libs, no millions of foreign dlls
+- (3) All in source code, no first-, second- or third-party libs, no millions of foreign dlls
 - (4) Interface is simple, mostly one-line code (see main.cpp with examples)
 - (5) Easy debugging, heavily commented
 - (6) Free to change
@@ -16,9 +16,12 @@ The plan :
 - surfaces (done)
 - volumes (done)
 - FFD (done)
-- intersections, trimmed (done, testing)
-- booleans (done, testing)
-- blocks on example of submarine (<B>doing...</B>)
+- intersections, trimmed (done)
+- booleans (done)
+- blocks on example of submarine (done)
+- very small bolt screwed into big submarine (done)
+- lattice (done)
+- a turbomachine (doing)
 
 <B>to do</B>
 - 3D mesh
