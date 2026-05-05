@@ -143,7 +143,6 @@ template <class T> std::vector<TPoint<T>> E178 = {
   TPoint<T>(0.00985, 0.01236),
   TPoint<T>(0.00263, 0.00545),
   TPoint<T>(0.00000, 0.00000),
-  //TPoint<T>(0.00000, 0.00018),
   TPoint<T>(0.00302,-0.00470),
   TPoint<T>(0.01190,-0.00876),
   TPoint<T>(0.02598,-0.01222),
@@ -172,7 +171,7 @@ template <class T> std::vector<TPoint<T>> E178 = {
   TPoint<T>(0.97194,-0.00049),
   TPoint<T>(0.98729,-0.00014),
   TPoint<T>(0.99677,-0.00001),
-  TPoint<T>(1.00000,-0.00000)
+  TPoint<T>(1.00000, 0.00000)
 };
 
 /** NACA1410 points, these points start from TE, go around LE along 
@@ -673,6 +672,56 @@ template <class T> std::vector<std::array<unsigned char,14>> Font8x14 = {
   {0x00,0x00,0x00,0xC3,0x42,0x3C,0x66,0x66,0x3C,0x42,0xC3,0x00,0x00,0x00},
   {0x00,0x00,0x00,0x00,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x00,0x00,0x00,0x00},
   {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
+};
+
+/** Turbomachine hub in Z-X coordinates. */
+template <class T> std::vector<std::vector<TPoint<T>>> TurboHub = {
+  {
+    TPoint<T>(0.0,             0.0,    -34.8),
+    TPoint<T>(25.0,            0.0,    -34.8)
+  },
+  {
+    TPoint<T>(25.0,            0.0,    -34.8),
+    TPoint<T>(25.0,            0.0,      0.0)
+  },
+  {
+    TPoint<T>(25.0,             0.0,     0.0),
+    TPoint<T>(25.64,            0.0,    22.0),
+    TPoint<T>(27.12,            0.0,    37.41),
+    TPoint<T>(31.19,            0.0,    52.09),
+    TPoint<T>(58.34,            0.0,    81.32),
+    TPoint<T>(91.00,            0.0,    90.20),
+    TPoint<T>(177.57,           0.0,    95.28)
+  },
+  {
+    TPoint<T>(177.57,           0.0,    95.28),
+    TPoint<T>(228.0,            0.0,    95.28)
+  },
+  {
+    TPoint<T>(228.0,            0.0,    95.28),
+    TPoint<T>(228.0,            0.0,    121.0)
+  },
+  {
+    TPoint<T>(228.0,            0.0,    121.0),
+    TPoint<T>(0.0,              0.0,    121.0)
+  }
+};
+
+/** Turboamchine blade. Blade contour of left (LE) - right (TE)
+  points in XZ plane. Z coordinate is along span. */
+template <class T> std::vector<std::array<TPoint<T>,2>> TurboContour = {
+  { TPoint<T>(-35.74, -31.51,  76.28), TPoint<T>(-109.15, 47.62,  5.06) },  // LE
+  { TPoint<T>(-55.13, -8.84,   80.91), TPoint<T>(-97.36,  72.39, 12.26) },  // 5 intervals from LE
+  { TPoint<T>(-64.05, 19.20,   85.17), TPoint<T>(-77.0,   93.85,  17.5) },   // 10
+  { TPoint<T>(-48.13, 79.88,   90.26), TPoint<T>(-33.71, 119.57, 26.34) },  // 20
+  { TPoint<T>(-1.96, 111.47,   92.91), TPoint<T>( 29.66, 128.9,  37.09) },  // 30
+  { TPoint<T>(68.53, 112.76,   94.61), TPoint<T>( 69.73, 120.91, 43.24) },  // 40
+  { TPoint<T>(123.11,  75.7,   96.68), TPoint<T>( 84.58, 115.68, 47.53) },  // 50 // former : 45.53
+  { TPoint<T>(172.4,  36.62,   96.68), TPoint<T>( 172.7,  35.71, 52.62) },  // -5 intervals from TE
+  { TPoint<T>(186.37, 10.35,   96.68), TPoint<T>( 186.37,  11.6, 52.85) }   // TE
+  //{ TPoint<T>(123.11,  75.7,   95.14), TPoint<T>( 84.58, 115.68, 47.53) },  // 50 // former : 45.53
+  //{ TPoint<T>(172.4,  36.62,   95.23), TPoint<T>( 172.7,  35.71, 52.62) },  // -5 intervals from TE
+  //{ TPoint<T>(186.37, 10.35,   95.23), TPoint<T>( 186.37,  11.6, 52.85) }   // TE
 };
 
 }

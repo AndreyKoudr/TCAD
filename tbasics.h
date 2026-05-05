@@ -159,6 +159,9 @@ namespace tcad {
 // 0.001 and 0.0001 work, this is average
 #define DYNAMIC_TOLERANCECOEF -0.00055
 
+// Important : place to output debug files
+#define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/")
+
 // default number of points used for output, linearisation etc.
 #define MANY_POINTS 501
 
@@ -221,6 +224,9 @@ namespace tcad {
 
 // Max number of triangles during intersections (not to refine any further)
 #define MAX_TRIS 100000
+
+// Default divisions for one piece (of 4) of boundary. 1000 or 400 create disply problems in Rhino.
+#define NUM_BOUNDARYDIVS 200 
 
 }
 

@@ -43,7 +43,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tsplinesurface.h"
 #include "tsolid.h"
 #include "tblocks.h"
+#include "FFD.h"
 #include "export.h"
+
+#define DEBUG_BREP
+#ifdef NDEBUG
+  #undef DEBUG_BREP
+#endif
 
 namespace tcad {
 
@@ -244,6 +250,18 @@ public:
   void makeTransform(TTransform<T> *t, int index0 = -1, int index1 = -1)
   {
     tcad::makeTransform<T>(surfaces,t,index0,index1);
+  }
+
+  /** Apply FFD : we want to distort the wing by moving these points to new positions. */
+  bool makeFFD(std::vector<TPoint<T>> &oldpositions, std::vector<TPoint<T>> &newpositions)
+  {
+    std::vector<tcad::TBaseSurface<T> *> bsurfaces;
+    for (auto s : surfaces)
+      bsurfaces.push_back(s);
+
+    tcad::FFD<T> ffd(bsurfaces,oldpositions,newpositions);
+
+    return true;
   }
 
   //===== Solid? =====
@@ -514,12 +532,22 @@ public:
     closebottomtip - true if to close bottom tip with bottomradius, no fillet if bottomradius == 0.0
     K1 - number of spline intervals along U (along chord)
     K2 - number of spline intervals along V (along span)
+    cutsurfacesintwo - cut all surfaces along middle to avoid two degenerated edges (U = 0 and U = 1)
   */
   bool makeWing(std::vector<TPoint<T>> &airfoil, bool roundLE, bool roundTE,
-    std::vector<std::array<TPoint<T>,2>> &contour, bool closetoptip, bool closebottomtip,
-    T topradius, T bottomradius,
-    T tolerance, T parmtolerance = PARM_TOLERANCE, int K1 = 40, int K2 = 20)
+    std::vector<std::array<TPoint<T>,2>> &contour, 
+    bool closetoptip, bool closebottomtip, T topradius, T bottomradius, 
+    bool swapspanchord, 
+    T tolerance, 
+    bool cutsurfacesintwo = true, SmoothType smooth = SPLINE, int smoothparameter = 5,
+    T parmtolerance = PARM_TOLERANCE, int K1 = 40, int K2 = 20)
   {
+    // K1/K2 must be even for correct division of surfaces in two
+    assert(K1 % 2 == 0);
+    assert(K2 % 2 == 0);
+    K1 = (K1 / 2) * 2;
+    K2 = (K2 / 2) * 2;
+
     // step 1 : make airfoil in XY plane
 
     if (!closed<T>(airfoil,parmtolerance))
@@ -527,57 +555,181 @@ public:
 
     this->tolerance = tolerance;
 
-    // make upper and lower curves, still in XY, make LE lowest X (reverse)
+    // make upper and lower curves, still in XY, make LE lowest X (reversed because contour 
+    // points are from TE to LE)
     std::vector<TPoint<T>> upperlower; 
     std::pair<T,T> res = makeAirfoilPointsXY<T>(airfoil,roundLE,roundTE,K1,upperlower,true);
+    if (!swapspanchord)
+    {
+      std::reverse(upperlower.begin(),upperlower.end());
+    }
 
     // step 2 : make 3D camber surface and thickness from upperlower and
-    // contour as a regular set of points
-
+    // contour as a regular set of points; it can be refined near LE or/and TE
     std::vector<std::vector<TPoint<T>>> camberpoints; 
     std::vector<std::vector<T>> thickness;
-    makeBladeCamberThickness<T>(upperlower,contour,K1,K2,camberpoints,thickness,tolerance); 
+    makeBladeCamberThickness<T>(upperlower,contour,K1 + 1,K2 + 1,camberpoints,thickness,
+      swapspanchord,roundLE,roundTE,smooth,smoothparameter);
 
     // create camber surface
     TSplineSurface<T> cambersurface(camberpoints,K1,SPLINE_DEGREE,K2,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
 
-    //#define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/")
-    //::saveSurfaceIges(&cambersurface,DEBUG_DIR + "Camber surface.iges");
+#ifdef DEBUG_BREP
+    ::savePointsStl<T>(camberpoints,DEBUG_DIR + "Camber points.stl");
+    ::saveSurfaceIges<T>(&cambersurface,DEBUG_DIR + "Camber surface.iges");
+#endif
 
     // step 3 : make 3D wing of two upper and lower spline surfaces
 
     clear(); // this is important as the first two surfaces are upper/lower airfoil
 
-    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
+    makeAirfoil<T>(camberpoints,thickness,
+      swapspanchord ? roundLE : roundTE,
+      swapspanchord ? roundTE : roundLE,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,
       END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
 
-    //::saveSurfacesIges(surfaces,DEBUG_DIR + "Surfaces.iges"); 
+#ifdef DEBUG_BREP
+    ::saveSurfacesIges(surfaces,DEBUG_DIR + "Airfoil surfaces.iges"); 
+#endif
 
     // step 4 : close and round tips
 
-    if (closetoptip)
+    if (closetoptip && !closebottomtip)
     {
-      makeFlatRoundedTop(surfaces[0],surfaces[1],topradius,surfaces);
-    }
+      // surface[1] supplied to makeFlatRoundedTop has same direction as 0 but bad normal
+      surfaces[1]->reverseU();
+      makeFlatRoundedTop(surfaces[0],surfaces[1],topradius,surfaces,cutsurfacesintwo);
 
-    if (closebottomtip)
+#ifdef DEBUG_BREP
+      tcad::nameSurfaces(surfaces,"s");
+      ::saveSurfacesIges(surfaces,DEBUG_DIR + "Airfoil surfaces 1.iges"); 
+#endif
+
+      if (cutsurfacesintwo)
+      {
+      } else
+      {
+        surfaces[1]->reverseU();
+        surfaces[3]->reverseU();
+      }
+    } else if (closebottomtip && !closetoptip)
     {
       surfaces[0]->reverseU();
-      surfaces[1]->reverseU();
       surfaces[0]->reverseV();
+      //surfaces[1]->reverseU();
       surfaces[1]->reverseV();
 
-      makeFlatRoundedTop(surfaces[0],surfaces[1],bottomradius,surfaces);
+      // surface[1] supplied to makeFlatRoundedTop has same direction as 0 but bad normal
+      //surfaces[1]->reverseU();
+      makeFlatRoundedTop(surfaces[0],surfaces[1],bottomradius,surfaces,cutsurfacesintwo);
 
-      surfaces[0]->reverseU();
+      if (cutsurfacesintwo)
+      {
+        surfaces[0]->reverseU();
+        surfaces[0]->reverseV();
+        surfaces[1]->reverseV();
+        surfaces[1]->reverseU();
+      } else
+      {
+        //surfaces[1]->reverseU();
+
+        surfaces[0]->reverseU();
+        surfaces[0]->reverseV();
+        surfaces[1]->reverseV();
+        //surfaces[1]->reverseU();
+        surfaces[3]->reverseU();
+      }
+    } else if (closetoptip && closebottomtip)
+    {
+      // make copy of surfaces, they contain 2 first airfoil walls generated by makeAirfoil()
+      std::vector<TSplineSurface<T> *> copysurfaces;
+      copySurfaces<T>(surfaces,copysurfaces);
+
+      // step 1 : make top part
+
+      // surface[1] supplied to makeFlatRoundedTop has same direction as 0 but bad normal
       surfaces[1]->reverseU();
-      surfaces[0]->reverseV();
-      surfaces[1]->reverseV();
+      makeFlatRoundedTop(surfaces[0],surfaces[1],topradius,surfaces,cutsurfacesintwo);
+
+      if (cutsurfacesintwo)
+      {
+      } else
+      {
+        surfaces[1]->reverseU();
+        surfaces[3]->reverseU();
+      }
+
+#ifdef DEBUG_BREP
+      ::saveSurfacesIges(surfaces,DEBUG_DIR + "Top surfaces 3.iges"); 
+#endif
+
+      // step 2 : make bottom part
+      copysurfaces[0]->reverseU();
+      copysurfaces[0]->reverseV();
+      //copysurfaces[1]->reverseU();
+      copysurfaces[1]->reverseV();
+
+      // surface[1] supplied to makeFlatRoundedTop has same direction as 0 but bad normal
+      //copysurfaces[1]->reverseU();
+      makeFlatRoundedTop(copysurfaces[0],copysurfaces[1],bottomradius,copysurfaces,cutsurfacesintwo);
+
+      if (cutsurfacesintwo)
+      {
+        copysurfaces[0]->reverseU();
+        copysurfaces[0]->reverseV();
+        copysurfaces[1]->reverseV();
+        copysurfaces[1]->reverseU();
+      } else
+      {
+        //copysurfaces[1]->reverseU();
+
+        copysurfaces[0]->reverseU();
+        copysurfaces[0]->reverseV();
+        copysurfaces[1]->reverseV();
+        //copysurfaces[1]->reverseU();
+        copysurfaces[3]->reverseU();
+      }
+
+#ifdef DEBUG_BREP
+      ::saveSurfacesIges(copysurfaces,DEBUG_DIR + "Bottom surfaces 3.iges"); 
+#endif
+
+      if (cutsurfacesintwo)
+      {
+        // delete first 4 surfaces
+        for (int i = 0; i < int(copysurfaces.size()); i++)
+        {
+          if (i < 4)
+          {
+            DELETE_CLASS(copysurfaces[i]);
+          } else
+          {
+            surfaces.push_back(copysurfaces[i]);
+          }
+        }
+      } else
+      {
+        // delete first 4 surfaces
+        for (int i = 0; i < int(copysurfaces.size()); i++)
+        {
+          if (i < 2)
+          {
+            DELETE_CLASS(copysurfaces[i]);
+          } else
+          {
+            surfaces.push_back(copysurfaces[i]);
+          }
+        }
+      }
     }
+
+#ifdef DEBUG_BREP
+      ::saveSurfacesIges(surfaces,DEBUG_DIR + "Airfoil surfaces 2.iges"); 
+#endif
 
     // make boundaries
-    prepareOuterBoundary<T>(surfaces,boundariesUV);
+    tcad::closeOuterBoundary<T>(surfaces,boundariesUV,NUM_BOUNDARYDIVS,0.5,0.5,1.0,1.0); //!!!!!!
 
     return true;
   }

@@ -5,7 +5,7 @@ See updates at the bottom!
 
 - (1) C++ templates
 - (2) As simple as all STLs
-- (3) All in source code, no first-, second- or third-party libs, no millions of foreign dlls
+- (3) All in source code, no first-, second- or third-party libs, not a single foreign dll
 - (4) Interface is simple, mostly one-line code (see main.cpp with examples)
 - (5) Easy debugging, heavily commented
 - (6) Free to change
@@ -21,12 +21,13 @@ The plan :
 - blocks on example of submarine (done)
 - very small bolt screwed into big submarine (done)
 - lattice (done)
-- a turbomachine (doing)
+- a turbomachine (done)
+- mesh and finite elements (doing...)
 
 <B>to do</B>
 - 3D mesh
-- level sets (simple)
 - finite elements (simple)
+- level sets (simple)
 - GUI?
 
 "How to" examples in main.cpp :
@@ -170,19 +171,26 @@ Threads, bolts, small bolt screwed into submarine
 
 Lattice
 =======
+
 - 8.1 Lattice<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Lattice6x6.png)<br />
+
+Turbomachine
+============
+
+- 9.1 Turbomachine<br />
+![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Turbomachine.png)<br />
 
 Important parameters in main.cpp
 ================================
 
 main.cpp, see examples on how to use TCAD.<br />
 
-<B>Set DEBUG_DIR for place to output of debug CAD files.</B><br />
-
-<B>Also important :</B><br />
+<B>Also important in tbasics.h :</B><br />
 
 ```
+<B>Set DEBUG_DIR for place to output of debug CAD files.</B><br />
+#define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/")
 
 // default number of points used for output, linearisation etc.
 #define MANY_POINTS 501
@@ -207,7 +215,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Lattice done. Doing a turbomachine.<br /> 
+Turbomachine done. Now looking at mesh generation and a finite element solution for a gas dynamics problem.<br /> 
 
 
 

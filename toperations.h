@@ -52,8 +52,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "tpointsurface.h"
 #include "tsplinesurface.h"
+#include "tboundary.h"
 
 namespace tcad {
+
+// how to smooth rows/cols
+enum SmoothType {
+  NONE,
+  ORTHO,              // by ortho poly with a power
+  BEZIER,             // by single Bezier segment of power 3
+  BEZIERCURVE,        // by a number of Bezier segments 
+  SPLINE              // by a spline of a number of intervals
+};
 
 //===== Auxiliary ==============================================================
 
@@ -304,6 +314,69 @@ template <class T> void smoothPointsBySplineCurve(std::vector<TPoint<T>> &points
   points = newpoints;
 }
 
+/** Smooth points by SmoothType. Meaning of parameter differs : 
+  NONE                unused 
+  ORTHO               ortho poly power
+  BEZIER              unused
+  BEZIERCURVE         number of Bezier segments 
+  SPLINE              number of intervals (K1)
+*/
+template <class T> void smoothPoints(std::vector<TPoint<T>> &points, 
+  SmoothType smooth, int parameter, int numnewpoints = -1,
+  CurveEndType start = END_FIXED, CurveEndType end = END_FIXED, int degree = SPLINE_DEGREE)
+{
+  if (smooth == ORTHO)
+  {
+    smoothPointsByOrtho<T>(points,start,end,parameter,numnewpoints);
+  } else if (smooth == BEZIER)
+  {
+    smoothPointsByBezier<T>(points,start,end,numnewpoints);
+  } else if (smooth == BEZIERCURVE)
+  {
+    smoothPointsByBezierCurve<T>(points,parameter,start,end,numnewpoints);
+  } else if (smooth == SPLINE)
+  {
+    smoothPointsBySplineCurve<T>(points,parameter,start,end,degree,numnewpoints);
+  }
+}
+
+/** Smooth rows/cols by SmoothType. Meaning of parameter differs :  
+  NONE                unused
+  ORTHO               ortho poly power
+  BEZIER              unused
+  BEZIERCURVE,        number of Bezier segments 
+  SPLINE              number of intervals (K1)
+*/
+template <class T> void smoothRowsCols(TSplineSurface<T> *surface,
+  bool rows, 
+  SmoothType smooth, int parameter,
+  CurveEndType start = END_FIXED, CurveEndType end = END_FIXED, int degree = SPLINE_DEGREE)
+{
+  if (rows)
+  {
+    for (int i = 0; i <= this->K2; i++)
+    {
+      std::vector<TPoint<T>> points;
+      surface->getRow(i,points);
+
+      smoothPoints<T>(points,smooth,parameter,start,end,degree);
+
+      surface->setRow(i,points);
+    }
+  } else
+  {
+    for (int i = 0; i <= this->K1; i++)
+    {
+      std::vector<TPoint<T>> points;
+      surface->getColumn(i,points);
+
+      smoothPoints<T>(points,smooth,parameter,start,end,degree);
+
+      surface->setColumn(i,points);
+    }
+  }
+}
+
 /** Transform list of surfaces. */
 template <class T> void makeTransform(std::vector<TSplineSurface<T> *> &surfaces, TTransform<T> *t,
   int index0 = -1, int index1 = -1)
@@ -364,14 +437,25 @@ template <class T> void copySurfaces(
   }
 }
 
-/** Make surface duplicates to make no more than one loop to keep Rhino happy. */
+/** Make surface duplicates to make no more than one loop to keep Rhino happy. 
+  Internal loops must NOT be considered. */
 template <class T> void makeSingleLoop(std::vector<TSplineSurface<T> *> &surfaces, 
-  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV)
+  std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
+  T parmtolerance = PARM_TOLERANCE)
 {
   int n = int(surfaces.size());
   for (int i = 0; i < n; i++)
   {
-    if (boundariesUV[i].size() > 1)
+    // count number of outer loops
+    int numboundaryloops = 0;
+    for (int j = 0; j < int(boundariesUV[i].size()); j++)
+    {
+      if (outerBoundaryLoop<T>(boundariesUV[i][j],parmtolerance))
+        numboundaryloops++;
+    }
+
+    if (numboundaryloops > 1)
+    //!!! if (boundariesUV[i].size() > 1)
     {
       for (int j = 1; j < int(boundariesUV[i].size()); j++)
       {
@@ -472,6 +556,7 @@ template <class T> void prepareLoopsXYZ(
 
   for (int i = 0; i < int(boundariesUV.size()); i++)
   {
+    // for every surface
     curves.push_back(std::vector<std::vector<TPointCurve<T>>>());
 
     if (boundariesUV[i].empty())
@@ -495,11 +580,11 @@ template <class T> void prepareLoopsXYZ(
       boundariesUV[i].clear();
     } else
     {
-      // loop 0 (intersection)
-      curves.back().push_back(std::vector<TPointCurve<T>>());
-
+      // all existing loops, not only 0 as before
       for (int k = 0; k < int(boundariesUV[i].size()); k++) // all loops
       {
+        curves.back().push_back(std::vector<TPointCurve<T>>());
+
         std::vector<std::vector<TPoint<T>>> loop;
         getLoopXYZ(surfaces,boundariesUV,i,k,loop); 
 
@@ -650,6 +735,23 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
     }
   }
 
+  // mark cut in faces, all which were intersected, take all old faces
+  for (int i = 0; i < int(boundariesUV.size()); i++)
+  {
+    if (boundariesUV[i].size() > 1)
+    {
+      inout[i] = 1;
+      intersected = true;
+    } else if (boundariesUV[i].size() == 1)
+    {
+      if (!fullBoundaryLoop(boundariesUV[i][0],parmtolerance))
+      {
+        inout[i] = 1;
+        intersected = true;
+      }
+    }
+  }
+
   // simply close boundaries
   if (!intersected)
   {
@@ -671,8 +773,8 @@ template <class T> void closeConnectedFaces(std::vector<TSplineSurface<T> *> &su
     std::vector<std::vector<std::vector<TPointCurve<T>>>> curves;
 
     // XYZ curves for all boundary pieces, curves DO NOT correspond
-    // to boundariesUV structure, they may contain
-    // 1 or 2 "loops"
+    // to boundariesUV structure, they may contain addtional full loop
+    // at the end or only full if boundariesYV[i] is empty
     prepareLoopsXYZ<T>(surfaces,boundariesUV,curves);
 
     for (int i = 0; i < int(boundariesUV.size()); i++)

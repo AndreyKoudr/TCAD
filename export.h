@@ -197,7 +197,7 @@ template <class T> void addIges141(std::vector<std::string> &lines, int surfaceD
   addIgesString(lines,to_string(141),dirline,count,igesstr);
   addIgesString(lines,to_string(1),dirline,count,igesstr);
 
-  // preferences : 0 - unspecified, 1 - model, 2 - parameter, 3 - equal pref
+  // preferences : 0 - unspecified, 1 - model, 2 - parameter, 3 - equal preference
   addIgesString(lines,to_string(1),dirline,count,igesstr);
 
   addIgesString(lines,to_string(surfaceDE),dirline,count,igesstr);
@@ -993,6 +993,9 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
 
   for (auto &e : edges)
   {
+    // The quality of boundary points here depends on NUM_BOUNDARYDIVS.
+    // High NUM_BOUNDARYDIVS like 400 or 1000 produce display problems in Rhino, so NUM_BOUNDARYDIVS
+    // is normally low but refinements near ends are added for airfoils to treat rounded LE/TE
     // prepare XYZ boundary piece
     std::vector<TPoint<T>> points;
     getBoundaryPartXYZ<T>(surfaces,boundariesUV,int(e[3]),int(e[4]),int(e[5]),points);
@@ -1000,7 +1003,7 @@ template <class T> bool makeSolidLinesIges(std::vector<tcad::TSplineSurface<T> *
     std::string name = to_string(int(e[3])) + "-" + to_string(int(e[7]));
 
     // make spline curve
-#if 1 //!!!!!!
+#if 1 
     tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_FREE,tcad::END_FREE); //!!!
 #else
     tcad::TSplineCurve<T> C(points,int(points.size()) - 1,splinedegree,tcad::END_CLAMPED,tcad::END_CLAMPED); //!!!
@@ -1299,6 +1302,31 @@ template <class T> bool saveTrianglesStl(tcad::TTriangles<T> &triangles, const s
   const std::string &partname = "TCAD", const bool binary = true)
 {
   return triangles.saveSTL(filename,partname,binary);
+}
+
+template <class T> bool savePointsStl(std::vector<std::vector<TPoint<T>>> &points, const std::string &filename, 
+  const std::string &partname = "TCAD", bool binary = true)
+{
+  TTriangles<T> tris;
+  for (int i = 0; i < points.size() - 1; i++)
+  {
+    int i1 = i + 1;
+    for (int j = 0; j < points[i].size() - 1; j++)
+    {
+      int j1 = j + 1;
+      TPoint<T> v0(points[i][j][0],points[i][j][1],points[i][j][2]);
+      TPoint<T> v1(points[i][j1][0],points[i][j1][1],points[i][j1][2]);
+      TPoint<T> v2(points[i1][j1][0],points[i1][j1][1],points[i1][j1][2]);
+      TPoint<T> v3(points[i1][j][0],points[i1][j][1],points[i1][j][2]);
+
+      tris.addTri(v0,v1,v2,0.0);
+      tris.addTri(v0,v2,v3,0.0);
+    }
+  }
+
+  bool ok = saveTrianglesStl(tris,filename,partname,binary);
+
+  return ok;
 }
 
 //===== OBJ ====================================================================

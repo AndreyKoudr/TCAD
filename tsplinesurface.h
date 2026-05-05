@@ -82,9 +82,13 @@ public:
     clampedstartV = other.clampedstartV;
     clampedendV = other.clampedendV;
 
+    Uknots = other.Uknots;
+    Vknots = other.Vknots;
+
     points = other.points;
 
-    update();
+    updateDerivatives();
+    //update();
   }
 
   /** Assignment operator. */
@@ -104,9 +108,13 @@ public:
     clampedstartV = other.clampedstartV;
     clampedendV = other.clampedendV;
 
+    Uknots = other.Uknots;
+    Vknots = other.Vknots;
+
     points = other.points;
 
-    update();
+    updateDerivatives();
+    //update();
 
     return *this;
   }
@@ -269,56 +277,83 @@ public:
     }
   }
 
+  /** Update derivatives. */
+  void updateDerivatives()
+  {
+    // prepare two derivatives
+    if (Uderivative == nullptr)
+      Uderivative = new TSplineSurface();
+    if (UUderivative == nullptr)
+      UUderivative = new TSplineSurface();
+    if (UVderivative == nullptr)
+      UVderivative = new TSplineSurface();
+    if (Vderivative == nullptr)
+      Vderivative = new TSplineSurface();
+    if (VVderivative == nullptr)
+      VVderivative = new TSplineSurface();
+    if (VUderivative == nullptr)
+      VUderivative = new TSplineSurface();
+
+    makeDerivatives(*Uderivative,*Vderivative);
+
+    Uderivative->makeDerivatives(*UUderivative,*UVderivative);
+    Vderivative->makeDerivatives(*VUderivative,*VVderivative);
+  }
+
   /** Update after any change in control points. */
   virtual void update()
   {
     // number of points here must equal (K1 + 1) x (K2 + 1)
     std::vector<std::vector<TPoint<T>>> kpoints;
 
-    if (points.size() == this->K2 + 1 && points[0].size() == this->K1 + 1)
+    // points are taken
+    if (interpolate != COPIED)
     {
-      kpoints = points;
-    } else
-    // it is a problem : we need new points (K1 + 1) x (K2 + 1)
-    {
-      kpoints.resize((this->K2 + 1),std::vector<TPoint<T>>((this->K1 + 1),TPoint<T>()));
-
-      std::vector<TPoint<T>> temp;
-      int tempK1 = 0;
-      int tempK2 = int(points.size()) - 1;
-
-      // loop by rows
-      for (int i = 0; i < int(points.size()); i++)
+      if (points.size() == this->K2 + 1 && points[0].size() == this->K1 + 1)
       {
-        TSplineCurve<T> crow(points[i],this->K1,this->M1,clampedstartU,clampedendU);
-        temp.insert(temp.end(),crow.controlPoints().begin(),crow.controlPoints().end());
-        if (i == 0)
+        kpoints = points;
+      } else
+      // it is a problem : we need new points (K1 + 1) x (K2 + 1)
+      {
+        kpoints.resize((this->K2 + 1),std::vector<TPoint<T>>((this->K1 + 1),TPoint<T>()));
+
+        std::vector<TPoint<T>> temp;
+        int tempK1 = 0;
+        int tempK2 = int(points.size()) - 1;
+
+        // loop by rows
+        for (int i = 0; i < int(points.size()); i++)
         {
-          tempK1 = int(crow.controlPoints().size()) - 1;
+          TSplineCurve<T> crow(points[i],this->K1,this->M1,clampedstartU,clampedendU);
+          temp.insert(temp.end(),crow.controlPoints().begin(),crow.controlPoints().end());
+          if (i == 0)
+          {
+            tempK1 = int(crow.controlPoints().size()) - 1;
+          }
+        }
+
+        // tempK2 is wrong here; we must redivide columns
+
+        // now we need to redivide temp columns in V direction
+        for (int i = 0; i <= tempK1; i++)
+        {
+          std::vector<TPoint<T>> col;
+          tcad::getColumn(temp,tempK1,tempK2,i,col);
+          TSplineCurve<T> ccol(col,this->K2,this->M2,clampedstartV,clampedendV);
+
+          // set this column in kpoints
+          for (int k = 0; k <= this->K2; k++)
+          {
+            kpoints[k][i] = ccol.controlPoints()[k];
+          }
         }
       }
 
-      // tempK2 is wrong here; we must redivide columns
-
-      // now we need to redivide temp columns in V direction
-      for (int i = 0; i <= tempK1; i++)
-      {
-        std::vector<TPoint<T>> col;
-        tcad::getColumn(temp,tempK1,tempK2,i,col);
-        TSplineCurve<T> ccol(col,this->K2,this->M2,clampedstartV,clampedendV);
-
-        // set this column in kpoints
-        for (int k = 0; k <= this->K2; k++)
-        {
-          kpoints[k][i] = ccol.controlPoints()[k];
-        }
-      }
+      assert(kpoints.size() == this->K2 + 1 && kpoints[0].size() == this->K1 + 1);
     }
 
     // knots
     makeKnots();
-
-    assert(kpoints.size() == this->K2 + 1 && kpoints[0].size() == this->K1 + 1);
 
     if (interpolate == INTERPOLATED)
     {
@@ -352,49 +387,27 @@ public:
     } else if (interpolate == COPIED)
     {
       this->cpoints.clear();
-      for (int i = 0; i < int(kpoints.size()); i++)
+      for (int i = 0; i < int(points.size()); i++)
       {
-        this->cpoints.insert(this->cpoints.end(),kpoints[i].begin(),kpoints[i].end());
-      }
-  
-      if (clampedstartU || clampedendU)
-      {
-        setUClamping(points,clampedstartU,clampedendU);
-      }
-  
-      if (clampedstartV || clampedendV)
-      {
-        setVClamping(points,clampedstartV,clampedendV);
+        this->cpoints.insert(this->cpoints.end(),points[i].begin(),points[i].end());
       }
     } else
     {
       assert(false);
     }
 
-
-    // prepare two derivatives
-    if (Uderivative == nullptr)
-      Uderivative = new TSplineSurface();
-    if (UUderivative == nullptr)
-      UUderivative = new TSplineSurface();
-    if (UVderivative == nullptr)
-      UVderivative = new TSplineSurface();
-    if (Vderivative == nullptr)
-      Vderivative = new TSplineSurface();
-    if (VVderivative == nullptr)
-      VVderivative = new TSplineSurface();
-    if (VUderivative == nullptr)
-      VUderivative = new TSplineSurface();
-
-    makeDerivatives(*Uderivative,*Vderivative);
-
-    Uderivative->makeDerivatives(*UUderivative,*UVderivative);
-    Vderivative->makeDerivatives(*VUderivative,*VVderivative);
+    updateDerivatives();
   }
 
   /** Make transform. */
   virtual void makeTransform(TTransform<T> *transform)
   {
+#if 1
+    for (auto &p : this->cpoints)
+    {
+      p = transform->applyTransform(p);
+    }
+#else
     for (auto &line : points)
     {
       for (auto &p : line)
@@ -405,6 +418,7 @@ public:
 
     // call virtual update()
     this->update();
+#endif
   }
 
   /** Set U clamping at start / end. points are the original points from where
@@ -993,9 +1007,40 @@ public:
     return clampedendV;
   }
 
+  /** Cut into left/right along middle of rows. */
+  std::pair<TSplineSurface<T> *,TSplineSurface<T> *> cutIntoLeftRight(int middle, 
+    bool smoothseam = true, StraightenTypes straightenType = By13)
+  {
+    std::vector<std::vector<TPoint<T>>> lpoints,rpoints;
+
+    for (int i = 0; i <= this->K2; i++)
+    {
+      std::vector<TPoint<T>> row;
+      this->getRow(i,row);
+
+      std::vector<TPoint<T>> left(row.begin(),row.begin() + middle + 1);
+      std::vector<TPoint<T>> right(row.begin() + middle,row.end());
+
+      if (smoothseam)
+      {
+        straightenThreePoints<T>(left[left.size() - 2],right.front(),right[1],straightenType);
+      }
+
+      lpoints.push_back(left);
+      rpoints.push_back(right);
+    }
+
+    TSplineSurface *lsurface = new TSplineSurface<T>(lpoints,M1,M2,
+      END_FREE,END_FREE,END_FREE,END_FREE,COPIED); 
+    TSplineSurface *rsurface = new TSplineSurface<T>(rpoints,M1,M2,
+      END_FREE,END_FREE,END_FREE,END_FREE,COPIED); 
+
+    return std::pair<TSplineSurface<T> *,TSplineSurface<T> *>(lsurface,rsurface);
+  }
+
   /** Close outer boundary. */
   template <class T> void closeOuterBoundary(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop, 
-    int numdivisions = 100)
+    int numdivisions = NUM_BOUNDARYDIVS)
   {
     if (loop.empty())
     {
@@ -1013,7 +1058,7 @@ public:
 
   /** Close outer boundary if empty. */
   template <class T> void closeOuterBoundaryIfEmpty(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop, 
-    int numdivisions = 100)
+    int numdivisions = NUM_BOUNDARYDIVS)
   {
     if (loop.empty())
     {
@@ -1108,7 +1153,9 @@ template <class T> void clearNames(std::vector<TSplineSurface<T> *> &surfaces)
 template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &surfaces,
   // surface  // loop 0   // 4 pieces // piece contents
   std::vector<std::vector<std::vector<std::vector<tcad::TPoint<T>>>>> &boundariesUV,
-  int numdivisions = 100)
+  int numdivisions = NUM_BOUNDARYDIVS,
+  T refinestartU = 1.0, T refineendU = 1.0, 
+  T refinestartV = 1.0, T refineendV = 1.0)
 {
   for (int i = 0; i < int(surfaces.size()); i++)
   {
@@ -1117,7 +1164,8 @@ template <class T> void closeOuterBoundary(std::vector<TSplineSurface<T> *> &sur
     int numdivisionsU,numdivisionsV;
     surfaces[i]->getBoundaryDivs<T>(numdivisionsU,numdivisionsV,numdivisions);
 
-    closeOuterBoundaryLoop<T>(loop,numdivisionsU,numdivisionsV);
+    closeOuterBoundaryLoop<T>(loop,numdivisionsU,numdivisionsV,
+      refinestartU,refineendU,refinestartV,refineendV);
 
     boundariesUV.push_back(std::vector<std::vector<std::vector<tcad::TPoint<T>>>>());
     boundariesUV.back().push_back(loop);

@@ -36,18 +36,17 @@
 using namespace tcad;
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// SET WHAT TO DEBUG
+//!!! SET WHAT TO DEBUG !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #define DEBUG_COMMON 
 #define DEBUG_SUBMARINE
 #define DEBUG_BOOLEANS
 #define DEBUG_BOLTS
 #define DEBUG_LATTICE
+#define DEBUG_TURBOMACHINE
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-// save debugging files here, end this with slash "/"
-#define DEBUG_DIR std::string("C:/AndrewK/MyProjects2/temp/") //!!!!!!!
 
 // Let us choose double as our basic real type
 #define T double
@@ -1635,7 +1634,7 @@ int main(int argc, char* argv[])
 
     // we have all the data : camber + thickness N1 x N2 arrays, make spline surfaces
     std::vector<TSplineSurface<T> *> surfaces;
-    makeAirfoil(newcamberpoints,thickness,surfaces); 
+    makeAirfoil(newcamberpoints,thickness,true,false,surfaces); 
 
     saveSurfacesIges(surfaces,DEBUG_DIR + "airfoil surfaces.iges");
 
@@ -1686,7 +1685,7 @@ int main(int argc, char* argv[])
     5.4 Submarine : blade
   *****************************************************************************/
 
-  cout << "5.4 Submarine : blade" << endl;
+  cout << "5.4 Submarine : blade" << endl; 
 
   {
     T subL = 74.0;
@@ -1700,7 +1699,8 @@ int main(int argc, char* argv[])
     makeBladeCamberThickness<T>(upperlower,KiloBlade<T>,50,20,camberpoints,thickness,tolerance); 
 
     std::vector<TSplineSurface<T> *> surfaces;
-    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE);
+    makeAirfoil<T>(camberpoints,thickness,true,false,surfaces,
+      SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE);
 
     // rotate around Z
     TTransform<T> t;
@@ -1779,7 +1779,8 @@ int main(int argc, char* argv[])
     makeBladeCamberThickness<T>(upperlower,KiloBlade<T>,50,20,camberpoints,thickness,tolerance); 
 
     std::vector<TSplineSurface<T> *> surfaces;
-    makeAirfoil<T>(camberpoints,thickness,surfaces,SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE);
+    makeAirfoil<T>(camberpoints,thickness,true,false,surfaces,
+      SPLINE_DEGREE,SPLINE_DEGREE,END_FREE,END_FREE,END_FREE,END_FREE);
 
     // rotate around Z
     TTransform<T> t;
@@ -2071,7 +2072,7 @@ int main(int argc, char* argv[])
 
     // make two symmetric (around XZ) walls and ceiling
     makeTwoWallsAndFlatBottomTop<T>(points,subfinsurfaces,false,true,40,40,8,SPLINE_DEGREE,
-      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE,APPROXIMATED); // do not use COPIED as there are only 3 point rows
 
     // move walls and ceiling to its position
     t.LoadIdentity();
@@ -2184,7 +2185,7 @@ int main(int argc, char* argv[])
 
     // make two symmetric (around XZ) walls and ceiling
     makeTwoWallsAndFlatBottomTop<T>(points,subhumpsurfaces,false,true,40,40,8,SPLINE_DEGREE, 
-      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE);
+      END_CLAMPED,END_CLAMPED,END_FREE,END_FREE,APPROXIMATED);
 
     saveSurfacesIges(subhumpsurfaces,DEBUG_DIR + "Sub hump surfaces.iges");
   }
@@ -2254,7 +2255,11 @@ int main(int argc, char* argv[])
 
     //===== rudder =====
 
-    brudder.makeWing(NACA0009<T>,true,false,KiloWing1Contour<T>,true,false,0.1,0.0,tolerance);
+    brudder.makeWing(NACA0009<T>,true,false,KiloWing1Contour<T>,true,false,0.1,0.0,false,tolerance,false);
+
+    brudder.nameSurfaces("");
+    brudder.closeOuterBoundary();
+    brudder.saveSurfacesIges(DEBUG_DIR + "Rudder surfaces trimmed.000.iges");
 
     // rotate around
     t.LoadIdentity();
@@ -2526,7 +2531,7 @@ int main(int argc, char* argv[])
 
     TBrep<T> bfrudder(tolerance);
 
-    bfrudder.makeWing(NACA0009<T>,true,false,KiloWing2Contour<T>,true,true,0.04,0.02,tolerance);
+    bfrudder.makeWing(NACA0009<T>,true,false,KiloWing2Contour<T>,true,true,0.04,0.02,false,tolerance,false);
 
     // its shaft
     TBrep<T> bfshaft(tolerance);
@@ -3058,9 +3063,12 @@ int main(int argc, char* argv[])
     8.1 Lattice 6 x 6
   *****************************************************************************/
 
-  cout << "8.1 Lattice 6 x 6 (takes time)" << endl;
-
   {
+    // # bars in every direction
+    int numbars = 6;
+
+    cout << "8.1 Lattice " + to_string(numbars) + " x " + to_string(numbars) + " (takes time)" << endl;
+
     // bar, a cylinder of radius R and length L
     T L = 1.0;
     T R = 0.005;
@@ -3070,8 +3078,6 @@ int main(int argc, char* argv[])
     TBrep<T> bar(tolerance);
     bar.makeCylinder(L,R,R,"bar",4,4,1,1);
 
-    // # bars in every direction
-    int numbars = 6;
     T step = 1.0 / T(numbars - 1);
 
     TBrep<T> lattice(tolerance);
@@ -3086,6 +3092,8 @@ int main(int argc, char* argv[])
     // horizontal bars
     for (int i = 0; i < numbars; i++)
     {
+      cout << "adding horizontal bar " + to_string(i) + " of " + to_string(numbars) << endl;
+
       lattice = lattice + horbar;
 
       TTransform<T> t;
@@ -3103,6 +3111,8 @@ int main(int argc, char* argv[])
     // verizontal bars
     for (int i = 0; i < numbars; i++)
     {
+      cout << "adding vertical bar " + to_string(i) + " of " + to_string(numbars) << endl;
+
       // for debugging
       //lattice.nameSurfaces("l");
       //verbar.nameSurfaces("v");
@@ -3133,6 +3143,88 @@ int main(int argc, char* argv[])
 
     ASSERT(ok);
 
+    if (!ok)
+    {
+      saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#endif
+
+#ifdef DEBUG_TURBOMACHINE
+
+  /*****************************************************************************
+
+    Part 9 : turbomachine
+
+  *****************************************************************************/
+
+  headerMessage("    Part 9 : TURBOMACHINE");
+
+  /*****************************************************************************
+    9.1 Turbomachine
+  *****************************************************************************/
+
+  {
+    cout << "9.1 Turbomachine" << endl;
+
+    T L = 300.0;
+    T tolerance = L * PARM_TOLERANCE; 
+    int numblades = 3;
+
+    // axisymmetric hub
+    TBrep<T> bhub(tolerance);
+
+    bhub.makeAxisymmetricBody(TurboHub<T>,AxisZ,AxisX,"hub",0.0,360.0,2,181,181); 
+    bhub.closeOuterBoundary();
+
+    bhub.saveSurfacesIges(DEBUG_DIR + "Turbo hub surfaces.iges");
+
+    // blade
+    TBrep<T> bblade(tolerance);
+    bblade.makeWing(E178<T>,true,false,TurboContour<T>,true,false,3.0,0.0,true,tolerance,
+      true,SPLINE,5,PARM_TOLERANCE,40,80);
+
+    bblade.saveSurfacesIges(DEBUG_DIR + "Turbo blade surfaces before FFD.iges");
+
+    std::vector<TPoint<T>> oldpositions = {TPoint<T>(-74.4,10.04,50.0),TPoint<T>(-35.74,-31.51,76.28),TPoint<T>(-109.15,47.62,5.06)};
+    std::vector<TPoint<T>> newpositions = {TPoint<T>(-98.05,-12.6,63.76),TPoint<T>(-35.74,-31.51,76.28),TPoint<T>(-109.15,47.62,5.06)};
+    bblade.makeFFD(oldpositions,newpositions);
+
+    bblade.saveSurfacesIges(DEBUG_DIR + "Turbo blade surfaces.iges");
+
+    // machine
+    TBrep<T> bmachine = bhub;
+
+    T da = M_PI * 2.0 / T(numblades);
+    for (int i = 0; i < numblades; i++)
+    {
+      bmachine.nameSurfaces("m");
+      bblade.nameSurfaces("b");
+
+      bmachine = bmachine + bblade;
+
+      TTransform<T> t;
+      t.Rotate(TPoint<T>(0.0,0.0,1.0),da);
+
+      bblade.makeTransform(&t);
+    }
+
+    // minus shaft
+    TBrep<T> bshaft(tolerance);
+    bshaft.makeCylinder(300.0,10.0,10.0);
+
+    bmachine = bmachine - bshaft;
+
+    bmachine.nameSurfaces("");
+    bmachine.saveSurfacesIges(DEBUG_DIR + "Turbomachine surfaces.iges");
+
+    // save solid
+    std::vector<std::vector<TPoint<T>>> badedges;
+    bool ok = bmachine.saveSolidIges(DEBUG_DIR + "Turbomachine solid.iges",
+      bmachine.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges); 
+
+    ASSERT(ok);
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");

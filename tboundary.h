@@ -245,12 +245,13 @@ template <class T> int fullBoundaryLine(std::vector<TPoint<T>> &boundary, T parm
   }
 }
 
-/** Get (outer) boundary lines numbers [0..3] which are NOT in the loop. */
-template <class T> void getUsedBoundaryPieces(std::vector<std::vector<TPoint<T>>> &loop, 
+/** Count (outer) boundary lines numbers [0..3] which are NOT in the loop. */
+template <class T> int getUsedBoundaryPieces(std::vector<std::vector<TPoint<T>>> &loop, 
   std::array<int,4> &used, T parmtolerance = PARM_TOLERANCE)
 {
-  used.fill(false);
+  //used.fill(false);
 
+  int count = 0;
   for (int i = 0; i < int(loop.size()); i++)
   {
     bool reversed = false;
@@ -258,8 +259,53 @@ template <class T> void getUsedBoundaryPieces(std::vector<std::vector<TPoint<T>>
     if (index >= 0)
     {
       used[index] = true;
+      count++;
     }
   }
+
+  return count;
+}
+
+/** Is it an inner loop? (contains no outer boundary pieces). */
+template <class T> bool innerLoop(std::vector<std::vector<TPoint<T>>> &loop, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  std::array<int,4> used;
+  int n = getUsedBoundaryPieces(loop,used,parmtolerance);
+
+  return (n == 0);
+}
+
+/** Is it an outer loop? (contains outer boundary pieces). */
+template <class T> bool outerBoundaryLoop(std::vector<std::vector<TPoint<T>>> &loop, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  std::array<int,4> used;
+  int n = getUsedBoundaryPieces(loop,used,parmtolerance);
+
+  return (n > 0);
+}
+
+/** Full outer boundary loop? (contains 4 full boundary pieces). */
+template <class T> bool fullBoundaryLoop(std::vector<std::vector<TPoint<T>>> &loop, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  if (loop.size() != 4)
+    return false;
+
+  bool ok = true;
+
+  for (int i = 0; i < int(loop.size()); i++)
+  {
+    int index = fullBoundaryLine(loop[i],parmtolerance);
+    if (index != i)
+    {
+      ok = false;
+      break;
+    }
+  }
+
+  return ok;
 }
 
 /** Set accurate values for boundary point. */
@@ -619,6 +665,7 @@ template <class T> int intersectLoopByCut(
         );
 #else
   #if 1 //!!!!!!
+//!!!!!!
         dist0 /= T(cutpoints.size() - 1);
         dist1 /= T(looppoints.size() - 1);
         dist2 /= T(looppoints.size() - 1);

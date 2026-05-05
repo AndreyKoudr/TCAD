@@ -648,6 +648,21 @@ template <class T> int numEdgeIntersections(std::vector<std::pair<TPoint<T>,TPoi
   return count;
 }
 
+/** Segments collinear?. parmtolerance because they are compared normalised. */
+template <class T> bool segmentsCollinear(TPoint<T> p0, TPoint<T> p1, TPoint<T> v0, TPoint<T> v1,
+  T parmtolerance = PARM_TOLERANCE)
+{
+  TPoint<T> dp = +(p1 - p0);
+  TPoint<T> dv = +(v1 - v0);
+
+  T dot = std::abs(dp * dv);
+
+  // parmtolerance because they are compared normalised
+  bool collinear = (std::abs(dot - 1.0) < parmtolerance);
+
+  return collinear;
+}
+
 /** Find intersections between two curves represented as points. Every point MUST contain 
   their U parameter in W as per createPoints() in tbasecurve. UV contains intersection U 
   parameters for both curves in X and Y. */
@@ -663,14 +678,16 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
   {
     TPoint<T> p0 = points0[i];
     TPoint<T> p1 = points0[i + 1];
-    T d0 = !(p1 - p0);
+    TPoint<T> dp = p1 - p0;
+    T d0 = !dp;
 
     for (int j = 0; j < points1.size() - 1; j++)
     {
       TPoint<T> v0 = points1[j];
       TPoint<T> v1 = points1[j + 1];
-      T d1 = !(v1 - v0);
-    
+      TPoint<T> dv = v1 - v0;
+      T d1 = !dv;
+
       T t1 = 0.0;
       T t2 = 0.0;
       T dist = 0.0;
@@ -696,6 +713,27 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
             T U1 = p0.W + (p1.W - p0.W) * t1;
             T U2 = v0.W + (v1.W - v0.W) * t2;
             UV.push_back(TPoint<T>(U1,U2));
+          }
+        } else
+        {
+            // test coincident segments
+          bool collinear = segmentsCollinear(p0,p1,v0,v1,parmtolerance * 100.0); //!!!!!!
+          if (collinear && intersectCollinearSegments(p0,p1,v0,v1,t1,t2,dist,tolerance,&ip,&iv,
+            parmtolerance * 100.0)) //!!!!!!
+          {
+            // t0,t1 are guaranteed to be in 0..1
+            assert(t1 >= 0.0 - parmtolerance && t1 <= 1.0 + parmtolerance);
+            assert(t2 >= 0.0 - parmtolerance && t2 <= 1.0 + parmtolerance);
+
+            if (dist < tolerance) 
+            {
+              LIMIT(t1,0.0,1.0);
+              LIMIT(t2,0.0,1.0);
+
+              T U1 = p0.W + (p1.W - p0.W) * t1;
+              T U2 = v0.W + (v1.W - v0.W) * t2;
+              UV.push_back(TPoint<T>(U1,U2));
+            }
           }
         }
       }
@@ -1706,15 +1744,43 @@ template <class T> static bool removeDupNodes(std::vector<TPoint<T>> &points,
   int newnode = replacement[oldnode];
 */
 template <class T> bool removeDuplicates(std::vector<TPoint<T>> &points, bool sortcoords, 
-  T tolerance, std::vector<LINT> *replacement = nullptr)
+  T tolerance, std::vector<LINT> *replacement = nullptr, int dyniters = 5, T dyncoef = 10.0)
 {
   // use a more reliable way
   if (sortcoords)
   {
+    bool ok = false;
+#if 0 // not working well
+//#ifdef DYNAMIC_TOLERANCE
+    T tol = tolerance;
+    int prevsize = int(points.size());
+    std::vector<TPoint<T>> opoints = points;
+
+    for (int i = 0; i < dyniters; i++)
+    {
+      points = opoints;
+
+      std::vector<LINT> rep;
+      ok = removeDupNodes(points,rep,tol);
+
+      if (ok && replacement)
+        *replacement = rep;
+
+      int size = int(points.size());
+      if (ok && size == prevsize)
+      {
+        return true;
+      }
+
+      tol *= dyncoef;
+      prevsize = size;
+    }
+#else
     std::vector<LINT> rep;
-    bool ok = removeDupNodes(points,rep,tolerance);
+    ok = removeDupNodes(points,rep,tolerance);
     if (replacement)
       *replacement = rep;
+#endif
 
     return ok;
   }
@@ -2746,5 +2812,23 @@ template <class T> TPoint<T> crossToBeamSide(TPoint<T> beam0, TPoint<T> beam1,
 
   return cross;
 }
+
+/** Swap rows with cols. */
+template <class T> void swapRowsCols(std::vector<std::vector<TPoint<T>>> &points)
+{
+  std::vector<std::vector<TPoint<T>>> pointscopy = points;
+
+  points.clear();
+  points.resize(pointscopy[0].size(),std::vector<TPoint<T>>(pointscopy.size(),TPoint<T>()));
+
+  for (int i = 0; i < pointscopy.size(); i++)
+  {
+    for (int j = 0; j < pointscopy[i].size(); j++)
+    {
+      points[j][i] = pointscopy[i][j];
+    }
+  }
+}
+
 
 }

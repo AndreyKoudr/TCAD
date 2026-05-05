@@ -204,6 +204,31 @@ template <typename T> bool intersectSegmentsXY(T X1, T Y1, T X2, T Y2, T X3, T Y
     return false;
   }
 }
+/** Calculate porjection of a point on straight-line segment. */
+template <typename T> bool projectPointOnSegment(TPoint<T> p, TPoint<T> p0, TPoint<T> p1, 
+  TPoint<T> *intr, T *t, T parmtolerance = PARM_TOLERANCE)
+{
+  TPoint<T> v10 = p1 - p0;
+  T len = !v10;
+
+  if (len < parmtolerance)
+    return false;
+
+  TPoint<T> dir = v10 / len;
+
+  TPoint<T> v00 = p - p0;
+  *t = v00 * dir;
+  *intr = p0 + dir * (*t);
+  *t /= len;
+
+  if (*t >= 0.0 - parmtolerance && *t <= 1.0 + parmtolerance)
+  {
+    return true;
+  } else
+  {
+    return false;
+  }
+}
 
 /** Find closest points between two straight-line segments in 3D. */
 template <class T> bool intersectSegments(TPoint<T> p0, TPoint<T> p1, TPoint<T> v0, TPoint<T> v1,
@@ -252,30 +277,170 @@ template <class T> bool intersectSegments(TPoint<T> p0, TPoint<T> p1, TPoint<T> 
   return ok;
 }
 
-/** Calculate porjection of a point on straight-line segment. */
-template <typename T> bool projectPointOnSegment(TPoint<T> p, TPoint<T> p0, TPoint<T> p1, 
-  TPoint<T> *intr, T *t, T parmtolerance = PARM_TOLERANCE)
+/** Find middle of overlayed parts of two segments. */
+template <class T> bool intersectCollinearSegments(TPoint<T> p0, TPoint<T> p1, TPoint<T> v0, TPoint<T> v1,
+  T &l, T &m, T &dist, T tolerance,
+  TPoint<T> *ip = nullptr, TPoint<T> *iv = nullptr,
+  T parmtolerance = PARM_TOLERANCE)
 {
-  TPoint<T> v10 = p1 - p0;
-  T len = !v10;
+  TPoint<T> dp = p1 - p0;
+  TPoint<T> dv = v1 - v0;
 
-  if (len < parmtolerance)
+  if (!dp < TOLERANCE(T) || !dv < TOLERANCE(T))
     return false;
 
-  TPoint<T> dir = v10 / len;
+  // colllinear?
+  T dot = std::abs((+dp) * (+dv));
 
-  TPoint<T> v00 = p - p0;
-  *t = v00 * dir;
-  *intr = p0 + dir * (*t);
-  *t /= len;
+  // parmtolerance because they are compared normalised
+  bool collinear = (std::abs(dot - 1.0) < parmtolerance);
 
-  if (*t >= 0.0 - parmtolerance && *t <= 1.0 + parmtolerance)
-  {
-    return true;
-  } else
-  {
+  if (!collinear)
     return false;
+
+  TPoint<T> intr0,intr1;
+  T t0 = 0.5;
+  T t1 = 0.5;
+
+  // first is smaller, it is inside v0->v1, take the middle of smaller segment
+  if (projectPointOnSegment(p0,v0,v1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(p1,v0,v1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(p0 - intr0);
+    T dist1 = !(p1 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      l = 0.5;
+      m = (t0 + t1) * 0.5;
+      if (ip)
+        *ip = (p0 + p1) * 0.5;
+      if (iv)
+        *iv = (intr0 + intr1) * 0.5;
+      return true;
+    }
   }
+
+  // second is smaller, it is inside p0->p1, take the middle of smaller segment
+  if (projectPointOnSegment(v0,p0,p1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(v1,p0,p1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(v0 - intr0);
+    T dist1 = !(v1 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      m = 0.5;
+      l = (t0 + t1) * 0.5;
+      if (ip)
+        *ip = (intr0 + intr1) * 0.5;
+      if (iv)
+        *iv = (v0 + v1) * 0.5;
+      return true;
+    }
+  }
+
+  bool ok = false;
+  TPoint<T> p;
+
+  // first and second partially overlapping
+  // p1-----v0-----p0-----v1
+  if (projectPointOnSegment(v0,p0,p1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(p0,v0,v1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(v0 - intr0);
+    T dist1 = !(p0 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      // middle of overlapping
+      p = (v0 + p0) * 0.5;
+      ok = true;
+    }
+  }
+
+  // first and second partially overlapping
+  // p0-----v0-----p1-----v1
+  if (!ok && projectPointOnSegment(v0,p0,p1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(p1,v0,v1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(v0 - intr0);
+    T dist1 = !(p1 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      // middle of overlapping
+      p = (v0 + p1) * 0.5;
+      ok = true;
+    }
+  }
+
+  // first and second partially overlapping
+  // p0-----v1-----p1-----v0
+  if (!ok && projectPointOnSegment(v1,p0,p1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(p1,v0,v1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(v1 - intr0);
+    T dist1 = !(p1 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      // middle of overlapping
+      p = (v1 + p1) * 0.5;
+      ok = true;
+    }
+  }
+
+  // first and second partially overlapping
+  // v0-----p0-----v1-----p1
+  if (!ok && projectPointOnSegment(p0,v0,v1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(v1,p0,p1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(p0 - intr0);
+    T dist1 = !(v1 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      // middle of overlapping
+      p = (p0 + v1) * 0.5;
+      ok = true;
+    }
+  }
+
+  // first and second partially overlapping
+  // v0-----p1-----v1-----p0
+  if (!ok && projectPointOnSegment(p1,v0,v1,&intr0,&t0,parmtolerance) &&
+    projectPointOnSegment(v1,p0,p1,&intr1,&t1,parmtolerance))
+  {
+    T dist0 = !(p1 - intr0);
+    T dist1 = !(v1 - intr1);
+    dist = (dist0 + dist1) * 0.5;
+
+    if (dist0 < tolerance && dist1 < tolerance)
+    {
+      // middle of overlapping
+      p = (p1 + v1) * 0.5;
+      ok = true;
+    }
+  }
+
+  if (ok)
+  {      
+    l = !(p - p0) / (!dp);
+    m = !(p - v0) / (!dv);
+    if (ip)
+      *ip = p0 + dp * l;
+    if (iv)
+      *iv = v0 + dv * m;
+  }
+
+  return ok;
 }
 
 /** Find interval in a MONOTONICALLY INCREASING table [0..1], returns -1 as failure. 

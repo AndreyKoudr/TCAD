@@ -89,18 +89,22 @@ public:
   }
 
   /** Constructor : make straight line. */
-  TPointCurve(const TPoint<T> &v0, const TPoint<T> &v1, int numdivisions, bool parametersbynumbers = false) : TBaseCurve<T>()
+  TPointCurve(const TPoint<T> &v0, const TPoint<T> &v1, int numdivisions, bool parametersbynumbers = false,
+    T refstart = 1.0, T refend = 1.0) : TBaseCurve<T>()
   {
     this->cpoints.clear();
     parmsbynumbers = parametersbynumbers;
 
-    TPoint<T> dv = (v1 - v0) / T(numdivisions);
-    TPoint<T> v = v0;
+    TPoint<T> dv = v1 - v0;
 
     for (int i = 0; i <= numdivisions; i++)
     {
+      T U = T(i) / T(numdivisions);
+      U = refineParameter<T>(U,refstart,refend);
+
+      TPoint<T> v = v0 + dv * U;
+
       this->cpoints.push_back(v);
-      v += dv;
     }
 
     this->update();
@@ -600,6 +604,39 @@ points[i].Z = z;
     }
   }
 
+  /** Cut out a piece of curve from U0 to U1 into list of points by smoothly shifting 
+    end points to account for new length. refine... coefs are different from those in 
+    refineParameter(), they are 1.0 / coef. */
+  void shrinkPiece(T Ufrom, T Uto, std::vector<TPoint<T>> &points,
+    T refineleft = 2.0, T refineright = 2.0)
+  {
+    points.clear();
+
+    // how much cuts from start and end
+    T DU0 = Ufrom;
+    T DU1 = 1.0 - Uto;
+
+    for (int i = 0; i < int(this->cpoints.size()); i++)
+    {
+      T U = this->parms[i];
+      T u = U * 2.0 - 1.0;
+
+      T Ushift = 0.0;
+      if (u < 0.0)
+      {
+        T coef = pow(std::abs(u),refineleft);
+        Ushift = DU0 * coef;
+      } else
+      {
+        T coef = pow(std::abs(u),refineright);
+        Ushift = -DU1 * coef;
+      }
+
+      TPoint<T> p = derivative(U + Ushift,0);
+      points.push_back(p);
+    }
+  }
+
 public:
 
   // parameterisation by numbers or by length
@@ -756,57 +793,71 @@ template <class T> bool findClosest(TPointCurve<T> &curve,
     if (!busy[i])
       continue;
 
-    // test "in" curves, they have first "loop" for "in" boundaries
-    for (int j = 0; j < int(curves[i][0].size()); j++)
+    int n1 = int(curves[i].size()) - 1;
+
+    // test all curves
+    for (int k = 0; k < n1; k++)
     {
-      if (curves[i][0][j].length() > tolerance)
+      for (int j = 0; j < int(curves[i][k].size()); j++)
       {
-        T dist = !(curve.middle() - curves[i][0][j].middle());
-        if (dist < mindistin)
+        if (curves[i][k][j].length() > tolerance)
         {
-          if (inout[i] == 1 || inout[i] == 2)
+          T dist = !(curve.middle() - curves[i][k][j].middle());
+          if (dist < mindistin)
           {
-            mindistin = dist;
-            inres[0] = i;
-            inres[1] = 0;
-            inres[2] = j;
-          } else
-          {
-            mindistout = dist;
-            outres[0] = i;
-            outres[1] = 0;
-            outres[2] = j;
+            if (inout[i] == 1 || inout[i] == 2)
+            {
+              mindistin = dist;
+              inres[0] = i;
+              inres[1] = k;
+              inres[2] = j;
+            } else
+            {
+              mindistout = dist;
+              outres[0] = i;
+              outres[1] = k;
+              outres[2] = j;
+            }
           }
         }
       }
     }
 
-    // intersection curves have two "loops" the second is full untrimmed
+#if 0 //!!!!!!
+    // check unintersected boundary pieces; surface is out if connected to them 
     if (curves[i].size() > 1 && !boundariesUV[i].empty())
     {
+      // mark all uncut boundaries
       std::array<int,4> used;
-      getUsedBoundaryPieces(boundariesUV[i][0],used,parmtolerance);
+      used.fill(false);
 
-      assert(curves[i][1].size() == 4);
+      for (int k = 0; k < n1; k++)
+      {
+        getUsedBoundaryPieces(boundariesUV[i][k],used,parmtolerance);
+      }
 
-      for (int j = 0; j < int(curves[i][1].size()); j++)
+      assert(curves[i][n1].size() == 4);
+
+      for (int j = 0; j < int(curves[i][n1].size()); j++)
       {
         if (used[j])
           continue;
 
-        if (curves[i][1][j].length() > tolerance)
+        if (curves[i][n1][j].length() > tolerance)
         {
-          T dist = !(curve.middle() - curves[i][1][j].middle());
+          T dist = !(curve.middle() - curves[i][n1][j].middle());
           if (dist < mindistout)
+          //!!! does not look correct if (dist < mindistout && inout[i] > 0)
           {
             mindistout = dist;
             outres[0] = i;
-            outres[1] = 1;
+            outres[1] = n1;
             outres[2] = j;
           }
         }
       }
     }
+#endif
   }
 
   T mindist = 0.0;
@@ -847,22 +898,25 @@ template <class T> bool findClosest(int i,
 
   T mindist = std::numeric_limits<T>::max();
 
-  for (int k = 0; k < int(curves[i][0].size()); k++)
+  for (int k = 0; k < int(curves[i].size()); k++)
   {
-    std::array<int,3> res0;
-    bool reversed0 = false;
-    bool in0 = false;
-    T mindist0 = 0.0;
-
-    if (findClosest(curves[i][0][k],curves,boundariesUV,busy,inout,res0,in0,tolerance,bigtolerance,
-      parmtolerance,&reversed0,&mindist0))
+    for (int j = 0; j < int(curves[i][k].size()); j++)
     {
-      if (mindist0 < mindist && reversed0 && (res0[0] >= 0) && (inout[res0[0]] > 0)) //!!!!!!
-      //if (mindist0 < mindist)
+      std::array<int,3> res0;
+      bool reversed0 = false;
+      bool in0 = false;
+      T mindist0 = 0.0;
+
+      if (findClosest(curves[i][k][j],curves,boundariesUV,busy,inout,res0,in0,tolerance,bigtolerance,
+        parmtolerance,&reversed0,&mindist0))
       {
-        mindist = mindist0;
-        res = res0;
-        in = in0;
+        if (mindist0 < mindist && reversed0 && (res0[0] >= 0) && (inout[res0[0]] > 0)) //!!!!!!
+        //if (mindist0 < mindist)
+        {
+          mindist = mindist0;
+          res = res0;
+          in = in0;
+        }
       }
     }
   }

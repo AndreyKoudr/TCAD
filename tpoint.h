@@ -62,7 +62,8 @@ on all 4 components at once.
   v3 = v1 ^ v2      - cross product                     
   v2 = +v1          - normalisation
   float = v1 * v2   - dot product, W is ignored
-  (v1 > v2)         - vectors co-directed?    
+  (v1 > v2)         - vectors co-directed?   
+  (v1 < v2)         - angle between vectors in radians 
   bool(v1==v2)      - vectors equal?                            
   v2 = -v1          - change sign of components                 
   v3 = v1 + v2      - addition
