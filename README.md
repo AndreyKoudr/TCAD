@@ -6,7 +6,7 @@ See updates at the bottom!
 - (1) C++ templates
 - (2) As simple as all STLs
 - (3) All in source code, no first-, second- or third-party libs, not a single foreign dll
-- (4) Interface is simple, mostly one-line code (see main.cpp with examples)
+- (4) Driven by TBrep<T> with booleans and solid output (see main.cpp with examples)
 - (5) Easy debugging, heavily commented
 - (6) Free to change
 
