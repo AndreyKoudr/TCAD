@@ -181,5 +181,8 @@
     <ClInclude Include="resource.h">
       <Filter>BASICS</Filter>
     </ClInclude>
+    <ClInclude Include="TCAD.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

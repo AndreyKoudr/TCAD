@@ -11,20 +11,7 @@
 *******************************************************************************/
 
 // you can only use high-level operations
-#include "toperations.h"
-#include "tblocks.h"
-
-#include "ttriangles.h"
-#include "tbasesurface.h"
-#include "tbezierpatch.h" 
-#include "tbeziersurface.h"
-#include "tpointsurface.h" 
-#include "tsplinesurface.h" 
-#include "tbeziervolume.h" 
-#include "tsplinevolume.h" 
-#include "tdata.h" 
-#include "FFD.h" 
-#include "tbrep.h" 
+#include "TCAD.h"
 
 // this stuff is for export and debugging
 #include "strings.h"
