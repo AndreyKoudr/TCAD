@@ -290,6 +290,62 @@ template <class T> std::vector<TPoint<T>> NACA0009 = {
   TPoint<T>(1.00000, 0.0)
 };
 
+/** Rectagular cross-section points for TM pump, of thickness 0.1, these points
+  start from TE, go around LE along the upper surface and then back to TE. */
+template <class T> std::vector<TPoint<T>> TMPAirfoil = {
+#if 1
+  // half thickness
+  #define PMTH 0.05
+  TPoint<T>(1.00000, PMTH * 0.00),
+  TPoint<T>(0.90000, PMTH * sin(18.0 * CPI)), 
+  TPoint<T>(0.80000, PMTH * sin(36.0 * CPI)),
+  TPoint<T>(0.70000, PMTH * sin(54.0 * CPI)), 
+  TPoint<T>(0.60000, PMTH * sin(72.0 * CPI)),
+  TPoint<T>(0.50000, PMTH * sin(90.0 * CPI)),
+  TPoint<T>(0.40000, PMTH * sin(72.0 * CPI)), 
+  TPoint<T>(0.30000, PMTH * sin(54.0 * CPI)), 
+  TPoint<T>(0.20000, PMTH * sin(36.0 * CPI)), 
+  TPoint<T>(0.10000, PMTH * sin(18.0 * CPI)), 
+  TPoint<T>(0.00000, PMTH * 0.00),
+  TPoint<T>(0.10000,-PMTH * sin(18.0 * CPI)), 
+  TPoint<T>(0.20000,-PMTH * sin(36.0 * CPI)),
+  TPoint<T>(0.30000,-PMTH * sin(54.0 * CPI)), 
+  TPoint<T>(0.40000,-PMTH * sin(72.0 * CPI)),
+  TPoint<T>(0.50000,-PMTH * sin(90.0 * CPI)),
+  TPoint<T>(0.60000,-PMTH * sin(72.0 * CPI)), 
+  TPoint<T>(0.70000,-PMTH * sin(54.0 * CPI)), 
+  TPoint<T>(0.80000,-PMTH * sin(36.0 * CPI)), 
+  TPoint<T>(0.90000,-PMTH * sin(18.0 * CPI)), 
+  TPoint<T>(1.00000,-PMTH * 0.00)
+#else
+  TPoint<T>(1.00000, 0.00),
+  TPoint<T>(1.00000, 0.05),
+  TPoint<T>(0.90000, 0.05),
+  TPoint<T>(0.80000, 0.05),
+  TPoint<T>(0.70000, 0.05),
+  TPoint<T>(0.60000, 0.05),
+  TPoint<T>(0.50000, 0.05),
+  TPoint<T>(0.40000, 0.05),
+  TPoint<T>(0.30000, 0.05),
+  TPoint<T>(0.20000, 0.05),
+  TPoint<T>(0.10000, 0.05),
+  TPoint<T>(0.00000, 0.05),
+  TPoint<T>(0.00000, 0.00),
+  TPoint<T>(0.00000,-0.05),
+  TPoint<T>(0.10000,-0.05),
+  TPoint<T>(0.20000,-0.05),
+  TPoint<T>(0.30000,-0.05),
+  TPoint<T>(0.40000,-0.05),
+  TPoint<T>(0.50000,-0.05),
+  TPoint<T>(0.60000,-0.05),
+  TPoint<T>(0.70000,-0.05),
+  TPoint<T>(0.80000,-0.05),
+  TPoint<T>(0.90000,-0.05),
+  TPoint<T>(1.00000,-0.05),
+  TPoint<T>(1.00000, 0.00)
+#endif
+};
+
 /** Middle line of contour of Kilo propeller blade in metres. Every point contains :
   X - Z along span
   Y - X(Z) of middle line 
@@ -707,7 +763,7 @@ template <class T> std::vector<std::vector<TPoint<T>>> TurboHub = {
   }
 };
 
-/** Turboamchine blade. Blade contour of left (LE) - right (TE)
+/** Turbomachine blade. Blade contour of left (LE) - right (TE)
   points in XZ plane. Z coordinate is along span. */
 template <class T> std::vector<std::array<TPoint<T>,2>> TurboContour = {
   { TPoint<T>(-35.74, -31.51,  76.28), TPoint<T>(-109.15, 47.62,  5.06) },  // LE
@@ -722,6 +778,23 @@ template <class T> std::vector<std::array<TPoint<T>,2>> TurboContour = {
   //{ TPoint<T>(123.11,  75.7,   95.14), TPoint<T>( 84.58, 115.68, 47.53) },  // 50 // former : 45.53
   //{ TPoint<T>(172.4,  36.62,   95.23), TPoint<T>( 172.7,  35.71, 52.62) },  // -5 intervals from TE
   //{ TPoint<T>(186.37, 10.35,   95.23), TPoint<T>( 186.37,  11.6, 52.85) }   // TE
+};
+
+/** Turbomolecular pump blade "rectangular" countour, size 1.0 x 1.0. Blade 
+  contour of left (LE) - right (TE) points in XZ plane. Z coordinate is along span. */
+template <class T> std::vector<std::array<TPoint<T>,2>> TMPContour = {
+  { TPoint<T>(-0.5, 0.0,  0.0, 1.2 /* thickness multiplier! */ ), TPoint<T>(0.5, 0.0,  0.00) },  // shaft
+  { TPoint<T>(-0.5, 0.0,  0.1, 1.1), TPoint<T>(0.5, 0.0,  0.0) }, 
+  { TPoint<T>(-0.5, 0.0,  0.2, 1.0), TPoint<T>(0.5, 0.0,  0.1) }, 
+  { TPoint<T>(-0.5, 0.0,  0.3, 0.9), TPoint<T>(0.5, 0.0,  0.2) }, 
+  { TPoint<T>(-0.5, 0.0,  0.4, 0.8), TPoint<T>(0.5, 0.0,  0.4) }, 
+  { TPoint<T>(-0.5, 0.0,  0.5, 0.7), TPoint<T>(0.5, 0.0,  0.5) }, 
+  { TPoint<T>(-0.5, 0.0,  0.6, 0.6), TPoint<T>(0.5, 0.0,  0.6) }, 
+  { TPoint<T>(-0.5, 0.0,  0.7, 0.5), TPoint<T>(0.5, 0.0,  0.7) },  
+  { TPoint<T>(-0.5, 0.0,  0.8, 0.4), TPoint<T>(0.5, 0.0,  0.8) },  
+  { TPoint<T>(-0.5, 0.0,  0.9, 0.3), TPoint<T>(0.5, 0.0,  0.9) },  
+  { TPoint<T>(-0.5, 0.0,  1.0, 0.2), TPoint<T>(0.5, 0.0,  1.0) },  
+  { TPoint<T>(-0.5, 0.0,  1.1, 0.1), TPoint<T>(0.5, 0.0,  1.1) } 
 };
 
 }

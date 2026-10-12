@@ -104,6 +104,13 @@ template <class T> bool boundaryPoint(TPoint<T> p, T parmtolerance = PARM_TOLERA
     std::abs(p.Y - 1.0) < parmtolerance);
 }
 
+/** Is it a boundary point? */
+template <class T> bool boundaryPoint(TPoint<T> p, std::vector<std::vector<TPoint<T>>> &outerloop,
+  T parmtolerance = PARM_TOLERANCE)
+{
+  return onBoundary(outerloop,p,parmtolerance);
+}
+
 /** All points are boundary? */
 template <class T> bool boundaryPoints(std::vector<TPoint<T>> &points, T parmtolerance = PARM_TOLERANCE)
 {
@@ -229,6 +236,11 @@ template <class T> int fullBoundaryLine(std::vector<TPoint<T>> &boundary, T parm
   TPoint<T> p0,p1;
   boundarySideEnds(index,p0,p1);
 
+  //!!!!!!! approximate check : boundary piece length == 1.0
+  T len = calculateLength<T>(boundary);
+  if (std::abs(len - 1.0) > parmtolerance)
+    return -1;
+
   if (!(boundary.front() - p0) < parmtolerance && !(boundary.back() - p1) < parmtolerance)
   {
     if (reversed)
@@ -244,6 +256,25 @@ template <class T> int fullBoundaryLine(std::vector<TPoint<T>> &boundary, T parm
     return -1;
   }
 }
+
+/** End points are boundary? */
+template <class T> bool boundaryEnds(std::vector<TPoint<T>> &points, T parmtolerance = PARM_TOLERANCE)
+{
+  return (boundaryPoint(points.front(),parmtolerance) && boundaryPoint(points.back(),parmtolerance));
+}
+
+/** End points are boundary? */
+template <class T> bool boundaryEnds(std::vector<std::vector<TPoint<T>>> &points, T parmtolerance = PARM_TOLERANCE)
+{
+  for (auto &p : points)
+  {
+    if (!boundaryEnds<T>(p,parmtolerance))
+      return false;
+  }
+
+  return true;
+}
+
 
 /** Count (outer) boundary lines numbers [0..3] which are NOT in the loop. */
 template <class T> int getUsedBoundaryPieces(std::vector<std::vector<TPoint<T>>> &loop, 
@@ -622,7 +653,7 @@ template <class T> void divideByDuplicates(std::vector<TPoint<T>> &points,
   } 
 }
 
-/** Convert cut and loop into points with duplicate points to mark boundaries between peieces.
+/** Convert cut and loop into points with duplicate points to mark boundaries between pieces.
   Intersect loop by cut. Return number of intersections. */
 template <class T> int intersectLoopByCut(
   std::vector<std::vector<TPoint<T>>> &loop, std::vector<std::vector<TPoint<T>>> &cut, 
@@ -630,6 +661,10 @@ template <class T> int intersectLoopByCut(
   std::vector<TPoint<T>> &UV, T parmtolerance = PARM_TOLERANCE)
 {
   UV.clear();
+
+  //!!!!!!!!
+  // IMPORTANT! cut here may contain discontinuous parts! We nee to split it into
+  // continuous groups and then apply findIntersections()
 
   // make a single continuous curve from outer loop with marking sharp corners :
   // they mark every START of new curve piece
@@ -698,6 +733,14 @@ template <class T> int intersectLoopByCut(
   return numintrs;
 }
 
+/** Split intersction X or Y value into segment and segment U. */
+template <class T> void getSegmentAndU(T value, int &seg, T &U)
+{
+  // all points
+  seg = int(value);
+  U = value - T(seg);
+}
+
 /** Get segments and segment UVs from intersection parms for TWO points. */
 template <class T> void getSegment2UVs(std::vector<TPoint<T>> &UV,
   int &Useg0, T &U0, int &Useg1, T &U1, int &Vseg0, T &V0, int &Vseg1, T &V1)
@@ -709,22 +752,18 @@ template <class T> void getSegment2UVs(std::vector<TPoint<T>> &UV,
     SWAP(TPoint<T>,UV[0],UV[1]);
   }
 
-  // all points
-  Useg0 = int(UV[0].X);
-  U0 = UV[0].X - T(Useg0);
-  Useg1 = int(UV[1].X);
-  U1 = UV[1].X - T(Useg1);
+  // all (loop) points
+  getSegmentAndU(UV[0].X,Useg0,U0);
+  getSegmentAndU(UV[1].X,Useg1,U1);
 
   // now go all cut points
-  Vseg0 = int(UV[0].Y);
-  V0 = UV[0].Y - T(Vseg0);
-  Vseg1 = int(UV[1].Y);
-  V1 = UV[1].Y - T(Vseg1);
+  getSegmentAndU(UV[0].Y,Vseg0,V0);
+  getSegmentAndU(UV[1].Y,Vseg1,V1);
 }
 
 /** Cut out newpoints from points by going round the contour from newpoints end to 
   newpoints start. */
-template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0,
+template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg0, T U0, int seg1, T U1,
   TPoint<T> startUV, TPoint<T> endUV, std::vector<TPoint<T>> &newpoints, int &n3, T parmtolerance = PARM_TOLERANCE)
 {
   bool found = false;
@@ -737,7 +776,8 @@ template <class T> bool cutOutGoingRound(std::vector<TPoint<T>> &points, int seg
 
   // check FIRST same segment, this is not quite right, as the small segment may be from
   // already trimmed outer boundary
-  if (UVToBoundaryParm(endUV.X,endUV.Y,parmtolerance) > UVToBoundaryParm(startUV.X,startUV.Y,parmtolerance))
+  if (seg0 == seg1 && U1 > U0)
+//!!!!!!!  if (UVToBoundaryParm(endUV.X,endUV.Y,parmtolerance) > UVToBoundaryParm(startUV.X,startUV.Y,parmtolerance))
   {
     TPoint<T> p0 = points[seg0];
     TPoint<T> p1 = points[seg0 + 1];
@@ -903,7 +943,7 @@ template <class T> bool makeNewLoopPoints(std::vector<TPoint<T>> &cutpoints,
   // point; we always leave surface to the left, so there are TWO CASES here : 
   // point 1 has "greater" UV position when going along the boundary or "less"
   int n3 = 0;
-  bool ok = cutOutGoingRound<T>(looppoints,Vseg1,V1,startUV,endUV,newpoints,n3,parmtolerance);
+  bool ok = cutOutGoingRound<T>(looppoints,Vseg1,V1,Vseg0,V0,startUV,endUV,newpoints,n3,parmtolerance);
   if (n3 > 0)
   {
     ok = false;
@@ -1028,5 +1068,275 @@ template <class T> struct TBoundary {
   //  TPoint<T> normal();
   //}
 };
+
+/** Cut inside loop? */
+template <class T> bool cutInsideLoop(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
+{
+  //// test 1 : intersections
+  //std::vector<TPoint<T>> newpoints;
+  //std::vector<TPoint<T>> UV;
+
+  // cut curve specifies a correct direction of the loop, it must go first here
+  //for (int i = 0; i < int(cut.size()); i++)
+  //{
+  //  for (int j = 0; j < int(loop.size()); j++)
+  //  {
+  //    int numintrs = findIntersections(cut[i],loop[j],UV,parmtolerance); 
+
+  //    if (numintrs > 0)
+  //      return true;
+  //  }
+  //}
+
+  // test 2 : inside?
+  for (int i = 0; i < int(cut.size()); i++)
+  {    
+    for (int j = 0; j < int(cut[i].size()); j++)
+    {
+      bool inside = insideBoundary<T>(loop,cut[i][j],parmtolerance);
+      if (!inside)
+        return false;
+    }
+  }
+
+  return true;
+}
+
+/** Cut inside loops? */
+template <class T> bool cutInsideLoops(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<std::vector<std::vector<TPoint<T>>>> &loops, T parmtolerance = PARM_TOLERANCE)
+{
+  // loops not initialised
+  if (loops.empty())
+    return true;
+
+  // test loop 0 (normally outer)
+  bool loop0outer = outerLoop(loops[0],parmtolerance);
+
+  if (loop0outer)
+  {
+    // full standard outer loop
+    if (boundaryPoints(loops[0],parmtolerance))
+      return true;
+
+    //// one outer loop and holes //!!!
+    //if (cutInsideLoop(cut,loops[0],parmtolerance)) 
+    //  return true;
+
+    // one outer loop and holes
+    if (cutInsideLoop(cut,loops[0],parmtolerance)) 
+    {
+      // cut maybe inside a hole
+      for (int i = 1; i < int(loops.size()); i++)
+      {
+        if (cutInsideLoop(cut,loops[i],parmtolerance))
+          return false;
+      }
+
+      return true;
+    } else
+    {
+      return false;
+    }
+  } else
+  {
+    // all loops are holes, test if cut is inside any loop
+    for (int i = 0; i < int(loops.size()); i++)
+    {
+      if (cutInsideLoop(cut,loops[i],parmtolerance))
+        return true;
+    }
+  }
+
+  return false;
+}
+
+/** Aux : make cut and othercut by cutting them out of points from 0 to 1. */
+template <class T> void makeCutsFromPoints(
+  std::vector<TPoint<T>> &cutpoints,
+  std::vector<TPoint<T>> &othercutpoints,
+  int Useg0, T U0, int Useg1, T U1,
+  std::vector<std::vector<TPoint<T>>> &cut, 
+  std::vector<std::vector<TPoint<T>>> &othercut,
+  T parmtolerance = PARM_TOLERANCE)
+{
+  cut.clear();
+  othercut.clear();
+
+  // these will be cut points from intersection 1 to intersection 2
+  std::vector<TPoint<T>> newpoints;
+  std::vector<TPoint<T>> othernewpoints;
+
+  // just take all cut points void is to the right, surface is to the left
+  cutOut(cutpoints,Useg0,U0,Useg1,U1,newpoints);
+  cutOut(othercutpoints,Useg0,U0,Useg1,U1,othernewpoints);
+
+  // divide outer loop back into parts
+  divideByDuplicates<T>(newpoints,cut,parmtolerance);
+  divideByDuplicates<T>(othernewpoints,othercut,parmtolerance);
+
+  // correct points on the boundary
+  correctBoundaryPoints(cut);
+  correctBoundaryPoints(othercut);
+}
+
+/** Extract piece of cut from inside loop. cut and othercut are two intersection lines from
+  the two intersecting surfaces. */
+template <class T> bool extractCutFromLoop(
+  std::vector<std::vector<TPoint<T>>> &loop, 
+  std::vector<std::vector<TPoint<T>>> &cut, 
+  std::vector<std::vector<TPoint<T>>> &othercut,
+  T parmtolerance = PARM_TOLERANCE)
+{
+  // make a single continuous curve from outer loop with marking sharp corners :
+  // they mark every START of new curve piece
+  std::vector<TPoint<T>> allpoints;
+  std::vector<TPoint<T>> cutpoints;
+  std::vector<TPoint<T>> othercutpoints;
+
+  // find intersections, construct new points
+  std::vector<TPoint<T>> UV;
+
+  int numintrs = intersectLoopByCut(loop,cut,allpoints,cutpoints,UV,parmtolerance);
+  cutIntoPoints(othercut,othercutpoints);
+
+  // remove middle point
+  // do not have any idea how it happens
+  if (numintrs == 3)
+  {
+    UV.erase(UV.begin() + 1);
+    numintrs--;
+  }
+
+  // total cut is inside or outside
+  if (numintrs == 0)
+  {
+    bool inside = cutInsideLoop<T>(cut,loop,parmtolerance);
+    if (inside)
+    {
+      // same newcut
+      return true;
+    } else
+    {
+      // same newcut
+      return false;
+    }
+  } else if (numintrs == 1)
+  {
+    // intersection point
+    int Useg;
+    T U;
+    getSegmentAndU<T>(UV[0].X,Useg,U);
+
+    if (insideBoundary<T>(loop,cutpoints.front()))
+    {
+      if (insideBoundary<T>(loop,cutpoints.back()))
+      {
+        // all cut is inside
+        return true;
+      } else
+      {
+        // from points, update both cuts
+        makeCutsFromPoints(cutpoints,othercutpoints,0,0.0,Useg,U,
+          cut,othercut,parmtolerance);
+
+        return true;
+      }
+    } else if (insideBoundary<T>(loop,cutpoints.back()))
+    {
+      if (insideBoundary<T>(loop,cutpoints.front()))
+      {
+        // all cut is inside
+        return true;
+      } else
+      {
+        // from points, update both cuts
+        makeCutsFromPoints(cutpoints,othercutpoints,Useg,U,int(cutpoints.size()) - 2,1.0,
+          cut,othercut,parmtolerance);
+
+        return true;
+      }
+    } else
+    {
+      return false;
+    }
+  } else if (numintrs == 2)
+  {
+    int Useg0,Useg1,Vseg0,Vseg1;
+    T U0,U1,V0,V1;
+    getSegment2UVs<T>(UV,Useg0,U0,Useg1,U1,Vseg0,V0,Vseg1,V1);
+
+    // from points, update both cuts
+    makeCutsFromPoints(cutpoints,othercutpoints,Useg0,U0,Useg1,U1,
+      cut,othercut,parmtolerance);
+
+    return true;
+  } else
+  {
+    // same cut
+    return false;
+  }
+}
+
+/** Extract piece of cut from loops. */
+template <class T> bool extractCutFromLoops(
+  std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
+  std::vector<std::vector<TPoint<T>>> &cut, 
+  std::vector<std::vector<TPoint<T>>> &othercut, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  // loops not initialised
+  if (loops.empty())
+    return true;
+  if (cut.empty())
+    return true;
+
+  // test loop 0 (normally outer)
+  bool loop0outer = outerLoop(loops[0],parmtolerance);
+
+  if (loop0outer)
+  {
+    // full standard outer loop
+    if (boundaryPoints(loops[0],parmtolerance))
+      return true;
+
+    //// one outer loop and holes //!!!
+    //if (cutInsideLoop(cut,loops[0],parmtolerance)) 
+    //  return true;
+
+    // one outer loop and holes
+    if (extractCutFromLoop(loops[0],cut,othercut,parmtolerance))
+    {
+      // cut maybe inside a hole
+      bool extracted = true;
+
+      for (int i = 1; i < int(loops.size()); i++)
+      {
+        // just once is enough, not sure about inner loops //!!!!!!!
+        if (extractCutFromLoop(loops[i],cut,othercut,parmtolerance))
+          extracted = false;
+      }
+
+      return extracted;
+    } else
+    {
+      return false;
+    }
+  } else
+  {
+    bool extracted = false;
+
+    // all loops are holes, test if cut is inside any loop
+    for (int i = 0; i < int(loops.size()); i++)
+    {
+      // just once is enough, not sure about inner loops //!!!!!!!
+      if (extractCutFromLoop(loops[i],cut,othercut,parmtolerance))
+        extracted = true;
+    }
+
+    return extracted;
+  }
+}
 
 }

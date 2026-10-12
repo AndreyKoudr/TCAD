@@ -1038,7 +1038,7 @@ public:
     return std::pair<TSplineSurface<T> *,TSplineSurface<T> *>(lsurface,rsurface);
   }
 
-  /** Close outer boundary. */
+  /** Close outer boundary. Force it. */
   template <class T> void closeOuterBoundary(std::vector<std::vector<std::vector<tcad::TPoint<T>>>> &loop, 
     int numdivisions = NUM_BOUNDARYDIVS)
   {
@@ -1083,7 +1083,7 @@ protected:
     interpolate = interpolation;
   }
 
-public: //!!!!!!!
+public: //!!!!!!
   // degree in U direction
   int M1 = 0;
   // degree in V direction

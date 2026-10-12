@@ -238,7 +238,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
   removeDuplicates(intrs,true,tolerance); // true is correct here
 
   // we need two points, exclude "less rounded"
-//!!!!!!!  DO NOT DO excludeClosestNumbers<T>(intrs,tolerance,2);
+  //!!!!!!!  DO NOT DO excludeClosestNumbers<T>(intrs,tolerance,2);
 
   //!!!!!! important : set correct orientation of intersection curve : part to the right is
   // thrown off
@@ -2684,7 +2684,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
 #if 1 
     std::set<std::pair<LINT,LINT>> intrset;
-#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+#else //!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 #endif
 
@@ -2817,7 +2817,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       int count = 0;
 #if 1 
     std::set<std::pair<LINT,LINT>> intrset;
-#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+#else //!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 #endif
 
@@ -2889,7 +2889,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
 #if 1 
     std::set<std::pair<LINT,LINT>> intrset;
-#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+#else //!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 #endif
 
@@ -3220,7 +3220,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
 #if 1 
     std::set<std::pair<LINT,LINT>> intrset;
-#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+#else //!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 #endif
 
@@ -3355,7 +3355,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
       int count = 0;
 #if 1 
     std::set<std::pair<LINT,LINT>> intrset;
-#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+#else //!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 #endif
 
@@ -3427,7 +3427,7 @@ template <class T> bool TTriangles<T>::intersect(TTriangles<T> &other, int bodyl
 
 #if 1 
     std::set<std::pair<LINT,LINT>> intrset;
-#else //!!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
+#else //!!!!!! bug : first,second numbers from different triangles, (6,27) and (27,6) are not the same
     std::set<std::pair<LINT,LINT>,EdgeCompare> intrset;
 #endif
 

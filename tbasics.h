@@ -194,5 +194,12 @@ namespace tcad {
 // Default divisions for one piece (of 4) of boundary. 1000 or 400 create disply problems in Rhino.
 #define NUM_BOUNDARYDIVS 200 
 
+// Replace 4-corner boundary cutout by replacing this face by the coutout piece and setting
+// full boundary for such a face. 
+//!!! Does not work for all cases.
+//#define REPLACE_TRIMBYFACES
+
+// Make brep coutouts over outer loops cutout from other faces
+#define CUTOUT_WITHLOOPS
 }
 

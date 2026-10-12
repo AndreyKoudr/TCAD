@@ -776,6 +776,67 @@ public:
     }
   }
 
+  /** Cut out a part of surface bounded by 4-piece loop. Loop is like a normal 
+    boundary loop bounding the cut out piece counter-clockwise. */
+  template <class T> bool cutPiece(std::vector<std::vector<TPoint<T>>> &loop, std::vector<std::vector<TPoint<T>>> &points,
+    int numpointsU = MANY_POINTS2D, int numpointsV = MANY_POINTS2D)
+  {
+    if (loop.size() != 4)
+      return false;
+
+    points.clear();
+
+    // boundaries V = 0 and V = 1 from left to right
+    std::vector<TPoint<T>> V0 = loop[0];
+    std::vector<TPoint<T>> V1 = loop[2];
+    std::reverse(V1.begin(),V1.end());
+
+    // boundaries U = 0 and U = 1 bottom to top
+    std::vector<TPoint<T>> U1 = loop[1];
+    std::vector<TPoint<T>> U0 = loop[3];
+    std::reverse(U0.begin(),U0.end());
+
+    TPointCurve<T> V0spline(V0);
+    TPointCurve<T> V1spline(V1);
+    TPointCurve<T> U0spline(U0);
+    TPointCurve<T> U1spline(U1);
+
+    T DU = 1.0 / T(numpointsU - 1);
+    T DV = 1.0 / T(numpointsV - 1);
+
+    bool ok = true;
+
+    for (int i = 0; i < numpointsV; i++)
+    {
+      T V = T(i) * DV;
+      TPoint<T> left = U0spline.position(V);
+      TPoint<T> right = U1spline.position(V);
+
+      std::vector<TPoint<T>> row;
+      for (int j = 0; j < numpointsU; j++)
+      {
+        T U = T(j) * DU;
+        TPoint<T> bottom = V0spline.position(U);
+        TPoint<T> top = V1spline.position(U);
+
+        T t1,t2,Xi,Yi;
+        if (!intersectSegmentsXY<T>(left.X,left.Y,right.X,right.Y,bottom.X,bottom.Y,top.X,top.Y, 
+          &t1,&t2,&Xi,&Yi))
+        {
+          ok = false;
+          break;
+        }
+
+        TPoint<T> p = position(Xi,Yi);
+        row.push_back(p);
+      }
+
+      points.push_back(row);
+    }
+
+    return ok;
+  }
+
   /** Get XYZ difference along two boundary (cut) lines. */
   template <class T> T boundaryDifference(TBaseSurface<T> &other,
     std::vector<std::vector<TPoint<T>>> &boundary0,
@@ -1227,6 +1288,7 @@ public:
 
   /** Order cuts from starting piece. Pieces all have a correct orientation. */
   template <class T> bool orderCuts(int starting, std::vector<std::vector<TPoint<T>>> &cut, 
+    std::vector<std::vector<TPoint<T>>> &loop,
     std::vector<std::vector<TPoint<T>>> &ordered, T tolerance, T parmtolerance = PARM_TOLERANCE)
   {
     std::vector<bool> busy(cut.size(),false);
@@ -1238,7 +1300,7 @@ public:
     while (!allBusy(busy))
     {
       // success : delete this ordered piece from cuts
-      if (boundaryPoint(ordered.back().back(),parmtolerance))
+      if (boundaryPoint(ordered.back().back(),loop,parmtolerance))
       {
         // cleanup cut
         for (int i = int(busy.size()) - 1; i >= 0; i--)
@@ -1267,7 +1329,7 @@ public:
       busy[closest] = true;
 
       // success : delete this ordered piece from cuts
-      if (boundaryPoint(ordered.back().back(),parmtolerance))
+      if (boundaryPoint(ordered.back().back(),loop,parmtolerance))
       {
         // cleanup cut
         for (int i = int(busy.size()) - 1; i >= 0; i--)
@@ -1280,7 +1342,7 @@ public:
       }
     }
 
-    if (!ordered.empty() && boundaryPoint(ordered.back().back(),parmtolerance))
+    if (!ordered.empty() && boundaryPoint(ordered.back().back(),loop,parmtolerance))
     {
       // cleanup cut
       for (int i = int(busy.size()) - 1; i >= 0; i--)
@@ -1301,7 +1363,9 @@ public:
     no more than 2 pieces in the cut. tolerance is used to compare piece ends when connecting,
     it may be much bigger than parmtolerance used for boundary identification. */
   template <class T> int orderCutPieces(std::vector<std::vector<TPoint<T>>> &cut, 
-    std::vector<std::vector<std::vector<TPoint<T>>>> &allordered, T tolerance, T parmtolerance = PARM_TOLERANCE)
+    std::vector<std::vector<TPoint<T>>> &outerloop,
+    std::vector<std::vector<std::vector<TPoint<T>>>> &allordered, 
+    T tolerance, T parmtolerance = PARM_TOLERANCE)
   {
     allordered.clear();
 
@@ -1318,7 +1382,7 @@ public:
       int starting = -1;
       for (int i = 0; i < int(cut.size()); i++)
       {
-        if (boundaryPoint(cut[i].front(),parmtolerance))
+        if (boundaryPoint(cut[i].front(),outerloop,parmtolerance))
         {
           starting = i;
           break;
@@ -1331,11 +1395,11 @@ public:
       // order pieces from starting
       std::vector<std::vector<TPoint<T>>> ordered;
       // cut is modified
-      if (orderCuts(starting,cut,ordered,tolerance,parmtolerance))
+      if (orderCuts(starting,cut,outerloop,ordered,tolerance,parmtolerance))
       {
-        if (boundaryPoint<T>(ordered.front().front(),parmtolerance))
+        if (boundaryPoint<T>(ordered.front().front(),outerloop,parmtolerance))
           correctBoundaryPoint<T>(ordered.front().front());
-        if (boundaryPoint<T>(ordered.back().back(),parmtolerance))
+        if (boundaryPoint<T>(ordered.back().back(),outerloop,parmtolerance))
           correctBoundaryPoint<T>(ordered.back().back());
 
         allordered.push_back(ordered);
@@ -1597,7 +1661,7 @@ public:
 
     // step 3 : order pieces to connect start to ends
     std::vector<std::vector<std::vector<TPoint<T>>>> allordered;
-    if (!orderCutPieces(cut,allordered,bigtolerance,parmtolerance))
+    if (!orderCutPieces(cut,outerloop,allordered,bigtolerance,parmtolerance))
     {
       loops.insert(loops.end(),innerloops.begin(),innerloops.end());
       return false;
@@ -2515,88 +2579,5 @@ template <class T> bool improveIntersectionSimple(TBaseSurface<T> *F, TBaseSurfa
   parms = bestparms;
   return false;
 } 
-
-/** Cut inside loop? */
-template <class T> bool cutInsideLoop(std::vector<std::vector<TPoint<T>>> &cut,
-  std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
-{
-  //// test 1 : intersections
-  //std::vector<TPoint<T>> newpoints;
-  //std::vector<TPoint<T>> UV;
-
-  // cut curve specifies a correct direction of the loop, it must go first here
-  //for (int i = 0; i < int(cut.size()); i++)
-  //{
-  //  for (int j = 0; j < int(loop.size()); j++)
-  //  {
-  //    int numintrs = findIntersections(cut[i],loop[j],UV,parmtolerance); 
-
-  //    if (numintrs > 0)
-  //      return true;
-  //  }
-  //}
-
-  // test 2 : inside?
-  for (int i = 0; i < int(cut.size()); i++)
-  {    
-    for (int j = 0; j < int(cut[i].size()); j++)
-    {
-      bool inside = insideBoundary<T>(loop,cut[i][j],parmtolerance);
-      if (!inside)
-        return false;
-    }
-  }
-
-  return true;
-}
-
-/** Cut inside loops? */
-template <class T> bool cutInsideLoops(std::vector<std::vector<TPoint<T>>> &cut,
-  std::vector<std::vector<std::vector<TPoint<T>>>> &loops, T parmtolerance = PARM_TOLERANCE)
-{
-  // loops not initialised
-  if (loops.empty())
-    return true;
-
-  // test loop 0 (normally outer)
-  bool loop0outer = outerLoop(loops[0],parmtolerance);
-
-  if (loop0outer)
-  {
-    // full standard outer loop
-    if (boundaryPoints(loops[0],parmtolerance))
-      return true;
-
-    //// one outer loop and holes //!!!
-    //if (cutInsideLoop(cut,loops[0],parmtolerance)) 
-    //  return true;
-
-    // one outer loop and holes
-    if (cutInsideLoop(cut,loops[0],parmtolerance)) 
-    {
-      // cut maybe inside a hole
-      for (int i = 1; i < int(loops.size()); i++)
-      {
-        if (cutInsideLoop(cut,loops[i],parmtolerance))
-          return false;
-      }
-
-      return true;
-    } else
-    {
-      return false;
-    }
-  } else
-  {
-    // all loops are holes, test if cut is inside any loop
-    for (int i = 0; i < int(loops.size()); i++)
-    {
-      if (cutInsideLoop(cut,loops[i],parmtolerance))
-        return true;
-    }
-  }
-
-  return false;
-}
 
 }

@@ -1215,12 +1215,19 @@ template <class T> bool boxesOverlap(std::pair<TPoint<T>,TPoint<T>> &box0,
   std::pair<TPoint<T>,TPoint<T>> &box1)
 {
   bool overlap = 
-    box0.first.X < box1.second.X &&
-    box1.first.X < box0.second.X &&
-    box0.first.Y < box1.second.Y &&
-    box1.first.Y < box0.second.Y &&
-    box0.first.Z < box1.second.Z &&
-    box1.first.Z < box0.second.Z;
+    box0.first.X <= box1.second.X &&
+    box1.first.X <= box0.second.X &&
+    box0.first.Y <= box1.second.Y &&
+    box1.first.Y <= box0.second.Y &&
+    box0.first.Z <= box1.second.Z &&
+    box1.first.Z <= box0.second.Z;
+
+    //box0.first.X < box1.second.X &&
+    //box1.first.X < box0.second.X &&
+    //box0.first.Y < box1.second.Y &&
+    //box1.first.Y < box0.second.Y &&
+    //box0.first.Z < box1.second.Z &&
+    //box1.first.Z < box0.second.Z;
 
   return overlap;
 }

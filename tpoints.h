@@ -582,6 +582,32 @@ template <class T> bool insideBoundary(std::vector<std::vector<TPoint<T>>> &boun
   }
 }
 
+/** Is point on boundary? */
+template <class T> bool onBoundary(std::vector<std::vector<TPoint<T>>> &boundary, TPoint<T> point, 
+  T parmtolerance = PARM_TOLERANCE)
+{
+  for (int i = 0; i < int(boundary.size()); i++)
+  {
+    for (int j = 0; j < int(boundary[i].size()) - 1; j++)
+    {
+      TPoint<T> p0 = boundary[i][j];
+      TPoint<T> p1 = boundary[i][j + 1];
+
+      // right on the boundary?
+      T t = 0;
+      TPoint<T> intr;
+      if (projectPointOnSegment(point,p0,p1,&intr,&t,parmtolerance))
+      {
+        T d = !(point - intr);
+        if (d < parmtolerance)
+          return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 /** Calculate number of intersections of segment p0->p1 with edges in XY plane. */
 template <class T> int numEdgeIntersectionsXY(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
   TPoint<T> p0, TPoint<T> p1, T tolerance)
@@ -2022,14 +2048,35 @@ template <class T> void makeEllipseXY(int numpoints, int numparts, TPoint<T> cen
   }
 }
 
-/** Cut out piece of points from 0 to 1. Last possible seg1 must be points.size() - 2. */
+/** Get contour point from segment number and U within segment. //!!! UNTESTED and not used. */
+template <class T> TPoint<T> getPoint(std::vector<TPoint<T>> &points, int seg, T U)
+{
+  if (seg == points.size() - 1)
+  {
+    seg = int(points.size()) - 2;
+    U = 1.0;
+  }
+
+  TPoint<T> p0 = points[seg];
+  TPoint<T> p1 = points[seg + 1];
+  TPoint<T> dp = p1 - p0;
+  TPoint<T> p = p0 + dp * U;
+
+  return p;
+}
+
+/** Cut out piece of points from 0 to 1. Last possible seg1 must be points.size() - 2. 
+  Zero-length segments are counted as well. */
 template <class T> void cutOut(std::vector<TPoint<T>> &points, int seg0, T U0, int seg1, T U1,
   std::vector<TPoint<T>> &newpoints)
 {
-  if (seg1 == points.size() - 1)
+  bool veryend = false;
+
+  if (seg1 >= points.size() - 1)
   {
     seg1 = int(points.size()) - 2;
     U1 = 1.0;
+    veryend = true;
   }
 
   for (int i = seg0; i <= seg1; i++)
@@ -2061,6 +2108,9 @@ template <class T> void cutOut(std::vector<TPoint<T>> &points, int seg0, T U0, i
 
       if (i == seg1)
       {
+        if (veryend)
+          newpoints.push_back(p0);
+
         p = p0 + dp * U1;
       }
 
@@ -2284,6 +2334,31 @@ template <class T> void makeStraightLine(TPoint<T> p0, TPoint<T> p1, int numpoin
     T U = T(i) / T (numpoints - 1);
     TPoint<T> p = p0 + d * U;
     points.push_back(p);
+  }
+}
+
+/** Make rectangle of straight lines. p0 -> p3 are are numbered counterclockwise with
+  p0 being the lowest left corner. Like that in Bezier patch. */
+template <class T> void makeRectPoints(TPoint<T> p0, TPoint<T> p1, TPoint<T> p2, TPoint<T> p3, 
+  int numpointsU, int numpointsV, std::vector<std::vector<TPoint<T>>> &points)
+{
+  assert(numpointsU > 1 && numpointsV > 1);
+
+  points.clear();
+
+  TPoint<T> dleft = p3 - p0;
+  TPoint<T> dright = p2 - p1;
+  for (int i = 0; i < numpointsV; i++)
+  {
+    T V = T(i) / T (numpointsV - 1);
+
+    TPoint<T> left = p0 + dleft * V;
+    TPoint<T> right = p1 + dright * V;
+
+    std::vector<TPoint<T>> Upoints;
+    makeStraightLine(left,right,numpointsU,Upoints);
+
+    points.push_back(Upoints);
   }
 }
 

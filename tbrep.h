@@ -188,6 +188,31 @@ public:
     tcad::clearOuterBoundary<T>(surfaces,boundariesUV);
   }
 
+  /** Flip normals by swapping U direction. Allowed only before trimming 
+    boundaries, which is not good; trimmed boundariesUV can also be corrected
+    when swapping U, what is not done yet. Done, but untested. */
+  void flipNormals()
+  {
+    reverseSurfaces(surfaces);
+
+    //!!!!!! untested
+    for (auto &surface : boundariesUV)
+    {
+      for (auto &loop : surface)
+      {
+        for (auto &piece : loop)
+        {
+          for (auto &p : piece)
+          {
+            p.X = 1.0 - p.X;
+          }
+          std::reverse(piece.begin(),piece.end());
+        }
+        std::reverse(loop.begin(),loop.end());
+      }
+    }
+  }
+
   //===== Booleans =====
 
   /** Booleans : union. */
@@ -445,8 +470,10 @@ public:
     makeTransform(surfaces,&t);
   }
 
-  /** Make cylinder of radius R of length L around Z with centre at 0,0,0. if numfacesbottom = 0 or
-    numfacestop = 0, there is no bottom/top correspondingly. */
+  /** Make cylinder of radius R of length L around Z with centre at 0,0,0. if 
+    numfacesbottom = 0 or numfacestop = 0, there is no bottom/top correspondingly.
+    makeslice - if true (and not 0.0..360.0), the two slice side faces are added 
+    to make the slice closed. */
   void makeCylinder(T L, T Rbottom, T Rtop,
     std::string name = "",
     // num faces around
@@ -465,7 +492,8 @@ public:
     int K1 = 32, int K2 = 32, 
     int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
     CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
-    CurveEndType startV = END_FIXED, CurveEndType endV = END_FIXED)
+    CurveEndType startV = END_FIXED, CurveEndType endV = END_FIXED,
+    bool makeslice = false)
   {
     assert(numfaces >= 2);
     assert(numfacesL >= 1);
@@ -489,8 +517,40 @@ public:
     }
 
     // contour in XY
+    auto contour0 = contour;
     makeAxisymmetricBody(contour,AxisX,AxisY,
       name,angdegfrom,angdegto,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+
+    // add two side slide faces
+    if (makeslice && std::abs(angdegto - angdegfrom - 360.0) > PARM_TOLERANCE && contour.size() == 3)
+    {
+      std::vector<std::vector<TPoint<T>>> points;
+      makeRectPoints(contour0[0].front(),contour0[1].front(),contour0[2].front(),contour0[2].back(), 
+        numfacesbottom + 1,numfacesL + 1,points);
+
+      TTransform<T> t;
+      t.Rotate(TPoint<T>(0.0,0.0,1.0),-90.0 * CPI);
+      tcad::makeTransform<T>(points,&t);
+
+      t.LoadIdentity();
+      t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+      tcad::makeTransform<T>(points,&t);
+
+      t.LoadIdentity();
+      t.Rotate(TPoint<T>(0.0,0.0,1.0),angdegfrom * CPI);
+      tcad::makeTransform<T>(points,&t);
+
+      TSplineSurface<T> *surface = new TSplineSurface<T>(points,K1,M1,K2,M2,END_FIXED,END_FIXED,END_FIXED,END_FIXED);
+      surface->reverseU();
+      surfaces.push_back(surface);
+
+      t.LoadIdentity();
+      t.Rotate(TPoint<T>(0.0,0.0,1.0),(angdegto  - angdegfrom) * CPI);
+      tcad::makeTransform<T>(points,&t);
+
+      surface = new TSplineSurface<T>(points,K1,M1,K2,M2,END_FIXED,END_FIXED,END_FIXED,END_FIXED);
+      surfaces.push_back(surface);
+    }
   }
 
   /** Make a wing.
@@ -532,7 +592,10 @@ public:
     closebottomtip - true if to close bottom tip with bottomradius, no fillet if bottomradius == 0.0
     K1 - number of spline intervals along U (along chord)
     K2 - number of spline intervals along V (along span)
-    cutsurfacesintwo - cut all surfaces along middle to avoid two degenerated edges (U = 0 and U = 1)
+    cutsurfacesintwo - cut all surfaces along middle to avoid two degenerated edges (U = 0 and U = 1).
+
+    In contour : if W of first point > 0.0 and < 1.0, airfoil coordinates are scaled to this value
+    (thickness changed).
   */
   bool makeWing(std::vector<TPoint<T>> &airfoil, bool roundLE, bool roundTE,
     std::vector<std::array<TPoint<T>,2>> &contour, 
@@ -734,7 +797,7 @@ public:
     return true;
   }
 
-  /** Make box with with four rounded corners (int XY plane) of three boxes 
+  /** Make box with with four rounded corners (in XY plane) of three boxes 
     and four quarter-cylinders. bottom is faces with Zmin, top - with Zmax. */
   bool makeBoxRounded4(T dx, T dy, T dz, T radius,
     bool makebottom, bool maketop,

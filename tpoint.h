@@ -101,7 +101,8 @@ public:
     W = (T) (0.0);
   }
 
-  TPoint(T x, T y = 0.0, T z = 0.0, T w = 0.0) 
+  TPoint(T x, T y = 0.0, T z = 0.0, T w = 1.0) 
+ //!!!!!!! TPoint(T x, T y = 0.0, T z = 0.0, T w = 0.0) 
   { 
     X = x; Y = y; Z = z; W = w; 
   }

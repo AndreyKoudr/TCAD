@@ -698,6 +698,24 @@ template <class T> void closeFaceLoops(std::vector<TSplineSurface<T> *> &surface
         {
           bool ok = surfaces[i]->closeBoundaryLoop(boundary,boundariesUV[i],
             maxseglen * 2.0,parmtolerance,manypoints - 1);
+
+#ifdef REPLACE_TRIMBYFACES
+          // cut part of boundary from the surface to make it full boundary again
+          if (ok && boundariesUV[i].size() == 1 && boundariesUV[i][0].size() == 4 && 
+            !fullBoundaryLoop<T>(boundariesUV[i][0],parmtolerance) &&
+            boundaryEnds<T>(boundariesUV[i][0],parmtolerance))
+          {
+            std::vector<std::vector<TPoint<T>>> points;
+            if (surfaces[i]->cutPiece(boundariesUV[i][0],points,manypoints,manypoints))
+            {
+              TSplineSurface<T> *surface = new TSplineSurface<T>(points,surfaces[i]->K1,surfaces[i]->M1,surfaces[i]->K2,surfaces[i]->M2,
+                END_FIXED,END_FIXED,END_FIXED,END_FIXED); //!!! fixed
+              DELETE_CLASS(surfaces[i]);
+              surfaces[i] = surface;
+              surfaces[i]->closeOuterBoundary<T>(boundariesUV[i]);
+            }
+          }
+#endif
         }
       }
     }

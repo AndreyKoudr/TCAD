@@ -589,16 +589,20 @@ template <class T> void makeBladeCamber(
 {
   camberpoints.clear();
 
-  std::vector<TPoint<T>> left,right;
+  std::vector<TPoint<T>> left,right,thickcoef;
   for (auto &p : leftright)
   {
     left.push_back(p[0]);
     right.push_back(p[1]);
+
+    // to smooth thickness coef, W 
+    thickcoef.push_back(TPoint<T>(p[0].W,0.0,p[0].Z));
   }
 
   // smooth left/right contour points, do not use ORTHO with few points
   smoothPoints<T>(left,smooth,smoothparameter,numchordpoints,start,end,degree); 
   smoothPoints<T>(right,smooth,smoothparameter,numchordpoints,start,end,degree);
+  smoothPoints<T>(thickcoef,smooth,smoothparameter,numchordpoints,start,end,degree);
 
 #ifdef DEBUG_BLOCKS
   {
@@ -615,6 +619,7 @@ template <class T> void makeBladeCamber(
   // now make camber and thickness
   TPointCurve<T> leftspline(left);  
   TPointCurve<T> rightspline(right);
+  TPointCurve<T> thickspline(thickcoef);
 
   for (int k = 0; k < numspanpoints; k++)
   {
@@ -625,6 +630,8 @@ template <class T> void makeBladeCamber(
     TPoint<T> p0 = leftspline.position(W);
     TPoint<T> p1 = rightspline.position(W);
     TPoint<T> dp = p1 - p0;
+    // thickness coef
+    T tcoef = thickspline.position(W).X;
 
     camberpoints.push_back(std::vector<TPoint<T>>());
 
@@ -634,6 +641,10 @@ template <class T> void makeBladeCamber(
       U = refineParameter(U,refinechordstart,refinechordend);
 
       TPoint<T> p = p0 + dp * U;
+
+      // camber points contain thickness coef in W
+      p.W = tcoef;
+
       camberpoints.back().push_back(p);
     }
   }
@@ -673,11 +684,13 @@ template <class T> void makeBladeThickness(std::vector<TPoint<T>> &airfoilupperl
 
     // chord length
     T chord = calculateLength<T>(camberpoints[k]);
+    // thickness coef
+    T tcoef = camberpoints[k][0].W;
 
     for (int j = 0; j < int(camberpoints[k].size()); j++)
     {
       T U = calculateLength(camberpoints[k],j) / chord;
-      T thick = !(ucurve.position(U) - lcurve.position(U)) * chord; 
+      T thick = !(ucurve.position(U) - lcurve.position(U)) * chord * tcoef; 
       thickness.back().push_back(thick);
     }
   }
@@ -817,7 +830,7 @@ template <class T> void makeSurfacesOfRevolution(std::vector<std::vector<TPoint<
   T angdegfrom = 0.0, T angdegto = 360.0, 
   int M1 = SPLINE_DEGREE, int M2 = SPLINE_DEGREE,
   CurveEndType startU = END_CLAMPED, CurveEndType endU = END_CLAMPED, // must be round
-  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE) 
+  CurveEndType startV = END_FREE, CurveEndType endV = END_FREE)
 {
   for (int i = 0; i < int(contour.size()); i++)
   {
@@ -856,15 +869,63 @@ template <class T> bool intersectSurfaces(
 
   if (ok)
   {
+#if 0 // left for testing
+
+    // cut intersections to fit inside loop, maybe incorrect for inner loop //!!!!!!!
+    auto aboundary0 = *boundary0;
+    auto aboundary1 = *boundary1;
+    auto tboundaries0 = (*tboundariesUV0)[i];
+    auto tboundaries1 = (*tboundariesUV1)[j];
+
+    bool okold = cutInsideLoops<T>(aboundary0,tboundaries0,parmtolerance) &&
+      cutInsideLoops<T>(aboundary1,tboundaries1,parmtolerance);
+
+    ok = extractCutFromLoops<T>((*tboundariesUV0)[i],*boundary0,*boundary1,parmtolerance) &&
+      cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance) &&
+      cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance) &&
+      extractCutFromLoops<T>((*tboundariesUV1)[j],*boundary1,*boundary0,parmtolerance) &&
+      cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance) &&
+      cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance);
+
+    if (ok != okold || 
+      aboundary0[0].size() != (*boundary0)[0].size() ||
+      aboundary1[0].size() != (*boundary1)[0].size())
+    {
+      errorMessage("ok = " + to_string(int(ok)) + " ok old = " + to_string(int(okold)));
+      errorMessage("i = " + to_string(i) + " j = " + to_string(j) + 
+        " s " + to_string(aboundary0.size()) + " s " + to_string(aboundary1.size()) + 
+        " s0 " + to_string(aboundary0[0].size()) + " s0 " + to_string((*boundary0)[0].size()) + 
+        " s " + to_string(tboundaries0.size()) + " s " + to_string(tboundaries1.size()));
+    }
+
+#else
+
+#ifdef CUTOUT_WITHLOOPS
+    if (!cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance) ||
+      !cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance))
+    {
+      // cut intersections to fit inside loop, maybe incorrect for inner loop //???????
+      ok = extractCutFromLoops<T>((*tboundariesUV0)[i],*boundary0,*boundary1,parmtolerance) &&
+        cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance) &&
+        cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance) &&
+        extractCutFromLoops<T>((*tboundariesUV1)[j],*boundary1,*boundary0,parmtolerance) &&
+        cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance) &&
+        cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance);
+    }
+#else
     // check if the cutting curve is inside existing loops
     if (!cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance) ||
       !cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance))
       ok = false;
+#endif
+
+#endif
   }
 
   if (ok)
   {
     assert(boundary0->size() == boundary1->size());
+    //assert((*boundary0)[0].size() == (*boundary1)[0].size());
 
     // calculate difference in boundary lines
     T maxdiff = 0.0;
@@ -1027,7 +1088,7 @@ template <class T> bool makeTrimming(
   {
   }
 
-  if (clearboundaries || operation == SUBTRACT || operation == INTERSECT) //!!!!!!!
+  if (clearboundaries || operation == SUBTRACT || operation == INTERSECT) //!!!!!!
   {
     if (operation == INTERSECT)
       tboundariesUV0.clear();
@@ -1138,6 +1199,7 @@ template <class T> bool makeTrimming(
   for (LINT i = 0; i < int(tsurfaces0.size()); i++)
   {
     std::pair<TPoint<T>,TPoint<T>> mm = tsurfaces0[i]->getMinMax();
+    extendMinMax<T>(mm.first,mm.second,1.0 + parmtolerance,TPoint<T>(tolerance,tolerance,tolerance * 10.0));
 
     std::array<TPoint<T>,8> corners;
     makeBox<T>(mm.first,mm.second,corners);
@@ -1156,6 +1218,7 @@ template <class T> bool makeTrimming(
   for (LINT i = 0; i < int(tsurfaces1.size()); i++)
   {
     std::pair<TPoint<T>,TPoint<T>> mm = tsurfaces1[i]->getMinMax();
+    extendMinMax<T>(mm.first,mm.second,1.0 + parmtolerance,TPoint<T>(tolerance,tolerance,tolerance * 10.0));
 
     std::array<TPoint<T>,8> corners;
     makeBox<T>(mm.first,mm.second,corners);
@@ -1250,6 +1313,13 @@ template <class T> bool makeTrimming(
   #endif
 
 #if 1
+
+//!!!!!!!
+if (i == 14 && j == 1)
+{
+  parmtolerance += 0.0000000001;
+}
+
         bool ok = intersectSurfaces(i,j,operation,&tsurfaces0,&tsurfaces1,
           &tboundariesUV0,&tboundariesUV1,&boundary0,&boundary1,&maxseglen,
           tolerance,parmtolerance,bodyleft,manypoints);
@@ -1371,10 +1441,21 @@ template <class T> bool makeTrimming(
   // extend faces from cut faces keeping orientation
   closeConnectedFaces(tsurfaces1,tboundariesUV1,boundaries1,exlist1,tolerance,tolerance * 1000.0,parmtolerance); //!!!!!!
 
-//for (int i = 0; i < int(surfaces1.size()); i++)
-//{
-//  saveTrimmedSurfaceIges<T>(surfaces1[i],tboundariesUV1[i],to_string(i) + ".iges"); 
-//}
+#ifdef DEBUG_BLOCKS
+  bool printbrep = false;
+
+  if (printbrep)
+  {
+    for (int i = 0; i < int(tsurfaces0.size()); i++)
+    {
+      saveTrimmedSurfaceIges<T>(tsurfaces0[i],tboundariesUV0[i],"0_" + to_string(i) + ".iges"); 
+    }
+    for (int i = 0; i < int(tsurfaces1.size()); i++)
+    {
+      saveTrimmedSurfaceIges<T>(tsurfaces1[i],tboundariesUV1[i],"1_" + to_string(i) + ".iges"); 
+    }
+  }
+#endif
 
   // combine all into one list
   deleteSurfaces(surfaces);
@@ -1385,6 +1466,17 @@ template <class T> bool makeTrimming(
   boundariesUV.insert(boundariesUV.end(),tboundariesUV1.begin(),tboundariesUV1.end());
 
   ASSERT(surfaces.size() == boundariesUV.size());
+
+#ifdef DEBUG_BLOCKS
+  if (printbrep)
+  {
+    for (int i = 0; i < int(surfaces.size()); i++)
+    {
+      if (!boundariesUV[i].empty())
+        saveTrimmedSurfaceIges<T>(surfaces[i],boundariesUV[i],to_string(i) + ".iges"); 
+    }
+  }
+#endif
 
   // no intersections?
   bool nointrs = true;
@@ -1794,7 +1886,6 @@ template <class T> void makeSpiral(std::vector<TPoint<T>> &contour, T step,
   for (int i = 0; i <= numsteps; i++)
   {
     T U = T(i) / T(numsteps);
- //!!!!!!!!   T U = T(i) / T(numsteps);
 
     TPoint<T> c = bcontour.position(U);
 
