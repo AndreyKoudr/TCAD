@@ -662,13 +662,14 @@ template <class T> int intersectLoopByCut(
 {
   UV.clear();
 
-  //!!!!!!!!
-  // IMPORTANT! cut here may contain discontinuous parts! We nee to split it into
-  // continuous groups and then apply findIntersections()
-
   // make a single continuous curve from outer loop with marking sharp corners :
   // they mark every START of new curve piece
   cutIntoPoints(loop,looppoints);
+
+  //!!!!!!!!
+  // IMPORTANT! the loop is always closed but
+  // the cut here may contain discontinuous parts! We need to split it into
+  // continuous groups and then apply findIntersections()
 
   // set W for cut
   cutIntoPoints(cut,cutpoints);
@@ -1181,9 +1182,9 @@ template <class T> void makeCutsFromPoints(
   correctBoundaryPoints(othercut);
 }
 
-/** Extract piece of cut from inside loop. cut and othercut are two intersection lines from
+/** Extract a CONTINUOUS piece of cut from inside loop. cut and othercut are two intersection lines from
   the two intersecting surfaces. */
-template <class T> bool extractCutFromLoop(
+template <class T> bool extractSingleCutFromLoop(
   std::vector<std::vector<TPoint<T>>> &loop, 
   std::vector<std::vector<TPoint<T>>> &cut, 
   std::vector<std::vector<TPoint<T>>> &othercut,
@@ -1277,6 +1278,48 @@ template <class T> bool extractCutFromLoop(
     // same cut
     return false;
   }
+}
+
+/** Extract pieces of cut from the inside loop. cuts and othercut are two intersection lines from
+  the two intersecting surfaces. */
+template <class T> bool extractCutFromLoop(
+  std::vector<std::vector<TPoint<T>>> &loop, 
+  std::vector<std::vector<TPoint<T>>> &cut, 
+  std::vector<std::vector<TPoint<T>>> &othercut,
+  T parmtolerance = PARM_TOLERANCE)
+{
+  std::vector<std::vector<std::vector<TPoint<T>>>> groups,ogroups;
+  splitIntoContinuousGroups<T>(cut,groups,parmtolerance);
+  splitIntoContinuousGroups<T>(othercut,ogroups,parmtolerance);
+
+  // the distance between pieces is in real world, so both cuts must have
+  // same gaps
+  assert(groups.size() == ogroups.size());
+  if (groups.size() != ogroups.size())
+    return false;
+  if (groups.empty())
+    return false;
+  if (ogroups.empty())
+    return false;
+
+  bool ok = false;
+  cut.clear();
+  othercut.clear();
+
+  for (int i = 0; i < int(groups.size()); i++)
+  {
+    if (extractSingleCutFromLoop(loop,groups[i],ogroups[i],parmtolerance))
+    {
+      for (auto &g : groups[i])
+        cut.push_back(g);
+      for (auto &g : ogroups[i])
+        othercut.push_back(g);
+
+      ok = true;
+    }
+  }
+
+  return ok;
 }
 
 /** Extract piece of cut from loops. */

@@ -2905,5 +2905,26 @@ template <class T> void swapRowsCols(std::vector<std::vector<TPoint<T>>> &points
   }
 }
 
+/** Cuts may be continuous but maybe separate parts of std::vector<TPoint<T>> points. 
+  We need groups of continuous cuts. */
+template <class T> void splitIntoContinuousGroups(std::vector<std::vector<TPoint<T>>> &cut,
+  std::vector<std::vector<std::vector<TPoint<T>>>> &groups, T parmtolerance = PARM_TOLERANCE)
+{
+  groups.clear();
+
+  // last point
+  TPoint<T> back(-1.0,-1.0,-1.0);
+
+  for (int i = 0; i < int(cut.size()); i++)
+  {
+    T dist = !(back - cut[i].front());
+    if (dist > parmtolerance)
+    {
+      groups.push_back(std::vector<std::vector<TPoint<T>>>());
+    }
+    groups.back().push_back(cut[i]);
+    back = cut[i].back();
+  }
+}
 
 }

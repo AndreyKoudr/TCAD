@@ -3226,7 +3226,11 @@ int main(int argc, char* argv[])
     /** https://en.wikipedia.org/wiki/Turbomolecular_pump */
 
     // make only periodic parts of stator and rotor
-    // #define PERIODIC_TMP
+    #define PERIODIC_TMP
+
+    // take only rotor blade, without piece of shaft, in case of periodic part,
+    // not working well if undefined
+    #define ONLY_ROTORBLADE
 
     cout << "9.2 Turbomolecular pump, one stage" << endl << endl;
 
@@ -3275,7 +3279,7 @@ int main(int argc, char* argv[])
     T speriod = 360.0 / T(stator_numblades);
 
 #ifndef PERIODIC_TMP
-    errorMessage("Full pump, will take time!");
+    errorMessage("Full pump, will take time! Set PERIODIC_TMP in case you need periodic");
 #else
     cout << "periodic part, period " + to_string(period) + " deg" << endl << endl;
 #endif
@@ -3360,13 +3364,26 @@ int main(int argc, char* argv[])
     // minus shaft
     TBrep<T> shaft(tolerance);
 
-#if 0
-//#ifdef PERIODIC_TMP
+#ifdef PERIODIC_TMP
+  #ifdef ONLY_ROTORBLADE
+    shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
+      -180,180.0,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
+  #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces * (stator_blades_per_period + 1) / stator_numblades,
       4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      //-period * 0.5 / inside_coef,+period * 0.5 / inside_coef,
+    //  -period * 0.5,+period * 0.5,
+    //  -period * 0.5 / inside_coef,+period * 0.5 / inside_coef,
       -speriod * T(stator_blades_per_period + 1) * 0.5,+speriod * T(stator_blades_per_period + 1) * 0.5,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,true); 
+
+    // cutter for rotor blade root near shaft
+    TBrep<T> shaftcutter(tolerance);
+    shaftcutter.makeCylinder(Lcasing * 1.2,Rshaft - d,Rshaft - d,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
+      -180,180.0,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
+
+  #endif
 #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
       -180,180.0,
@@ -3439,6 +3456,14 @@ int main(int argc, char* argv[])
 
     // cut blade by blade cutter to fit into domain with d
     rblade = rblade ^ bladecutter;
+
+    // cut rotor blade near the root
+#ifdef PERIODIC_TMP
+  #ifndef ONLY_ROTORBLADE
+    rblade = rblade - shaftcutter;
+  #endif
+#endif
+
     rblade.saveSurfacesIges(DEBUG_DIR + "TM pump rotor blade.002.iges");
 
 /*
@@ -3491,7 +3516,11 @@ int main(int argc, char* argv[])
 #endif
 
 #ifdef PERIODIC_TMP
+  #ifdef ONLY_ROTORBLADE
       rotor = rblade - rotor;
+  #else
+      rotor = rotor + rblade;
+  #endif
 #else
       rotor = rotor + rblade;
 #endif
@@ -3584,11 +3613,7 @@ int main(int argc, char* argv[])
       cout << "adding stator blade " << i << " of " << stator_numblades << endl;
 #endif
 
-#ifdef PERIODIC_TMP
       stator = stator + sblade;
-#else
-      stator = stator + sblade;
-#endif
 
       TTransform<T> t;
       t.Rotate(TPoint<T>(0.0,0.0,1.0),da);
