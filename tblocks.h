@@ -904,7 +904,7 @@ template <class T> bool intersectSurfaces(
     if (!cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance) ||
       !cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance))
     {
-      // cut intersections to fit inside loop, maybe incorrect for inner loop //???????
+      // cut intersections to fit inside loop, maybe incorrect for inner loop //?????? do not know, looks all is fine
       ok = extractCutFromLoops<T>((*tboundariesUV0)[i],*boundary0,*boundary1,parmtolerance) &&
         cutInsideLoops<T>(*boundary0,(*tboundariesUV0)[i],parmtolerance) &&
         cutInsideLoops<T>(*boundary1,(*tboundariesUV1)[j],parmtolerance) &&
@@ -981,7 +981,7 @@ template <class T> bool intersectSurfaces(
       std::reverse(boundary0->begin(),boundary0->end());
     }
 
-    bool reverse1 = !reverse0; //???????
+    bool reverse1 = !reverse0; //??????
 
     if (reverse1)
     {
@@ -1407,7 +1407,7 @@ if (i == 14 && j == 1)
             std::reverse(boundary0.begin(),boundary0.end());
           }
 
-          bool reverse1 = !reverse0; //???????
+          bool reverse1 = !reverse0; //??????
 
           if (reverse1)
           {
@@ -1874,7 +1874,7 @@ template <class T> void makeSpiral(std::vector<TPoint<T>> &contour, T step,
   T len = Zmax - Zmin;
 
   TPointCurve<T> bcontour(contour);
- //!!!!!!!! TOrthoSegment<T> bcontour(contour,0.0,0.0,opower);
+ //!!!!!!! TOrthoSegment<T> bcontour(contour,0.0,0.0,opower);
 
   // assume diameter not changing
   int numsteps = ROUND(len * T(numdivsper360) / step);
@@ -2049,7 +2049,7 @@ template <class T> void makeThread(std::vector<TPoint<T>> &contour,
       TSplineSurface<T> *surface = new TSplineSurface<T>(points, 
         1,degree,END_FIXED,END_FIXED,END_FIXED,END_FIXED,COPIED);
 
-      surface->reverseU(); //!!!!!!!!
+      surface->reverseU(); //!!!!!!!
 
       surfaces.push_back(surface);
     }

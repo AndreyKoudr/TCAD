@@ -256,6 +256,43 @@ bool rewriteSTLAsBinary(const std::string &filename)
 int main(int argc, char* argv[])
 {
 #if 0
+      std::vector<TPoint<T>> loop; 
+      std::vector<std::array<TPoint<T>,3>> tris;
+   //   flattenLoop<T>(boundariesUV[i][0],loop);
+
+loop.push_back(TPoint<T>(0,0));
+loop.push_back(TPoint<T>(0.5,0));
+loop.push_back(TPoint<T>(1,0));
+loop.push_back(TPoint<T>(1,0.5));
+loop.push_back(TPoint<T>(1,1));
+loop.push_back(TPoint<T>(0.5,1));
+loop.push_back(TPoint<T>(0,1));
+loop.push_back(TPoint<T>(0,0.5));
+      triangulate<T>(loop,tris);
+      {
+        TTriangles<T> trs(tris);
+        trs.saveSTL(DEBUG_DIR + "face.STL","face",false);
+      }
+
+#endif
+
+#if 0
+  TSplineSurface<T> s;
+  std::vector<std::vector<std::vector<tcad::TPoint<T>>>> boundary;
+  s.closeOuterBoundary(boundary,10);
+  std::vector<TPoint<T>> loop; 
+  std::vector<std::array<TPoint<T>,3>> tris;
+  flattenLoop<T>(boundary[0],loop);
+
+  if (triangulate<T>(loop,tris,0.03))
+  {
+    TTriangles<T> trs(tris);
+    trs.saveSTL(DEBUG_DIR + "face.STL","face",false);
+    int gsggsgs = 0;
+  }
+#endif
+
+#if 0
   bool okk0 = isBetween<T>(270,90,180);
   bool okk1 = isBetween<T>(310,20,0);
   bool okk2 = isBetween<T>(20,30,0);
@@ -2996,7 +3033,7 @@ int main(int argc, char* argv[])
     TTransform<T> t;
     t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
     //t.Translate(TPoint<T>(-19.8,-2.7 + 0.03,0.025));
-    t.Translate(TPoint<T>(-19.8,-2.7 + 0.06,0.025)); //!!!!!!!!
+    t.Translate(TPoint<T>(-19.8,-2.7 + 0.06,0.025)); //!!!!!!!
 
     bsbolt.makeTransform(&t);
 
@@ -3419,6 +3456,8 @@ int main(int argc, char* argv[])
     // to save solid
     std::vector<std::vector<TPoint<T>>> badedges;
 
+#if 1 
+
     // we've got a domain in the shape of torus now (or a peridic part), now make blades
 
     // rotor blade
@@ -3530,6 +3569,18 @@ int main(int argc, char* argv[])
       rblade.makeTransform(&t);
     }
 
+    {
+      TTriangles<T> tris;
+      // boundary points decimated 10 times
+      if (rotor.makeTriangles(tris,10))
+      {
+        std::vector<std::pair<LINT,LINT>> badedges;
+        cout << "are rotor triangles manyfold? - " << tris.manifold(tolerance,badedges) << endl;
+        cout << "are rotor triangles solid? - " << tris.solid(tolerance,badedges) << endl;
+        tris.saveSTL(DEBUG_DIR + "TM pump rotor.001.STL","Stator",true);
+      }
+    }
+
     rotor.saveSurfacesIges(DEBUG_DIR + "TM pump rotor.001.iges");
 
     ok = rotor.saveSolidIges(DEBUG_DIR + "TM pump rotor solid.iges",
@@ -3540,6 +3591,8 @@ int main(int argc, char* argv[])
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
+
+#endif 
 
     //===== Stator =============================================================
 
@@ -3590,7 +3643,8 @@ int main(int argc, char* argv[])
     stator.saveSurfacesIges(DEBUG_DIR + "TM pump stator.000.iges");
 
     t.LoadIdentity();
-    t.Rotate(TPoint<T>(0.0,0.0,1.0),-speriod * T(stator_blades_per_period) * 0.5 * CPI);
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),-speriod * T(stator_blades_per_period) * 0.5 * CPI); 
+  // to make inner loops  t.Rotate(TPoint<T>(0.0,0.0,1.0),-speriod * (T(stator_blades_per_period) * 0.5 - 0.5) * CPI);
     sblade.makeTransform(&t);
 
     sblade.saveSurfacesIges(DEBUG_DIR + "TM pump stator blade.003.iges");
@@ -3618,6 +3672,18 @@ int main(int argc, char* argv[])
       TTransform<T> t;
       t.Rotate(TPoint<T>(0.0,0.0,1.0),da);
       sblade.makeTransform(&t);
+    }
+
+    {
+      TTriangles<T> tris;
+      // boundary points decimated 10 times
+      if (stator.makeTriangles(tris,10)) //!!!!!!!
+      {
+        std::vector<std::pair<LINT,LINT>> badedges;
+        cout << "are stator triangles manyfold? - " << tris.manifold(tolerance,badedges) << endl;
+        cout << "are stator triangles solid? - " << tris.solid(tolerance,badedges) << endl;
+        tris.saveSTL(DEBUG_DIR + "TM pump stator.001.STL","Stator",true);
+      }
     }
 
     stator.saveSurfacesIges(DEBUG_DIR + "TM pump stator.001.iges");

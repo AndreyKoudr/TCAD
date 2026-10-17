@@ -1115,6 +1115,126 @@ public:
       tolerance,parmtolerance,SPLINE_DEGREE,18,pbadedges,pedges,pfirstedges,psecondedges);
   }
 
+  /** Make all surfaces single-loop by thin cuts between all loops. Needed for triangulation.
+    SPOILS all boundariesUV.  */
+  bool forceSingleLoops(T parmtolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  {
+    bool ok = true;
+
+    for (int i = 0; i < int(boundariesUV.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> newouterloop;
+      if (makeSingleLoop<T>(boundariesUV[i],newouterloop,parmtolerance,manypoints))
+      {
+        boundariesUV[i].clear();
+        boundariesUV[i].push_back(newouterloop);
+      } else
+      {
+        ok = false;
+      }
+
+      //std::vector<TPoint<T>> loop; 
+      //flattenLoop<T>(boundariesUV[i][0],loop);
+      //TTriangles<T> tris;
+
+      //if (tris.triangulate(loop,0.01))
+      //{
+      //  tris.saveSTL(DEBUG_DIR + "face_" + to_string(i) + ".STL","face",false);
+      //}
+    }
+
+    assert(ok);
+    return ok;
+  }
+
+  /** Make triangles from every face. It is possible identify a face by its name in
+    surfaces and create TTriangles<T> from every facetriangles[]. Returns true if all 
+    faces are converted into triangles. */
+  bool makeFaceTriangles(std::vector<std::vector<std::array<TPoint<T>,3>>> &facetriangles, 
+    T edgesize = -1.0, T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  {
+    facetriangles.clear();
+
+    bool ok = true;
+
+    for (int i = 0; i < int(boundariesUV.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> newouterloop;
+      makeSingleLoop<T>(boundariesUV[i],newouterloop,tolerance,manypoints);
+      
+      std::vector<TPoint<T>> loop; 
+      flattenLoop<T>(newouterloop,loop);
+
+      // scale UVs to real face sizes
+      T usize = surfaces[i]->Usize();
+      T vsize = surfaces[i]->Vsize();
+
+      TTransform<T> t;
+      t.Resize(TPoint<T>(usize,vsize,1.0));
+      tcad::makeTransform<T>(loop,&t);
+
+      std::vector<std::array<TPoint<T>,3>> trs;
+      if (triangulate<T>(loop,trs,edgesize,tolerance))
+      {
+        // convert into model coordinates
+        for (auto &t : trs)
+        {
+          t[0] = surfaces[i]->position(t[0].X / usize,t[0].Y / vsize);
+          t[1] = surfaces[i]->position(t[1].X / usize,t[1].Y / vsize);
+          t[2] = surfaces[i]->position(t[2].X / usize,t[2].Y / vsize);
+        }
+
+        facetriangles.push_back(trs);
+      }
+    }
+
+    assert(ok);
+    return ok;
+  }
+
+  /** Make triangles for the whole brep. */
+  bool makeTriangles(TTriangles<T> &tris, int decimatettimes,
+    T edgesize = -1.0, T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  {
+    bool ok = true;
+
+    for (int i = 0; i < int(boundariesUV.size()); i++)
+    {
+      std::vector<std::vector<TPoint<T>>> newouterloop;
+      makeSingleLoop<T>(boundariesUV[i],newouterloop,tolerance,manypoints);
+      
+      std::vector<TPoint<T>> loop; 
+      flattenLoop<T>(newouterloop,loop,decimatettimes); 
+
+      // scale UVs to real face sizes
+      T usize = surfaces[i]->Usize();
+      T vsize = surfaces[i]->Vsize();
+
+      TTransform<T> t;
+      t.Resize(TPoint<T>(usize,vsize,1.0));
+      tcad::makeTransform<T>(loop,&t);
+
+      std::vector<std::array<TPoint<T>,3>> trs;
+      if (triangulate<T>(loop,trs,edgesize,tolerance))
+      {
+        // convert into model coordinates
+        for (auto &t : trs)
+        {
+          t[0] = surfaces[i]->position(t[0].X / usize,t[0].Y / vsize);
+          t[1] = surfaces[i]->position(t[1].X / usize,t[1].Y / vsize);
+          t[2] = surfaces[i]->position(t[2].X / usize,t[2].Y / vsize);
+
+          tris.addTri(t[0],t[1],t[2],tolerance);
+        }
+      }
+    }
+
+    tris.buildConnectivityArray(tolerance);
+
+    assert(ok);
+    return ok;
+  }
+
 };
 
 }

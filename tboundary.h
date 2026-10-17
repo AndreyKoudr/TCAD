@@ -666,7 +666,7 @@ template <class T> int intersectLoopByCut(
   // they mark every START of new curve piece
   cutIntoPoints(loop,looppoints);
 
-  //!!!!!!!!
+  // No, this is all right here as the cut is prepared by orderCutPieces().
   // IMPORTANT! the loop is always closed but
   // the cut here may contain discontinuous parts! We need to split it into
   // continuous groups and then apply findIntersections()
@@ -1071,6 +1071,20 @@ template <class T> struct TBoundary {
 };
 
 /** Cut inside loop? */
+template <class T> bool cutInsideLoop(std::vector<TPoint<T>> &cut,
+  std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
+{
+  for (int i = 0; i < int(cut.size()); i++)
+  {    
+    bool inside = insideBoundary<T>(loop,cut[i],parmtolerance);
+    if (!inside)
+      return false;
+  }
+
+  return true;
+}
+
+/** Cut inside loop? */
 template <class T> bool cutInsideLoop(std::vector<std::vector<TPoint<T>>> &cut,
   std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
 {
@@ -1089,6 +1103,7 @@ template <class T> bool cutInsideLoop(std::vector<std::vector<TPoint<T>>> &cut,
   //      return true;
   //  }
   //}
+
 
   // test 2 : inside?
   for (int i = 0; i < int(cut.size()); i++)
@@ -1380,6 +1395,74 @@ template <class T> bool extractCutFromLoops(
 
     return extracted;
   }
+}
+
+/** Make single outer loop from the outer and some inner loops. Returns true if done. */
+template <class T> bool makeSingleLoop(std::vector<std::vector<std::vector<TPoint<T>>>> &loops, 
+  std::vector<std::vector<TPoint<T>>> &newloop, T parmtolerance = PARM_TOLERANCE, 
+  int manypoints = MANY_POINTS2D)
+{
+  newloop.clear();
+
+  if (loops.empty())
+    return false;
+
+  if (loops.size() == 1)
+  {
+    newloop = loops[0];
+    return false;
+  }
+
+  newloop = loops[0];
+  bool done = false;
+
+  // in reverse order to delete loops[i] - not needed
+  for (int i = int(loops.size()) - 1; i >= 1; i--)
+  {
+    int part0 = -1;
+    int part1 = -1;
+    int index0 = -1;
+    int index1 = -1;
+    if (findTwoClosest<T>(newloop,loops[i],part0,index0,part1,index1))
+    {
+      // make straight-line cut between two closest points
+      TPoint<T> p0 = newloop[part0][index0];
+      TPoint<T> p1 = loops[i][part1][index1];
+
+      T len = !(p1 - p0);
+      int numpoints = int(len * T(manypoints));
+      LIMIT(numpoints,4,manypoints);
+
+      std::vector<TPoint<T>> cut,cutreverse;
+      makeStraightLine<T>(p0,p1,numpoints,cut);
+      makeStraightLine<T>(p1,p0,numpoints,cutreverse);
+
+      if (cutInsideLoop<T>(cut,newloop,parmtolerance))
+      {
+        std::vector<std::vector<TPoint<T>>> newouterloop,newinnerloop;
+        splitLoop<T>(newloop,part0,index0,newouterloop);
+        splitLoop<T>(loops[i],part1,index1,newinnerloop);
+
+        // new outer loop
+        newloop = newouterloop;
+        newloop.push_back(cut);
+        newloop.insert(newloop.end(),newinnerloop.begin(),newinnerloop.end());
+        newloop.push_back(cutreverse);
+
+        // no need to erase as all is combined into a single newloop
+        // delete inner loop
+        //loops.erase(loops.begin() + i);
+
+        done = true;
+      } else
+      {
+        done = false;
+        break;
+      }
+    }
+  }
+
+  return done;
 }
 
 }

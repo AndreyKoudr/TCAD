@@ -504,6 +504,8 @@ template <class T> bool insideBoundary(std::vector<std::vector<TPoint<T>>> &boun
 
   for (int i = 0; i < int(boundary.size()); i++)
   {
+    #pragma omp parallel for simd
+
     for (int j = 0; j < int(boundary[i].size()) - 1; j++)
     {
       TPoint<T> p0 = boundary[i][j];
@@ -642,6 +644,38 @@ template <class T> int numEdgeIntersectionsXY(std::vector<std::pair<TPoint<T>,TP
   return count;
 }
 
+/** Calculate number of intersections of segment p0->p1 with loop in XY plane.
+  The loop is supposed to be closed, but its first and last points are NOT coincident. */
+template <class T> int numLoopIntersectionsXY(std::vector<TPoint<T>> &loop, 
+  TPoint<T> p0, TPoint<T> p1, int exceptsegment = -1, T tolerance = 0.0 /*PARM_TOLERANCE*/)
+{
+  int count = 0;
+
+  for (int i = 0; i < int(loop.size()); i++)
+  {
+    int nex = next<int>(int(loop.size()),i);
+
+    TPoint<T> v0 = loop[i];
+    TPoint<T> v1 = loop[nex];
+    
+    T t1 = 0.0;
+    T t2 = 0.0;
+    T Xi = p1.X;
+    T Yi = p1.Y;
+
+    if (intersectSegmentsXY<T>(p0.X,p0.Y,p1.X,p1.Y,v0.X,v0.Y,v1.X,v1.Y,&t1,&t2,&Xi,&Yi) &&
+      (t1 >= 0.0 - tolerance) && (t1 <= 1.0 + tolerance) && (t2 >= 0.0 - tolerance) && (t2 <= 1.0 + tolerance))
+    {
+      if (i != exceptsegment)
+      {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
 /** Calculate number of intersections of segment p0->p1 with edges. */
 template <class T> int numEdgeIntersections(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
   TPoint<T> p0, TPoint<T> p1, T tolerance)
@@ -700,12 +734,15 @@ template <class T> int findIntersections(std::vector<TPoint<T>> &points0, std::v
   if (points0.empty() || points1.empty())
     return 0;
 
+
   for (int i = 0; i < points0.size() - 1; i++)
   {
     TPoint<T> p0 = points0[i];
     TPoint<T> p1 = points0[i + 1];
     TPoint<T> dp = p1 - p0;
     T d0 = !dp;
+
+    #pragma omp parallel for simd
 
     for (int j = 0; j < points1.size() - 1; j++)
     {
@@ -1290,7 +1327,7 @@ template <class T> void redividePoints(std::vector<std::vector<TPoint<T>>> &poin
 }
 
 template <class T> bool segmentLenMinMax(std::vector<TPoint<T>> &line, T &min, T &max, 
-  int *imin = nullptr, int *imax = nullptr)
+  int *imin = nullptr, int *imax = nullptr, T *averagelen = nullptr)
 {
   if (line.size() < 2)
     return false;
@@ -1299,12 +1336,14 @@ template <class T> bool segmentLenMinMax(std::vector<TPoint<T>> &line, T &min, T
   max = 0.0;
   int index0 = -1;
   int index1 = -1;
+  T sum = 0.0;
 
   for (int i = 0; i < int(line.size() - 1); i++)
   {
     TPoint<T> p0 = line[i];
     TPoint<T> p1 = line[i + 1];
     T len = !(p1 - p0);
+    sum += len;
 
     if (len < min)
     {
@@ -1322,6 +1361,8 @@ template <class T> bool segmentLenMinMax(std::vector<TPoint<T>> &line, T &min, T
     *imin = index0;
   if (imax)
     *imax = index1;
+  if (averagelen) 
+    *averagelen = sum / T(line.size() - 1);
 
   return true;
 } 
@@ -2822,15 +2863,14 @@ template <class T> void excludeClosestNumbers(std::vector<TPoint<T>> &points,
   }
 }
 
-/** Decimate points. */
-template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpoints)
+/** Decimate points. Not only decimate, expand as well. */
+template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpoints, bool allowexpand = false)
 {
-  if (numpoints >= int(points.size()))
+  if (!allowexpand && numpoints >= int(points.size()))
     return;
 
   std::vector<TPoint<T>> newpoints;
 
-#if 1
   std::vector<int> ranges;
   stretchBresenhamPoints<T>(0,0,numpoints - 1,int(points.size()) - 1,ranges);
 
@@ -2841,19 +2881,6 @@ template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpo
 
   assert(!(points.front() - newpoints.front()) < TOLERANCE(T));
   assert(!(points.back() - newpoints.back()) < TOLERANCE(T));
-
-#else
-  std::vector<int> ranges;
-  getRanges(int(points.size()) - 1,numpoints - 1,ranges);
-
-  for (int i = 0; i < int(ranges.size()); i++)
-  {
-    newpoints.push_back(points[ranges[i]]);
-  }
-
-  assert(!(points.front() - newpoints.front()) < TOLERANCE(T));
-  assert(!(points.back() - newpoints.back()) < TOLERANCE(T));
-#endif
 
   points.swap(newpoints);
 }
@@ -2924,6 +2951,217 @@ template <class T> void splitIntoContinuousGroups(std::vector<std::vector<TPoint
     }
     groups.back().push_back(cut[i]);
     back = cut[i].back();
+  }
+}
+
+/** Find a pair of two closest values. n^2. */
+template <class T> bool findTwoClosest(
+  std::vector<TPoint<T>> &points0, std::vector<TPoint<T>> &points1,
+  int &index0, int &index1, T *mindistance = nullptr)
+{
+  index0 = index1 = -1;
+
+  if (points0.empty() || points1.empty())
+    return false;
+
+  T mindist = std::numeric_limits<T>::max();
+  for (int i = 0; i < int(points0.size()); i++)
+  {
+    for (int j = 0; j < int(points1.size()); j++)
+    {
+      T dist = !(points0[i] - points1[j]);
+      if (dist < mindist)
+      {
+        mindist = dist;
+        index0 = i;
+        index1 = j;
+      }
+    }
+  }
+
+  if (mindistance)
+    *mindistance = mindist;
+
+  return true;
+}
+
+/** Find a pair of two closest values. n^2. */
+template <class T> bool findTwoClosest(
+  std::vector<std::vector<TPoint<T>>> &points0, std::vector<std::vector<TPoint<T>>> &points1,
+  int &part0, int &index0, int &part1, int &index1, T *mindistance = nullptr)
+{
+  part0 = part1 = index0 = index1 = -1;
+
+  if (points0.empty() || points1.empty())
+    return false;
+
+  bool found = false;
+
+  T mindist = std::numeric_limits<T>::max();
+  for (int I = 0; I < int(points0.size()); I++)
+  {
+    for (int J = 0; J < int(points1.size()); J++)
+    {
+      int i = -1;
+      int j = -1;
+      T dist = 0.0;
+      if (findTwoClosest(points0[I],points1[J],i,j,&dist) && dist < mindist)
+      {
+        mindist = dist;
+        part0 = I;
+        part1 = J;
+        index0 = i;
+        index1 = j;
+        found = true;
+      }
+    }
+  }
+
+  if (mindistance)
+    *mindistance = mindist;
+
+  return found;
+}
+
+/** Cut a piece of points into two halves (always in two, but not always successful). 
+  Point index may change. */
+template <class T> bool cutInTwo(std::vector<TPoint<T>> &points, int &index, 
+  std::vector<std::vector<TPoint<T>>> &halves)
+{
+  if (points.size() > 2)
+  {
+    // move index from ends to get two halves
+    if (index == 0)
+      index++;
+    if (index == points.size() - 1)
+      index--;
+
+    halves.push_back(std::vector<TPoint<T>>(points.begin(),points.begin() + index + 1));
+    halves.push_back(std::vector<TPoint<T>>(points.begin() + index,points.end()));
+
+    return true;
+  } else
+  {
+    return false;
+  }
+}
+
+/** Split closed loop at part and point index numbers. */
+template <class T> void splitLoop(std::vector<std::vector<TPoint<T>>> &loop, int part, int index, 
+  std::vector<std::vector<TPoint<T>>> &newloop)
+{
+  int nextpart = part;
+
+  // case 1 : split point is at piece end
+  if (index == loop[part].size() - 1)
+  {
+    while (Tnext<int>(int(loop.size()),nextpart) != part)
+    {
+      newloop.push_back(loop[nextpart]);
+    }
+    newloop.push_back(loop[part]);
+  } else if (index == 0)
+  // case 2 : split point is at piece start
+  {
+    newloop.push_back(loop[part]);
+    while (Tnext<int>(int(loop.size()),nextpart) != part)
+    {
+      newloop.push_back(loop[nextpart]);
+    }
+  } else
+  // case 3 : split at a middle point
+  {
+    // end part of piece
+    newloop.push_back(std::vector<TPoint<T>>(loop[part].begin() + index,loop[part].end()));
+    // all other non-split pieces
+    while (Tnext<int>(int(loop.size()),nextpart) != part)
+    {
+      newloop.push_back(loop[nextpart]);
+    }
+    // starting part
+    newloop.push_back(std::vector<TPoint<T>>(loop[part].begin(),loop[part].begin() + index + 1));
+  }
+}
+
+/** Sharp angle in line? Line is NOT closed! */
+template <class T> bool sharpAngle(std::vector<TPoint<T>> &points, int index, TPoint<T> &p0, TPoint<T> &p1, 
+  TPoint<T> &p2, T &angledeg, T tolerance = PARM_TOLERANCE)
+{
+  if (points.size() >= 3)
+  {
+    int nex = next<int>(int(points.size()),index);
+    int pre = prev<int>(int(points.size()),index);
+    p0 = points[pre];
+    p1 = points[index];
+    p2 = points[nex];
+    TPoint<T> p10 = +(p0 - p1);
+    TPoint<T> p12 = +(p2 - p1);
+
+    angledeg = p12.getAngleBetween0360(p10);
+
+    return (angledeg > 0.0 && angledeg < 180.0); //!!! it was 180.1
+  } else
+  {
+    return false;
+  }
+}
+
+/** Get sharpest point. Returns false if not found. */
+template <class T> bool getSharpestPoint(std::vector<TPoint<T>> &points, int &sharpest, TPoint<T> &p0, 
+  TPoint<T> &p1, TPoint<T> &p2, T &minangle, T tolerance = PARM_TOLERANCE)
+{
+  // impossible
+  if (points.size() < 3) return false;
+
+  int tested = 0;
+  sharpest = -1;
+
+  for (int i = 0; i < points.size(); i++)
+  {
+    T angle = 0.0;
+    TPoint<T> vv0,vv1,vv2;
+
+    if (sharpAngle(points,i,vv0,vv1,vv2,angle,tolerance))
+    {
+      tested++;
+      if (tested == 1)
+      {
+        sharpest = i;
+        minangle = angle;
+        p0 = vv0; p1 = vv1; p2 = vv2;
+      } else
+      {
+        if (angle < minangle)
+        {
+          sharpest = i;
+          minangle = angle;
+          p0 = vv0; p1 = vv1; p2 = vv2;
+        }
+      }
+    }
+  }
+
+  return (sharpest >= 0);
+}
+
+/** Combine loop into non-repeating points. No decimation if if decimatetimes <= 1. */
+template <class T> void flattenLoop(std::vector<std::vector<TPoint<T>>> &loop,
+  std::vector<TPoint<T>> &points, int decimatetimes = 1)
+{
+  points.clear();
+
+  for (auto &part : loop)
+  {
+    auto copy = part;
+    if (decimatetimes > 1)
+    {
+      int len = int(copy.size());
+      int numpoints = len / decimatetimes;
+      LIMIT_MIN(numpoints,2); //!!!!!!! looks like it working fine
+
+      decimatePoints<T>(copy,numpoints);
+    }
+    points.insert(points.end(),copy.begin(),copy.end() - 1);
   }
 }
 

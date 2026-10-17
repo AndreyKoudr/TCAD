@@ -591,7 +591,7 @@ public:
         T u = U / Umax;
         T coef = pow(u,power);
 
-//!!!!!!!!
+//!!!!!!!
 T z = points[i].Z;
         points[i] = this->cpoints[i] + (points[i] - this->cpoints[i]) * coef; 
 points[i].Z = z;

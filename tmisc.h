@@ -96,7 +96,14 @@ int findFirstNotBusy(std::vector<bool> &ibusy);
 /** Divide point indices (into sharp corners). size is the number of points. */
 void divideByIndices(std::vector<int> &indices, int size, std::vector<std::pair<int,int>> &division);
 
-/** Get next increasing element of an array. */
+/** Get next increasing element of an array. Both changes in index is good
+  for such constructions :
+
+  while (Tnext<int>(int(loop.size()),nextpart) != part)
+  {
+    newloop.push_back(loop[nextpart]);
+  }
+*/
 template <class TI> TI Tnext(TI size, TI &index)
 {
   if (++index >= TI(size))

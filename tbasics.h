@@ -137,6 +137,12 @@ namespace tcad {
 // default number of points for volumes
 #define MANY_POINTS3D 51 
 
+// Max number of points for a piece of boundary
+#define MAX_BOUNDPOINTS 201
+
+// Default divisions for one piece (of 4) of boundary. 1000 or 400 create display problems in Rhino.
+#define NUM_BOUNDARYDIVS (MAX_BOUNDPOINTS - 1) 
+
 // use space partitioning for speed
 #define USE_SPACEPARTITIONING
 
@@ -168,12 +174,9 @@ namespace tcad {
 // Big "closest to" bigtolerance in fractions of edge size
 #define MAXEDGE_RATIO 0.1
 
-// Max number of cells for scape partitioning; more cells increase memory consumtion
+// Max number of cells for space partitioning; more cells increase memory consumtion
 // and decrease CPU load and vice versa
 #define MAX_CELLS 10000
-
-// Max number of points for a piece of boundary
-#define MAX_BOUNDPOINTS 201
 
 // Number of cycles to refine and decrease number of triangles for surface intersection
 #define PREINTR_CYCLES 6
@@ -190,9 +193,6 @@ namespace tcad {
 
 // Max number of triangles during intersections (not to refine any further)
 #define MAX_TRIS 100000
-
-// Default divisions for one piece (of 4) of boundary. 1000 or 400 create disply problems in Rhino.
-#define NUM_BOUNDARYDIVS 200 
 
 // Replace 4-corner boundary cutout by replacing this face by the coutout piece and setting
 // full boundary for such a face. 

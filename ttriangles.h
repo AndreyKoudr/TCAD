@@ -297,6 +297,17 @@ public:
     replacement = copy.replacement;
   }
 
+  /** Constructor from triples of points. */
+  TTriangles(std::vector<std::array<TPoint<T>,3>> &triangles, T tolerance = PARM_TOLERANCE) 
+  {
+    for (int i = 0; i < int(triangles.size()); i++)
+    {
+      addTri(triangles[i][0],triangles[i][1],triangles[i][2],tolerance);
+    }
+
+    buildConnectivityArray(tolerance);
+  }
+
   /** Assignment. */
   TTriangles &operator=(const TTriangles &copy)
   {
@@ -574,6 +585,15 @@ public:
 
   /** Get all face centres with radius at W. R coef is R expansion coefficient. */
   void getCentresAndRadii(std::vector<TPoint<T>> &centres, T Rcoef = 2.1);
+
+  /** Make triangles from a closed countour by ear cutting (clipping). 
+    It is suppposed to work on parametric coordinates in XY plane. 
+    loop is considered to be closed but the last point is NOT the same as the 
+    start point (but one point before). 
+    edgelen defines a desirable triangle edge length, the best results are achieved
+    when this length is close to the mean length of loop segments. Set edglen to 
+    -1.0 to compute it as average of loop segments. */
+  bool triangulate(std::vector<TPoint<T>> &loop, T edgelen = -1.0, T tolerance = PARM_TOLERANCE);
 
 private:
 
@@ -4112,5 +4132,226 @@ template <class T> void subdivideTriangle(int numdivisions, std::vector<std::arr
     }
   }
 }
+
+/** Make triangles from a closed countour by ear cutting (clipping). 
+  It is suppposed to work on parametric coordinates in XY plane. 
+  loop is considered to be closed but the last point is NOT the same as the 
+  start point (but one point before). 
+  edgelen define a desirable triangle edge length, the best results are achieved
+  when this length is close to the mean length of loop segments. Set edglen to 
+  -1.0 to compute it as average of loop segments. */
+template <class T> bool triangulate(std::vector<TPoint<T>> &loop, std::vector<std::array<TPoint<T>,3>> &triangles, 
+  T edgelen = -1.0, T tolerance = PARM_TOLERANCE)
+{
+  // nothing to do
+  if (loop.size() < 3) return false;
+
+  if (edgelen <= 0.0)
+  {
+    T min,max;
+    segmentLenMinMax<T>(loop,min,max,nullptr,nullptr,&edgelen);
+  }
+
+  // make copy of contour
+  std::vector<TPoint<T>> tempcontour = loop;
+
+  // divide
+  bool ok = true;
+
+  do {
+    int point = -1;
+    TPoint<T> p0,p1,p2;
+    T angle;
+    if (getSharpestPoint(tempcontour,point,p0,p1,p2,angle,tolerance))
+    {
+      // to avoid sliver tris
+
+      // p1 is middle point (second in trangle)
+      TPoint<T> dp = p2 - p0;
+      T len = !dp;
+
+      // # tris to add
+      int numdivs = int(len / edgelen);
+      LIMIT_MIN(numdivs,1); 
+
+      // remove old point
+      tempcontour.erase(tempcontour.begin() + point);
+      int pre = prev<int>(int(tempcontour.size()),point);
+
+      // check if new point does not protrude through other side of the current contour;
+      // only segment with number point can be intersected
+      if (numdivs > 1)
+      {
+        for (int i = 0; i < numdivs - 1; i++)
+        {
+          TPoint<T> pp2 = p0 + dp * T(i + 1) / T(numdivs);
+
+          T coef2 = edgelen / !(pp2 - p1);
+
+          pp2 = p1 + (pp2 - p1) * coef2;
+
+          int numitrs = numLoopIntersectionsXY<T>(tempcontour, 
+            p1,pp2,pre,tolerance);
+
+          if (numitrs > 0)
+          {
+            numdivs = 1;
+            break; 
+          }
+        }
+      }
+
+      for (int i = 0; i < numdivs; i++)
+      {
+        TPoint<T> pp0 = p0 + dp * T(i) / T(numdivs);
+        TPoint<T> pp2 = p0 + dp * T(i + 1) / T(numdivs);
+
+        T coef0 = edgelen / !(pp0 - p1);
+        T coef2 = edgelen / !(pp2 - p1);
+
+        if (numdivs == 1)
+        {
+        } else
+        {
+          if (i == 0)
+          {
+            pp2 = p1 + (pp2 - p1) * coef2;
+          } else if (i == numdivs - 1)
+          {
+            pp0 = p1 + (pp0 - p1) * coef0;
+          } else
+          {
+            pp0 = p1 + (pp0 - p1) * coef0;
+            pp2 = p1 + (pp2 - p1) * coef2;
+          }
+        }
+
+        triangles.push_back({pp0,p1,pp2});
+
+        if (i < numdivs - 1)
+          tempcontour.insert(tempcontour.begin() + point + i,pp2);
+      }
+    } else
+    {
+      ok = false;
+    }
+  } while (tempcontour.size() >= 3 && ok);
+
+  return ok;
+}
+
+/** Make triangles from a closed countour by ear cutting (clipping). 
+  It is suppposed to work on parametric coordinates in XY plane. 
+  loop is considered to be closed but the last point is NOT the same as the 
+  start point (but one point before). 
+  edgelen defines a desirable triangle edge length, the best results are achieved
+  when this length is close to the mean length of loop segments. Set edglen to 
+  -1.0 to compute it as average of loop segments. */
+template <class T> bool TTriangles<T>::triangulate(std::vector<TPoint<T>> &loop,  
+  T edgelen, T tolerance)
+{
+  // nothing to do
+  if (loop.size() < 3) return false;
+
+  if (edgelen <= 0.0)
+  {
+    T min,max;
+    segmentLenMinMax<T>(loop,min,max,nullptr,nullptr,&edgelen);
+  }
+
+  // make copy of contour
+  std::vector<TPoint<T>> tempcontour = loop;
+
+  // divide
+  bool ok = true;
+
+  do {
+    int point = -1;
+    TPoint<T> p0,p1,p2;
+    T angle;
+    if (getSharpestPoint(tempcontour,point,p0,p1,p2,angle,tolerance))
+    {
+      // to avoid sliver tris
+
+      // p1 is middle point (second in trangle)
+      TPoint<T> dp = p2 - p0;
+      T len = !dp;
+
+      // # tris to add
+      int numdivs = int(len / edgelen);
+      LIMIT_MIN(numdivs,1); 
+
+      // remove old point
+      tempcontour.erase(tempcontour.begin() + point);
+      int pre = prev<int>(int(tempcontour.size()),point);
+
+      // check if new point does not protrude through other side of the current contour;
+      // only segment with number point can be intersected
+      if (numdivs > 1)
+      {
+        for (int i = 0; i < numdivs - 1; i++)
+        {
+          TPoint<T> pp2 = p0 + dp * T(i + 1) / T(numdivs);
+
+          T coef2 = edgelen / !(pp2 - p1);
+
+          pp2 = p1 + (pp2 - p1) * coef2;
+
+          int numitrs = numLoopIntersectionsXY<T>(tempcontour, 
+            p1,pp2,pre,tolerance);
+
+          if (numitrs > 0)
+          {
+            numdivs = 1;
+            break; 
+          }
+        }
+      }
+
+      for (int i = 0; i < numdivs; i++)
+      {
+        TPoint<T> pp0 = p0 + dp * T(i) / T(numdivs);
+        TPoint<T> pp2 = p0 + dp * T(i + 1) / T(numdivs);
+
+        T coef0 = edgelen / !(pp0 - p1);
+        T coef2 = edgelen / !(pp2 - p1);
+
+        if (numdivs == 1)
+        {
+        } else
+        {
+          if (i == 0)
+          {
+            pp2 = p1 + (pp2 - p1) * coef2;
+          } else if (i == numdivs - 1)
+          {
+            pp0 = p1 + (pp0 - p1) * coef0;
+          } else
+          {
+            pp0 = p1 + (pp0 - p1) * coef0;
+            pp2 = p1 + (pp2 - p1) * coef2;
+          }
+        }
+
+        // add triangle
+        addTri(pp0,p1,pp2,tolerance);
+
+        if (i < numdivs - 1)
+          tempcontour.insert(tempcontour.begin() + point + i,pp2);
+      }
+    } else
+    {
+      ok = false;
+    }
+  } while (tempcontour.size() >= 3 && ok);
+
+  return ok;
+}
+
+//!!!!!!!!
+//TTriangles<T> trs(triangles);
+//trs.saveSTL(DEBUG_DIR + "temp.STL","face",false);
+//
+//int hshshhs = 0;
 
 }
