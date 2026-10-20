@@ -201,5 +201,8 @@ namespace tcad {
 
 // Make brep coutouts over outer loops cutout from other faces
 #define CUTOUT_WITHLOOPS
+
+// Improve triangle shapes during ear clipping tesselations
+#define IMPROVE_TESSTRIS
 }
 

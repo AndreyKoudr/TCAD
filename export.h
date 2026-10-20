@@ -54,6 +54,10 @@ bool writeLines(const std::vector<std::string> &lines, const std::string &filena
 /** Write a line in header. */
 std::string writeHeaderLine(int line, double val);
 
+/** Save curve as points. */
+extern bool savePointsIgesD(std::vector<tcad::TPoint<double>> &curve, 
+  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS);
+
 //===== IGES - specific ========================================================
 
 // first part of IGES header
@@ -1167,6 +1171,20 @@ template <class T> bool saveLinesIges(std::vector<tcad::TPoint<T>> &curve,
 {
   std::vector<std::vector<tcad::TPoint<T>>> curves;
   curves.push_back(curve);
+
+  return saveLinesIges(curves,filename,splinedegree,minpoints);
+}
+
+/** Save points. */
+template <class T> bool savePointsIges(std::vector<tcad::TPoint<T>> &points, 
+  const std::string &filename, int splinedegree = SPLINE_DEGREE, int minpoints = EXPORT_MINPOINTS)
+{
+  std::vector<std::vector<tcad::TPoint<T>>> curves;
+  for (int i = 0; i < int(points.size() - 1); i++)
+  {
+    std::vector<TPoint<T>> segment({points[i],points[i + 1]});
+    curves.push_back(segment);
+  }
 
   return saveLinesIges(curves,filename,splinedegree,minpoints);
 }

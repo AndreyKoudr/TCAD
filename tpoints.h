@@ -676,6 +676,38 @@ template <class T> int numLoopIntersectionsXY(std::vector<TPoint<T>> &loop,
   return count;
 }
 
+/** Calculate number of intersections of segment p0->p1 with three triangle sides in 
+  XY plane. */
+template <class T> int numTriIntersectionsXY(std::vector<std::array<TPoint<T>,3>> &tris, 
+  TPoint<T> p0, TPoint<T> p1, T tolerance = 0.0 /*PARM_TOLERANCE*/)
+{
+  int count = 0;
+
+  for (int i = 0; i < int(tris.size()); i++)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      int jnex = next<int>(3,j);
+
+      TPoint<T> v0 = tris[i][j];
+      TPoint<T> v1 = tris[i][jnex];
+    
+      T t1 = 0.0;
+      T t2 = 0.0;
+      T Xi = p1.X;
+      T Yi = p1.Y;
+
+      if (intersectSegmentsXY<T>(p0.X,p0.Y,p1.X,p1.Y,v0.X,v0.Y,v1.X,v1.Y,&t1,&t2,&Xi,&Yi) &&
+        (t1 >= 0.0 - tolerance) && (t1 <= 1.0 + tolerance) && (t2 >= 0.0 - tolerance) && (t2 <= 1.0 + tolerance))
+      {
+        count++;
+      }
+    }
+  }
+
+  return count;
+}
+
 /** Calculate number of intersections of segment p0->p1 with edges. */
 template <class T> int numEdgeIntersections(std::vector<std::pair<TPoint<T>,TPoint<T>>> &edges, 
   TPoint<T> p0, TPoint<T> p1, T tolerance)
@@ -2864,7 +2896,8 @@ template <class T> void excludeClosestNumbers(std::vector<TPoint<T>> &points,
 }
 
 /** Decimate points. Not only decimate, expand as well. */
-template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpoints, bool allowexpand = false)
+template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpoints, 
+  bool allowexpand = false)
 {
   if (!allowexpand && numpoints >= int(points.size()))
     return;
@@ -2883,6 +2916,24 @@ template <class T> void decimatePoints(std::vector<TPoint<T>> &points, int numpo
   assert(!(points.back() - newpoints.back()) < TOLERANCE(T));
 
   points.swap(newpoints);
+}
+
+/** Decimate points, make it symmetric. Not only decimate, expand as well. */
+template <class T> void decimatePointsSymmetric(std::vector<TPoint<T>> &points, int numpoints, 
+  bool allowexpand = false)
+{
+  auto points1 = points;
+  std::reverse(points1.begin(),points1.end());
+
+  decimatePoints<T>(points,numpoints,allowexpand);
+  decimatePoints<T>(points1,numpoints,allowexpand);
+
+  std::reverse(points1.begin(),points1.end());
+
+  for (int i = 1; i < int(points.size() - 1); i++)
+  {
+    points[i] = (points[i] + points1[i]) * 0.5;
+  }
 }
 
 /** Approach points to expoints at the end at len fractions of the whole length. */
@@ -3142,27 +3193,6 @@ template <class T> bool getSharpestPoint(std::vector<TPoint<T>> &points, int &sh
   }
 
   return (sharpest >= 0);
-}
-
-/** Combine loop into non-repeating points. No decimation if if decimatetimes <= 1. */
-template <class T> void flattenLoop(std::vector<std::vector<TPoint<T>>> &loop,
-  std::vector<TPoint<T>> &points, int decimatetimes = 1)
-{
-  points.clear();
-
-  for (auto &part : loop)
-  {
-    auto copy = part;
-    if (decimatetimes > 1)
-    {
-      int len = int(copy.size());
-      int numpoints = len / decimatetimes;
-      LIMIT_MIN(numpoints,2); //!!!!!!! looks like it working fine
-
-      decimatePoints<T>(copy,numpoints);
-    }
-    points.insert(points.end(),copy.begin(),copy.end() - 1);
-  }
 }
 
 }

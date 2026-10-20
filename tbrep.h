@@ -1150,10 +1150,11 @@ public:
   /** Make triangles from every face. It is possible identify a face by its name in
     surfaces and create TTriangles<T> from every facetriangles[]. Returns true if all 
     faces are converted into triangles. */
-  bool makeFaceTriangles(std::vector<std::vector<std::array<TPoint<T>,3>>> &facetriangles, 
-    T edgesize = -1.0, T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  bool makeTriangles(std::vector<std::vector<std::array<TPoint<T>,3>>> &triangles, 
+    T edgesize = -1.0, T sliverAR = 0.1, bool rescaleUV = false, 
+    T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
   {
-    facetriangles.clear();
+    triangles.clear();
 
     bool ok = true;
 
@@ -1169,12 +1170,17 @@ public:
       T usize = surfaces[i]->Usize();
       T vsize = surfaces[i]->Vsize();
 
+      if (!rescaleUV)
+      {
+        usize = vsize = 1.0;
+      }
+
       TTransform<T> t;
       t.Resize(TPoint<T>(usize,vsize,1.0));
       tcad::makeTransform<T>(loop,&t);
 
       std::vector<std::array<TPoint<T>,3>> trs;
-      if (triangulate<T>(loop,trs,edgesize,tolerance))
+      if (triangulate<T>(loop,trs,edgesize,sliverAR,tolerance))
       {
         // convert into model coordinates
         for (auto &t : trs)
@@ -1184,7 +1190,7 @@ public:
           t[2] = surfaces[i]->position(t[2].X / usize,t[2].Y / vsize);
         }
 
-        facetriangles.push_back(trs);
+        triangles.push_back(trs);
       }
     }
 
@@ -1193,8 +1199,9 @@ public:
   }
 
   /** Make triangles for the whole brep. */
-  bool makeTriangles(TTriangles<T> &tris, int decimatettimes,
-    T edgesize = -1.0, T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  bool makeTriangles(TTriangles<T> &tris, int decimatettimes, 
+    T edgesize = -1.0, T sliverAR = 0.1, bool rescaleUV = false, 
+    T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
   {
     bool ok = true;
 
@@ -1210,12 +1217,19 @@ public:
       T usize = surfaces[i]->Usize();
       T vsize = surfaces[i]->Vsize();
 
+      // rescale UV doamin to model coordinate sizes (generated tris must be more
+      // equal-sided)
+      if (!rescaleUV)
+      {
+        usize = vsize = 1.0;
+      }
+
       TTransform<T> t;
       t.Resize(TPoint<T>(usize,vsize,1.0));
       tcad::makeTransform<T>(loop,&t);
 
       std::vector<std::array<TPoint<T>,3>> trs;
-      if (triangulate<T>(loop,trs,edgesize,tolerance))
+      if (triangulate<T>(loop,trs,edgesize,sliverAR,tolerance))
       {
         // convert into model coordinates
         for (auto &t : trs)
@@ -1226,6 +1240,54 @@ public:
 
           tris.addTri(t[0],t[1],t[2],tolerance);
         }
+      }
+    }
+
+    tris.buildConnectivityArray(tolerance);
+
+    assert(ok);
+    return ok;
+  }
+
+  /** Make triangles for a single face. */
+  bool makeFaceTriangles(int faceno, TTriangles<T> &tris, int decimatettimes,
+    T edgesize = -1.0, T sliverAR = 0.1, bool rescaleUV = false, 
+    T tolerance = PARM_TOLERANCE, int manypoints = MANY_POINTS2D)
+  {
+    bool ok = true;
+
+    std::vector<std::vector<TPoint<T>>> newouterloop;
+    makeSingleLoop<T>(boundariesUV[faceno],newouterloop,tolerance,manypoints);
+      
+    std::vector<TPoint<T>> loop; 
+    flattenLoop<T>(newouterloop,loop,decimatettimes); 
+
+    // scale UVs to real face sizes
+    T usize = surfaces[faceno]->Usize();
+    T vsize = surfaces[faceno]->Vsize();
+
+    // rescale UV doamin to model coordinate sizes (generated tris must be more
+    // equal-sided)
+    if (!rescaleUV)
+    {
+      usize = vsize = 1.0;
+    }
+
+    TTransform<T> t;
+    t.Resize(TPoint<T>(usize,vsize,1.0));
+    tcad::makeTransform<T>(loop,&t);
+
+    std::vector<std::array<TPoint<T>,3>> trs;
+    if (triangulate<T>(loop,trs,edgesize,sliverAR,tolerance))
+    {
+      // convert into model coordinates
+      for (auto &t : trs)
+      {
+        t[0] = surfaces[faceno]->position(t[0].X / usize,t[0].Y / vsize);
+        t[1] = surfaces[faceno]->position(t[1].X / usize,t[1].Y / vsize);
+        t[2] = surfaces[faceno]->position(t[2].X / usize,t[2].Y / vsize);
+
+        tris.addTri(t[0],t[1],t[2],tolerance);
       }
     }
 

@@ -3571,11 +3571,11 @@ loop.push_back(TPoint<T>(0,0.5));
 
     {
       TTriangles<T> tris;
-      // boundary points decimated 10 times
-      if (rotor.makeTriangles(tris,10))
+      // boundary points decimated ... times
+      if (rotor.makeTriangles(tris,20,-1.0,0.1,true))
       {
         std::vector<std::pair<LINT,LINT>> badedges;
-        cout << "are rotor triangles manyfold? - " << tris.manifold(tolerance,badedges) << endl;
+        cout << "are rotor triangles manifold? - " << tris.manifold(tolerance,badedges) << endl;
         cout << "are rotor triangles solid? - " << tris.solid(tolerance,badedges) << endl;
         tris.saveSTL(DEBUG_DIR + "TM pump rotor.001.STL","Stator",true);
       }
@@ -3674,18 +3674,27 @@ loop.push_back(TPoint<T>(0,0.5));
       sblade.makeTransform(&t);
     }
 
+    //{
+    //  TTriangles<T> tris;
+    //  // boundary points decimated ... times
+    //  if (stator.makeFaceTriangles(19,tris,20,-1.0,0.1,true)) 
+    //  {
+    //    tris.saveSTL(DEBUG_DIR + "Face.STL","Stator",true);
+    //  }
+    //}
     {
       TTriangles<T> tris;
-      // boundary points decimated 10 times
-      if (stator.makeTriangles(tris,10)) //!!!!!!!
+      // boundary points decimated ... times
+      if (stator.makeTriangles(tris,20,-1.0,0.1,true)) 
       {
         std::vector<std::pair<LINT,LINT>> badedges;
-        cout << "are stator triangles manyfold? - " << tris.manifold(tolerance,badedges) << endl;
+        cout << "are stator triangles manifold? - " << tris.manifold(tolerance,badedges) << endl;
         cout << "are stator triangles solid? - " << tris.solid(tolerance,badedges) << endl;
         tris.saveSTL(DEBUG_DIR + "TM pump stator.001.STL","Stator",true);
       }
     }
 
+    stator.nameSurfaces("all");
     stator.saveSurfacesIges(DEBUG_DIR + "TM pump stator.001.iges");
 
     // save solid

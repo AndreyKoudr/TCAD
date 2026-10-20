@@ -201,7 +201,10 @@ public:
     return ((*this * v2) >= 0);
   }
                               // operator == - two vectors equal?
-  bool operator==(TPoint v2) const;
+  bool operator==(TPoint v2) const
+  {
+    return (!(*this - v2) < tolerance_);
+  }
                               // operator - (change direction)
   TPoint operator-() {
     return (*this) * (-1.0);

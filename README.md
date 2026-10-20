@@ -181,11 +181,11 @@ Turbomachine
 - 9.1 Turbomachine<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/Turbomachine.png)<br />
 - 9.2 Turbomolecular pump, one stage<br />
-- full<br />
+full<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/TM_pump_full.png)<br />
-- periodic part (stator)<br />
+periodic part (stator)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/TM_pump_periodic.png)<br />
-- triangles for calculation (stator)<br />
+triangles for calculation (stator)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/TM_pump_periodic_tris.png)<br />
 
 Important parameters in main.cpp

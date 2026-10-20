@@ -2119,4 +2119,31 @@ template <class T> void makeBolt(T diameter, T threadlength, T shanklength,
   makeSurfacesOfRevolution(contour,AxisX,AxisY,numfaces,numdivsper360,K1,K2,surfaces);
 }
 
+/** Combine loop into non-repeating points. No decimation if if decimatetimes <= 1. */
+template <class T> void flattenLoop(std::vector<std::vector<TPoint<T>>> &loop,
+  std::vector<TPoint<T>> &points, int decimatetimes = 1)
+{
+  points.clear();
+
+  for (auto &part : loop)
+  {
+    auto copy = part;
+    if (decimatetimes > 1)
+    {
+      int len = int(copy.size());
+      int numpoints = len / decimatetimes;
+      //!!! no, better to have 2 to avoid many slivers when numdivs = 1
+      // do not make 2 to avoid only two points per edge
+      LIMIT_MIN(numpoints,2); 
+#if 1
+      smoothPoints<T>(copy,SPLINE,len - 1,numpoints,END_FIXED,END_FIXED,1); // 1 in case of few points, say only 2
+#else
+      // this is not working at face boundaries
+      decimatePointsSymmetric<T>(copy,numpoints,true);
+#endif
+    }
+    points.insert(points.end(),copy.begin(),copy.end() - 1);
+  }
+}
+
 }

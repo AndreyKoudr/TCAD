@@ -386,4 +386,9 @@ void finalize(std::vector<std::string> &lines, int dirline, int *count, std::str
   }
 }
 
-
+/** Save points. */
+bool savePointsIgesD(std::vector<tcad::TPoint<double>> &points, const std::string &filename, 
+  int splinedegree, int minpoints)
+{
+  return savePointsIges<double>(points,filename,splinedegree,minpoints);
+}
