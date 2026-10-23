@@ -32,8 +32,9 @@ using namespace tcad;
 #define DEBUG_BOOLEANS
 #define DEBUG_BOLTS
 #define DEBUG_LATTICE
-#define DEBUG_TURBOMACHINES
-#define DEBUG_TURBOMACHINE0
+#define DEBUG_TURBOMACHINE
+#define DEBUG_TMPUMP0
+#define DEBUG_TMPUMP1
 #define DEBUG_TRIINTERSECTIONS
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3179,7 +3180,7 @@ loop.push_back(TPoint<T>(0,0.5));
 
 #endif
 
-#ifdef DEBUG_TURBOMACHINES
+#ifdef DEBUG_TURBOMACHINE
 
   /*****************************************************************************
 
@@ -3192,8 +3193,6 @@ loop.push_back(TPoint<T>(0,0.5));
   /*****************************************************************************
     9.1 Turbomachine
   *****************************************************************************/
-
-#ifdef DEBUG_TURBOMACHINE0
 
   {
     cout << "9.1 Turbomachine" << endl;
@@ -3260,7 +3259,10 @@ loop.push_back(TPoint<T>(0,0.5));
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
     }
   }
+
 #endif
+
+#ifdef DEBUG_TMPUMP0
 
   {
     /** https://en.wikipedia.org/wiki/Turbomolecular_pump */
@@ -3407,7 +3409,7 @@ loop.push_back(TPoint<T>(0,0.5));
 #ifdef PERIODIC_TMP
   #ifdef ONLY_ROTORBLADE
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180,180.0,
+      -180.0,180.0,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
   #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces * (stator_blades_per_period + 1) / stator_numblades,
@@ -3420,13 +3422,13 @@ loop.push_back(TPoint<T>(0,0.5));
     // cutter for rotor blade root near shaft
     TBrep<T> shaftcutter(tolerance);
     shaftcutter.makeCylinder(Lcasing * 1.2,Rshaft - d,Rshaft - d,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180,180.0,
+      -180.0,180.0,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
 
   #endif
 #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180,180.0,
+      -180.0,180.0,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
 #endif
     shaft.closeOuterBoundary();
@@ -3708,6 +3710,96 @@ loop.push_back(TPoint<T>(0,0.5));
     if (!ok)
     {
       saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+    }
+  }
+
+#endif
+
+#ifdef DEBUG_TMPUMP1
+
+  {
+    /** https://en.wikipedia.org/wiki/Turbomolecular_pump */
+
+    cout << "9.3 Another turbomolecular pump, one stage" << endl << endl;
+    cout << "No terminal output : please wait or break..." << endl << endl;
+
+    TBrep<T> rotor,stator;
+
+    bool ok = makeTMPump(0.12,0.05,true, // if false, non-periodic is slow due to multiple boolean operations when adding blades
+      0.0007,
+      //0.062, // ~= PI20 * R / rotor_numblades
+      //0.013, // ~= PI20 * Rshaft / stator_numblades
+      -1.0,-1.0, // let it set chords itself
+      rotor,stator,
+      12,2,
+      TMPAirfoil<T>,
+      TMPContour<T>,
+      TMPAirfoil<T>,
+      TMPContour<T>,
+      -30.0,+45.0);
+
+    ASSERT(ok);
+
+    if (ok)
+    {
+      std::vector<std::vector<TPoint<T>>> badedges;
+
+      {
+        rotor.saveSurfacesIges(DEBUG_DIR + "TM pump 2 rotor.iges");
+
+        {
+          TTriangles<T> tris;
+          // boundary points decimated ... times
+          if (rotor.makeTriangles(tris,20,-1.0,0.1,true)) 
+          {
+            std::vector<std::pair<LINT,LINT>> badedges;
+            cout << "are rotor triangles manifold? - " << tris.manifold(rotor.tolerance,badedges) << endl;
+            tris.saveSTL(DEBUG_DIR + "TM pump 2 rotor.STL","Stator",true);
+          } else
+          {
+            ASSERT(false);
+          }
+        }
+
+        // save solid
+        bool ok = rotor.saveSolidIges(DEBUG_DIR + "TM pump 2 rotor solid.iges",
+          rotor.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges); 
+
+        ASSERT(ok);
+        if (!ok)
+        {
+          saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+        }
+      }
+
+      {
+        stator.saveSurfacesIges(DEBUG_DIR + "TM pump 2 stator.iges");
+
+        {
+          TTriangles<T> tris;
+          // boundary points decimated ... times
+          if (stator.makeTriangles(tris,20,-1.0,0.1,true)) 
+          {
+            std::vector<std::pair<LINT,LINT>> badedges;
+            cout << "are stator triangles manifold? - " << tris.manifold(stator.tolerance,badedges) << endl;
+            tris.saveSTL(DEBUG_DIR + "TM pump 2 stator.STL","Stator",true);
+          } else
+          {
+            ASSERT(false);
+          }
+        }
+
+        // save solid
+        bool ok = stator.saveSolidIges(DEBUG_DIR + "TM pump 2 stator solid.iges",
+          stator.tolerance,PARM_TOLERANCE,SPLINE_DEGREE,18,&badedges); 
+
+        ASSERT(ok);
+        if (!ok)
+        {
+          saveLinesIges<T>(badedges,DEBUG_DIR + "badedges.iges");
+        }
+      }
+
     }
   }
 

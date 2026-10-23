@@ -187,6 +187,15 @@ periodic part (stator)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/TM_pump_periodic.png)<br />
 triangles for calculation (stator)<br />
 ![FFD](https://github.com/AndreyKoudr/TCAD/blob/master/TM_pump_periodic_tris.png)<br />
+- 9.3 Another turbomolecular pump, one stage<br />
+
+Improvement of segment/triangle intersections
+=============================================
+
+The old code was replaced by a faster Moller-Trumbore algorithm, very similar. The only difference I did not use barycentric coordinates for edges. The total test speedup is 17%.<br />
+- 10.1 Comparing output of segTriIntersectPrim() vs segTriIntersectMT()<br />
+- 10.2 Measuring speed of segTriIntersectPrim()<br />
+- 10.3 Measuring speed of segTriIntersectMT()<br />
 
 Important parameters in main.cpp
 ================================

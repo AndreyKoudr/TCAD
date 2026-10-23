@@ -1299,4 +1299,332 @@ public:
 
 };
 
+/** Make one stage of turbomolecular pump (rotor and stator as breps).
+  https://en.wikipedia.org/wiki/Turbomolecular_pump 
+  R - radius
+  Rshaft - shaft radius
+  d - distance between stages (which defines Knudsen number) and between rorot/stator blades
+  rotor_blade_chord - rotor blade chord, if < 0.0, set to PI20 * Rshaft / (T(rotor_numblades) * cos(rotor_blade_alpha * CPI))
+  stator_blade_chord - stator blade chord, if < 0.0, set to ~= PI20 * R / (T(stator_numblades) * cos(stator_blade_alpha * CPI))
+  rotor_numblades - total number of rotor blade per 360 deg
+  stator_blades_per_period - number of stator blades per period (or per rotor blade)
+  rotor_blade_alpha - rotor blade angle of attack in degrees
+  stator_blade_alpha - stator blade angle of attack in degrees
+  rotor_blade_airfoil - rotor blade airfoil
+  rotor_blade_contour - rotor blade wing contour
+  stator_blade_airfoil - stator blade airfoil
+  stator_blade_contour - stator blade wing contour
+  periodic - make only peridoc part or all blades?
+  K1, K2 - # spline intervals for all domain parts
+  K1wing, K2wing - # spline intervals for all wing parts (K1wing - for chord, K2wing for span)
+  inside_coef - coef to make blades inside periodic part
+
+  Z
+  ^     
+  | d
+  x
+  |
+  |
+  | rotor blade height        <- rotor middle
+  |
+  |                           <- Z = 0
+  x
+  | d
+  x
+  |
+  | stator blade height       <- stator middle
+  |
+  x
+  | d
+  x
+*/
+template <class T> bool makeTMPump(T R, T Rshaft, bool periodic, T d,
+  T rotor_blade_chord, T stator_blade_chord,
+  TBrep<T> &rotor, TBrep<T> &stator,
+  int rotor_numblades = 16, int stator_blades_per_period = 3,
+  std::vector<TPoint<T>> &rotor_blade_airfoil = TMPAirfoil<T>,
+  std::vector<std::array<TPoint<T>,2>> &rotor_blade_contour = TMPContour<T>,
+  std::vector<TPoint<T>> &stator_blade_airfoil = TMPAirfoil<T>,
+  std::vector<std::array<TPoint<T>,2>> &stator_blade_contour = TMPContour<T>,
+  T rotor_blade_alpha = -45.0, T stator_blade_alpha = 30.0,
+  int K1 = 8, int K2 = 8,
+  int K1wing = 10, int K2wing = 20,
+  T inside_coef = 0.95,
+  bool debug = false)
+{
+  // take only rotor blade, without piece of shaft, in case of periodic part,
+  // not working well if undefined
+  #define ONLY_ROTORBLADE
+
+  // large TM pump, 100mm in body radius
+  T tolerance = R * PARM_TOLERANCE; 
+
+  int stator_numblades = rotor_numblades * stator_blades_per_period;
+
+  // #faces along curvature
+  int numLfaces = stator_numblades; 
+  int numRfaces = 4;
+
+  // chords
+  if (rotor_blade_chord < 0.0)
+    rotor_blade_chord = PI20 * Rshaft / (T(rotor_numblades) * cos(rotor_blade_alpha * CPI));
+  if (stator_blade_chord < 0.0)
+    stator_blade_chord = PI20 * R / (T(stator_numblades) * cos(stator_blade_alpha * CPI)) * inside_coef; // to avoid coincidence with seam
+
+  // rotor period in degrees
+  T period = 360.0 / T(rotor_numblades);
+  // stator period in degrees
+  T speriod = 360.0 / T(stator_numblades);
+
+  // limit rotor chord by period, inside_coef just in case
+  T max_blade_chord = Rshaft * sin(period * CPI * 0.5) * 2.0 / cos(rotor_blade_alpha * CPI) * inside_coef; // to avoid coincidence with seam
+  LIMIT_MAX(rotor_blade_chord,max_blade_chord);
+
+  // ALL NORMALS POINT INSIDE "FLUID"
+
+  // outer casing (closed cylinder), normal inside
+  TBrep<T> casing(tolerance);
+
+  // rotor and ststor blade hights (dZ)
+  T rotor_height = rotor_blade_chord * sin(std::abs(rotor_blade_alpha) * CPI);
+  T stator_height = stator_blade_chord * sin(std::abs(stator_blade_alpha) * CPI);
+
+  T Lcasing = d + rotor_height + d + stator_height + d;
+  T Rcasing = R + d;
+    
+  if (periodic)
+  {
+    casing.makeCylinder(Lcasing,Rcasing,Rcasing,"",numLfaces * stator_blades_per_period / stator_numblades,
+      4,numRfaces,numRfaces,64,MANY_POINTS2D, 
+      -period * 0.5,+period * 0.5,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,true);  
+  } else
+  {
+    casing.makeCylinder(Lcasing,Rcasing,Rcasing,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D, 
+      -180.0,180.0,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false);  
+  }
+  casing.closeOuterBoundary();
+  casing.flipNormals();
+
+  if (debug)
+    casing.saveSurfacesIges(DEBUG_DIR + "TM pump casing.iges");
+
+  // make blade cutter, casing with smaller radius, normal outside
+  TBrep<T> bladecutter(tolerance);
+
+  // blade cutter not affected by periodicity
+  T Lcutter = Lcasing;
+  T Rcutter = R;
+  bladecutter.makeCylinder(Lcutter,Rcutter,Rcutter,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D, 
+    -180,180.0,
+    K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false);  
+  bladecutter.closeOuterBoundary();
+
+  if (debug)
+    bladecutter.saveSurfacesIges(DEBUG_DIR + "TM pump blade cutter.iges");
+
+  // minus shaft
+  TBrep<T> shaft(tolerance);
+
+  if (periodic)
+  {
+  #ifdef ONLY_ROTORBLADE
+    shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
+      -180.0 + speriod * 0.5,180.0 + speriod * 0.5,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
+  #else
+    shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces * (stator_blades_per_period + 1) / stator_numblades,
+      4,numRfaces,numRfaces,64,MANY_POINTS2D,
+    //  -period * 0.5,+period * 0.5,
+    //  -period * 0.5 / inside_coef,+period * 0.5 / inside_coef,
+      -speriod * T(stator_blades_per_period + 1) * 0.5,+speriod * T(stator_blades_per_period + 1) * 0.5,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,true); 
+
+    // cutter for rotor blade root near shaft
+    TBrep<T> shaftcutter(tolerance);
+    shaftcutter.makeCylinder(Lcasing * 1.2,Rshaft - d,Rshaft - d,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
+      -180.0 + speriod * 0.5,180.0 + speriod * 0.5,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
+  #endif
+  } else
+  {
+    shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
+      -180.0 + speriod * 0.5,180.0 + speriod * 0.5,
+      K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
+  }
+
+  shaft.closeOuterBoundary();
+
+  if (debug)
+    shaft.saveSurfacesIges(DEBUG_DIR + "TM pump shaft.iges");
+
+  // inner calculation domain
+  TBrep<T> domain = casing + shaft;
+
+  if (debug)
+    domain.saveSurfacesIges(DEBUG_DIR + "TM pump domain.iges");
+
+  // aux parameters
+
+  T xcoef = rotor_blade_chord;
+  T zcoef = R;
+
+  TTransform<T> t;
+
+  T start_angle = 0.0 * CPI;
+
+  T da = M_PI * 2.0 / T(rotor_numblades);
+
+  // we've got a domain in the shape of torus now (or a peridic part), now make blades
+
+  // rotor blade
+  TBrep<T> rblade(tolerance);
+  rblade.makeWing(rotor_blade_airfoil,false,false,rotor_blade_contour,true,true,0.0,0.0,false,tolerance,
+    true,SPLINE,5,PARM_TOLERANCE,K1wing,K2wing);
+
+  // resize to domain sizes
+  t.LoadIdentity();
+  t.Resize(TPoint<T>(xcoef,xcoef,zcoef));
+  rblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+  rblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(0.0,1.0,0.0),rotor_blade_alpha * CPI);
+  rblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(0.0,0.0,1.0),90.0 * CPI + start_angle);
+  rblade.makeTransform(&t);
+
+  // move from origin to avoid singularities
+  t.LoadIdentity();
+  t.Translate(TPoint<T>(R * 0.1,0.0,0.0));
+  rblade.makeTransform(&t);
+
+  // cut blade by blade cutter to fit into domain with d
+  rblade = rblade ^ bladecutter;
+
+  // cut rotor blade near the root
+  if (periodic)
+  {
+#ifndef ONLY_ROTORBLADE
+  rblade = rblade - shaftcutter;
+#endif
+  }
+
+  t.LoadIdentity();
+  t.Translate(TPoint<T>(0.0,0.0,Lcasing * 0.5 - d - rotor_height * 0.5));
+  rblade.makeTransform(&t);
+
+  if (debug)
+    rblade.saveSurfacesIges(DEBUG_DIR + "TM pump rotor blade.003.iges");
+
+  //===== Rotor ==============================================================
+
+  rotor.setTolerance(tolerance);
+  rotor = shaft;
+  rotor.nameSurfaces("rtr");
+
+  int rnm = periodic ? 1 : rotor_numblades;
+  for (int i = 0; i < rnm; i++)
+  {
+    rblade.nameSurfaces("rb" + to_string(i) + "_");
+
+    if (periodic)
+    {
+#ifdef ONLY_ROTORBLADE
+    rotor = rblade - rotor;
+#else
+    rotor = rotor + rblade;
+#endif
+    } else
+    {
+      rotor = rotor + rblade;
+    }
+
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),da);
+    rblade.makeTransform(&t);
+  }
+
+  if (debug)
+    rotor.saveSurfacesIges(DEBUG_DIR + "TM pump rotor.iges");
+
+
+  //===== Stator =============================================================
+
+  // stator blade
+  TBrep<T> sblade(tolerance);
+  sblade.makeWing(stator_blade_airfoil,false,false,stator_blade_contour,true,true,0.0,0.0,false,tolerance,
+    true,SPLINE,5,PARM_TOLERANCE,K1wing,K2wing);
+
+  // resize to domain sizes
+  xcoef = stator_blade_chord;
+  zcoef = R;
+
+  t.LoadIdentity();
+  t.Resize(TPoint<T>(xcoef,xcoef,zcoef));
+  sblade.makeTransform(&t);
+
+  // move from origin to avoid singularities
+  t.LoadIdentity();
+  t.Translate(TPoint<T>(0.0,0.0,R * 0.1));
+  sblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(1.0,0.0,0.0),90.0 * CPI);
+  sblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(0.0,1.0,0.0),stator_blade_alpha * CPI);
+  sblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(0.0,0.0,1.0),90.0 * CPI + start_angle);
+  sblade.makeTransform(&t);
+
+  t.LoadIdentity();
+  t.Translate(TPoint<T>(0.0,0.0,-(Lcasing * 0.5 - d - stator_height * 0.5)));
+  sblade.makeTransform(&t);
+  sblade.closeOuterBoundary();
+
+  // stator with blades
+  stator.setTolerance(tolerance);
+  stator = domain;
+
+  t.LoadIdentity();
+  t.Rotate(TPoint<T>(0.0,0.0,1.0),-speriod * T(stator_blades_per_period) * 0.5 * CPI); 
+// to make inner loops  t.Rotate(TPoint<T>(0.0,0.0,1.0),-speriod * (T(stator_blades_per_period) * 0.5 - 0.5) * CPI);
+  sblade.makeTransform(&t);
+
+  if (debug)
+    sblade.saveSurfacesIges(DEBUG_DIR + "TM pump stator blade.iges");
+
+  stator.nameSurfaces("str");
+
+  da = M_PI * 2.0 / T(stator_numblades);
+
+  int snm = periodic ? (stator_blades_per_period + 1) : stator_numblades;
+
+  for (int i = 0; i < snm; i++)
+  {
+    sblade.nameSurfaces("sb" + to_string(i) + "_");
+
+    stator = stator + sblade;
+
+    TTransform<T> t;
+    t.Rotate(TPoint<T>(0.0,0.0,1.0),da);
+    sblade.makeTransform(&t);
+  }
+
+  if (debug)
+    stator.saveSurfacesIges(DEBUG_DIR + "TM pump stator.iges");
+
+  return true;
+}
+
 }
