@@ -24,6 +24,7 @@ using namespace tcad;
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!! SET WHAT TO DEBUG !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//!!! ASSERT() shows a red line on terminal when a test fails !!!!!!!!!!!!!!!!!!
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #define DEBUG_COMMON 
@@ -33,6 +34,7 @@ using namespace tcad;
 #define DEBUG_LATTICE
 #define DEBUG_TURBOMACHINES
 #define DEBUG_TURBOMACHINE0
+#define DEBUG_TRIINTERSECTIONS
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -375,6 +377,7 @@ loop.push_back(TPoint<T>(0,0.5));
     Part 1 : CURVES. What can we do with them?
 
   *****************************************************************************/
+  cout << "ASSERT() shows a red line on terminal when a test fails" << endl << endl;
 
   headerMessage("    Part 1 : CURVES");
 
@@ -3710,9 +3713,123 @@ loop.push_back(TPoint<T>(0,0.5));
 
 #endif
 
+#ifdef DEBUG_TRIINTERSECTIONS
+
+  /*****************************************************************************
+
+    Part 10 : Segment/triangle intersections
+
+  *****************************************************************************/
+
+  headerMessage("    Part 10 : Existing segment/triangle intersecion code vs Moller-Trumbore");
+
+  /*****************************************************************************
+    10.1 Segment/triangle intersections
+  *****************************************************************************/
+
+  {
+    cout << "10.1 Comparing output of segTriIntersectPrim() vs segTriIntersectMT()" << endl;
+
+    #define NUM_TESTS 1000000
+    #define RAY_SIZE 10.0
+    #define TRI_SIZE 1.0
+
+    T tolerance = PARM_TOLERANCE;
+
+    double starttime = GetTime();
+
+    for (int i = 0; i < NUM_TESTS; i++)
+    {
+      TPoint<T> point0(random() * -RAY_SIZE,random() * -RAY_SIZE,random() * -RAY_SIZE);
+      TPoint<T> point1(random() * RAY_SIZE,random() * RAY_SIZE,random() * RAY_SIZE);
+      std::array<TPoint<T>,3> tri({
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE),
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE),
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE)
+      });
+
+      T U0 = 0.0;
+      TPoint<T> intr0;
+      bool ok0 = segTriIntersectPrim<T>(point0,point1,tri,U0,intr0,PARM_TOLERANCE);
+
+      T U1 = 0.0;
+      TPoint<T> intr1;
+      bool ok1 = segTriIntersectMT<T>(point0,point1,tri,U1,intr1,false);
+
+      bool ok = (ok0 == ok1);
+
+      T DU = std::abs(U0 - U1);
+      T d = !(intr0 - intr1);
+      if (ok && ok0 && ok1) 
+        ok = ok && (DU < tolerance && d < tolerance);
+
+      if (!ok)
+      {
+        ASSERT(false);
+
+        std::vector<tcad::TPoint<T>> raypoints = {point0,point1};
+        std::vector<tcad::TPoint<T>> tripoints = {tri[0],tri[1],tri[2],tri[0]};
+
+        savePointsIges<T>(raypoints,DEBUG_DIR + "error_ray.iges");
+        savePointsIges<T>(tripoints,DEBUG_DIR + "error_tri.iges");
+
+        break;
+      }
+    }
+
+    double endtime = GetTime();
+    cout << "Time elapsed " << (endtime - starttime) << " sec" << endl;
+
+    cout << "10.2 Measuring speed of segTriIntersectPrim()" << endl;
+
+    starttime = GetTime();
+
+    for (int i = 0; i < NUM_TESTS; i++)
+    {
+      TPoint<T> point0(random() * -RAY_SIZE,random() * -RAY_SIZE,random() * -RAY_SIZE);
+      TPoint<T> point1(random() * RAY_SIZE,random() * RAY_SIZE,random() * RAY_SIZE);
+      std::array<TPoint<T>,3> tri({
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE),
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE),
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE)
+      });
+
+      T U0 = 0.0;
+      TPoint<T> intr0;
+      bool ok0 = segTriIntersectPrim<T>(point0,point1,tri,U0,intr0,PARM_TOLERANCE);
+    }
+
+    endtime = GetTime();
+    cout << "Time elapsed " << (endtime - starttime) << " sec" << endl;
+
+    cout << "10.3 Measuring speed of segTriIntersectMT()" << endl;
+
+    starttime = GetTime();
+
+    for (int i = 0; i < NUM_TESTS; i++)
+    {
+      TPoint<T> point0(random() * -RAY_SIZE,random() * -RAY_SIZE,random() * -RAY_SIZE);
+      TPoint<T> point1(random() * RAY_SIZE,random() * RAY_SIZE,random() * RAY_SIZE);
+      std::array<TPoint<T>,3> tri({
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE),
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE),
+        TPoint<T>(random() * TRI_SIZE,random() * TRI_SIZE,random() * TRI_SIZE)
+      });
+
+      T U1 = 0.0;
+      TPoint<T> intr1;
+      bool ok1 = segTriIntersectMT<T>(point0,point1,tri,U1,intr1,false);
+    }
+
+    endtime = GetTime();
+    cout << "Time elapsed " << (endtime - starttime) << " sec" << endl;
+  }
+
+#endif
+
   double endtime = GetTime();
 
-  cout << "Time elapsed " << (endtime - starttime) << " sec" << endl;
+  cout << endl << "Total time elapsed " << (endtime - starttime) << " sec" << endl;
 
   return 0;
 }

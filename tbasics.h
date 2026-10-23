@@ -204,5 +204,12 @@ namespace tcad {
 
 // Improve triangle shapes during ear clipping tesselations
 #define IMPROVE_TESSTRIS
+
+// Use Möller–Trumbore segment-triangle intersection algorithm (total code ~20% faster)
+#define USE_MOLLERTRUMBORE
+
+// DO NOT SET. Check Möller–Trumbore segment-triangle intersection code
+//#define CHECK_MOLLERTRUMBORE
+
 }
 

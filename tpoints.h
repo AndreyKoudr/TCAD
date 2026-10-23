@@ -165,26 +165,6 @@ template <class T> TPoint<T> midPoint(std::vector<TPoint<T>> &points)
   return points[i];
 }
 
-/** Get next increasing element of an array. */
-template <class T> int next(int size, int index)
-{
-  if (++index >= int(size))
-  {
-    index = 0;
-  }
-  return index;
-}
-
-/** Get previuos element of an array. */
-template <class T> int prev(int size, int index)
-{
-  if (--index < 0)
-  {
-    index = size - 1;
-  }
-  return index;
-}
-
 /** Calculate min/max among a list of points; imin, imax contain corresponding indices as reals. */
 template <class T> bool calculateMinMax(std::vector<TPoint<T>> &points, TPoint<T> *min, TPoint<T> *max,
   TPoint<T> *imin = nullptr, TPoint<T> *imax = nullptr)

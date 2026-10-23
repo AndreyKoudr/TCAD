@@ -46,6 +46,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <emmintrin.h>
 
 
+/** Save curve as points. */
+extern bool savePointsIgesD(std::vector<tcad::TPoint<double>> &curve, 
+  const std::string &filename, int splinedegree, int minpoints);
+
 namespace tcad {
 
 extern bool print;
@@ -85,6 +89,26 @@ template <class T> bool bitSet(int i, int bitno)
 {
   int mask = 1 << bitno;
   return ((i & mask) != 0);
+}
+
+/** Get next increasing element of an array. */
+template <class T> int next(int size, int index)
+{
+  if (++index >= int(size))
+  {
+    index = 0;
+  }
+  return index;
+}
+
+/** Get previuos element of an array. */
+template <class T> int prev(int size, int index)
+{
+  if (--index < 0)
+  {
+    index = size - 1;
+  }
+  return index;
 }
 
 /** All busy? */
@@ -894,9 +918,9 @@ template <class T> void getDerivativesV1(std::vector<std::vector<TPoint<T>>> &po
 
 /* Test piercing triangle by vector point0->point1; if pierced, returns U - 
   parameter to mark point between point0 and point1. U check for [0..1] is here. */
-template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
+template <typename T> bool segTriIntersectPrim(const TPoint<T> &point0, const TPoint<T> &point1,
   const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, 
-  const T tolerance, const T parmtolerance = PARM_TOLERANCE)
+  const T parmtolerance = PARM_TOLERANCE)
 {
                                       // get vector point0->point1 
   TPoint<T> v01 = point1 - point0;
@@ -1032,6 +1056,148 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
 #endif
 
   return inside || onedge;
+}
+
+/** Möller–Trumbore intersection algorithm. 
+  https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm. */
+template <typename T> bool segTriIntersectMT(const TPoint<T> &point0, const TPoint<T> &point1,
+  const std::array<TPoint<T>,3> &triangle, T &U, TPoint<T> &intersection, 
+  const bool check_backface = true, const T parmtolerance = PARM_TOLERANCE)
+{
+  T epsilon = TOLERANCE(T);
+
+  // check segment
+  TPoint<T> dp = point1 - point0;
+  T len = !dp;
+  if (len < epsilon)
+    return false;
+
+  //// try to make facet plane 
+  //TPoint<T> N; T D;
+  //if (!makePlaneOf3Vectors(triangle[0],triangle[1],triangle[2],N,D))
+  //  return false;
+
+  // adjust to original definitions
+  TPoint<T> ray_origin = point0;
+  TPoint<T> ray_vector = +dp; // normalised
+
+  TPoint<T> edge1 = triangle[1] - triangle[0];
+  TPoint<T> edge2 = triangle[2] - triangle[0];
+
+  // backface culling, assuming CCW-wound triangles.
+  const TPoint<T> normal = edge1 ^ edge2; // no need to normalize
+  if (check_backface && (normal * ray_vector) > 0.0) 
+    return false;
+
+  TPoint<T> ray_cross_e2 = ray_vector ^ edge2;
+  T det = edge1 * ray_cross_e2;
+
+  if (std::abs(det) < epsilon)  // ray is parallel to triangle
+    return false;
+
+  T inv_det = 1.0 / det;
+  TPoint<T> s = ray_origin - triangle[0];
+  T u = inv_det * (s * ray_cross_e2);
+
+  if (u < -parmtolerance || (u - 1.0) > parmtolerance) // ray passes outside edge2's bounds
+    return false;
+
+  TPoint<T> s_cross_e1 = s ^ edge1;
+  T v = inv_det * (ray_vector * s_cross_e1);
+
+  if (v < -parmtolerance || (u + v - 1.0) > parmtolerance) // ray passes outside edge1's bounds
+    return false;
+
+  // the ray line intersects with the triangle,
+  // compute U to find where on the ray the intersection is
+  U = inv_det * (edge2 * s_cross_e1);
+  intersection = ray_origin + ray_vector * U;
+  U /= len;
+
+  if (U < -parmtolerance || U > 1.0 + parmtolerance)
+    return false;
+
+  //bool inside = (U >= -epsilon && U <= 1.0 + epsilon);
+  bool inside = true;
+
+  if (inside) // ray intersection
+  {
+    return true;
+  } else // this means that there is a line intersection but not a ray intersection
+  {
+#if 1
+    // additional check by projecting intersection on every edge
+    for (int i = 0; i < 3; i++)
+    {
+      int i1 = next<int>(3,i);
+      TPoint<T> p0 = triangle[i];
+      TPoint<T> p1 = triangle[i1];
+
+      // project intersection on every edge with tolerance
+      TPoint<T> intr;
+      T t = 0.0;
+      if (projectPointOnSegment(intersection,p0,p1,&intr,&t,parmtolerance))
+      {
+        T dist = !(intersection - intr);
+        if (dist < TOLERANCE(T))
+        {
+          return true;
+        }
+      }
+    }
+
+    return false;
+#else
+    return false;
+#endif
+  }
+}
+
+/* Test piercing triangle by vector point0->point1; if pierced, returns U - 
+  parameter to mark point between point0 and point1. U check for [0..1] is here. */
+template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint<T> &point1,
+  const std::array<TPoint<T>,3> &coords, T &U, TPoint<T> &intersection, 
+  const T parmtolerance = PARM_TOLERANCE)
+{
+#ifdef USE_MOLLERTRUMBORE
+
+  return segTriIntersectMT(point0,point1,coords,U,intersection,false,parmtolerance);
+
+#else
+  bool ok0 = segTriIntersectPrim(point0,point1,coords,U,intersection,parmtolerance);
+
+  // there is still differences e.g. when a ray ends in a tri corner (DEBUG_LATTICE)
+  // but this liiks like is ok with the final result
+#ifdef CHECK_MOLLERTRUMBORE
+  T U1 = 0.0;
+  TPoint<T> intr1;
+  bool ok1 = segTriIntersectMT<T>(point0,point1,coords,U1,intr1,false,parmtolerance);
+
+  bool ok = (ok0 == ok1);
+
+  T DU = std::abs(U - U1);
+  T d = !(intersection - intr1);
+  if (ok && ok0 && ok1) 
+    ok = ok && (DU < parmtolerance && d < parmtolerance);
+
+  if (!ok)
+  {
+    //ASSERT(false);
+
+    //std::vector<tcad::TPoint<T>> raypoints = {point0,point1};
+    //std::vector<tcad::TPoint<T>> tripoints = {coords[0],coords[1],coords[2],coords[0]};
+
+    //savePointsIgesD(raypoints,DEBUG_DIR + "error_ray.iges",SPLINE_DEGREE,8);
+    //savePointsIgesD(tripoints,DEBUG_DIR + "error_tri.iges",SPLINE_DEGREE,8);
+
+    //exit(1);
+  }
+
+#endif
+
+  return ok0;
+
+#endif
 }
 
 /** Refine parameter U [0..1] value near ends, with powerstart and powerend.

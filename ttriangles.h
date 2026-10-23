@@ -220,7 +220,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
     T U = 0.0;
     TPoint<T> intersection;
     // tolerance not used inside
-    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,tolerance,parmtolerance))
+    if (segTriIntersect(edges[k].first,edges[k].second,other,U,intersection,parmtolerance))
     {
       intrs.push_back(intersection);
     }
@@ -232,7 +232,7 @@ template <class T> int intersectTriangleByTriangle(std::array<TPoint<T>,3> &tri,
     T U = 0.0;
     TPoint<T> intersection;
     // tolerance not used inside
-    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,tolerance,parmtolerance))
+    if (segTriIntersect(oedges[k].first,oedges[k].second,tri,U,intersection,parmtolerance))
     {
       intrs.push_back(intersection);
     }
@@ -1590,7 +1590,7 @@ template <class T> bool TTriangles<T>::segIntersect(const TPoint<T> &point0, con
   c[1] = coords[corners[tri * 3 + 1]];
   c[2] = coords[corners[tri * 3 + 2]];
 
-  return segTriIntersect(point0,point1,c,U,intersection,tolerance,parmtolerance);
+  return segTriIntersect(point0,point1,c,U,intersection,parmtolerance);
 }
 
 template <class T> void TTriangles<T>::getTriNeighbours(const int numLayersAround, 
