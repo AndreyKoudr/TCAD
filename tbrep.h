@@ -1427,11 +1427,17 @@ template <class T> bool makeTMPump(T R, T Rshaft, bool periodic, T d,
   // minus shaft
   TBrep<T> shaft(tolerance);
 
+  // UNFIXED BUG in breps : set stator_blades_per_period to 2 and shaft_shift to zero,
+  // look result of casing + shaft
+
+  // angle to turn shaft relative to casing to exclude coincident face size
+  T shaft_shift = T(stator_blades_per_period % 2 - 1) * speriod * 0.5;
+
   if (periodic)
   {
   #ifdef ONLY_ROTORBLADE
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180.0 + speriod * 0.5,180.0 + speriod * 0.5,
+      -180.0 + shaft_shift,180.0 + shaft_shift,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
   #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces * (stator_blades_per_period + 1) / stator_numblades,
@@ -1444,13 +1450,13 @@ template <class T> bool makeTMPump(T R, T Rshaft, bool periodic, T d,
     // cutter for rotor blade root near shaft
     TBrep<T> shaftcutter(tolerance);
     shaftcutter.makeCylinder(Lcasing * 1.2,Rshaft - d,Rshaft - d,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180.0 + speriod * 0.5,180.0 + speriod * 0.5,
+      -180.0 + shaft_shift,180.0 + shaft_shift,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
   #endif
   } else
   {
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180.0 + speriod * 0.5,180.0 + speriod * 0.5,
+      -180.0 + shaft_shift,180.0 + shaft_shift,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
   }
 

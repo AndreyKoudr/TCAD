@@ -231,7 +231,7 @@ main.cpp, see examples on how to use TCAD.<br />
 Recent update ...
 =================
 
-Turbomachine done. Now looking at turbomolecular pumps.<br /> 
+Turbomachine done. Now looking at turbomolecular pumps. Triangulation looks ok for Boltzmann, switching to octrees for the solution, maybe in another repo.<br /> 
 
 
 

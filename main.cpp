@@ -3294,7 +3294,7 @@ loop.push_back(TPoint<T>(0,0.5));
     // rotor num blades
     int rotor_numblades = 16;
     // stator # blades
-    int stator_blades_per_period = 3;
+    int stator_blades_per_period = 3; 
     int stator_numblades = rotor_numblades * stator_blades_per_period;
 
     // # faces along curvature
@@ -3326,38 +3326,11 @@ loop.push_back(TPoint<T>(0,0.5));
     cout << "periodic part, period " + to_string(period) + " deg" << endl << endl;
 #endif
 
-    cout << "rotor blade chord " << rotor_blade_chord << ", stator blade chord " << stator_blade_chord << 
-      ", distance between blades " << d << endl;
+    cout << "distance between blades " << d << endl;
 
     // limit rotor chord by period, inside_coef just in case
     T max_blade_chord = Rshaft * sin(period * CPI * 0.5) * 2.0 / cos(rotor_blade_alpha * CPI) * inside_coef; // to avoid coincidence with seam
     LIMIT_MAX(rotor_blade_chord,max_blade_chord);
-
-    // rotations per minute, typically 30..90 thousand per minute
-    T RPM = 10000; 
-    // temperature in K
-    T temperature = 293.15;
-    // molecular mass of air, kg/mol
-    T molecular_mass = 0.02897;
-    // Boltzmann constant
-    const T kB = 1.380649e-23; 
-    // standard deviation (thermal spread) per axis
-    T sigma = std::sqrt((kB * temperature) / molecular_mass);
-    // max blade speed in m/s
-    T vblade = PI20 * R * RPM / 60.0; 
-
-    // molecular diameter
-    T dm = 3.7e-10;
-    // pressure, Pa, N/m^2
-    T P = 101325.0;
-    // mean free path
-    T lambda = kB * temperature / (sqrt(2.0) * PI10 * dm * dm * P);
-
-    // Knudsen number
-    //T Kn = (vblade + sigma) / d;
-    T Kn = lambda / d;
-
-    cout << "standard deviation " << sigma << ", lambda " << lambda << ", blade speed " << vblade << ", Kn " << Kn << endl;
 
     // ALL NORMALS POINT INSIDE "FLUID"
 
@@ -3406,10 +3379,16 @@ loop.push_back(TPoint<T>(0,0.5));
     // minus shaft
     TBrep<T> shaft(tolerance);
 
+    // UNFIXED BUG in breps : set stator_blades_per_period to 2 and shaft_shift to zero,
+    // look result of casing + shaft
+
+    // angle to turn shaft relative to casing to exclude coincident face size
+    T shaft_shift = T(stator_blades_per_period % 2 - 1) * speriod * 0.5;
+
 #ifdef PERIODIC_TMP
   #ifdef ONLY_ROTORBLADE
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180.0,180.0,
+      -180.0 + shaft_shift,180.0 + shaft_shift,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
   #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces * (stator_blades_per_period + 1) / stator_numblades,
@@ -3422,13 +3401,13 @@ loop.push_back(TPoint<T>(0,0.5));
     // cutter for rotor blade root near shaft
     TBrep<T> shaftcutter(tolerance);
     shaftcutter.makeCylinder(Lcasing * 1.2,Rshaft - d,Rshaft - d,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180.0,180.0,
+      -180.0 + shaft_shift,180.0 + shaft_shift,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
 
   #endif
 #else
     shaft.makeCylinder(Lcasing * 1.2,Rshaft,Rshaft,"",numLfaces,4,numRfaces,numRfaces,64,MANY_POINTS2D,
-      -180.0,180.0,
+      -180.0 + shaft_shift,180.0 + shaft_shift,
       K1,K2,SPLINE_DEGREE,SPLINE_DEGREE,END_CLAMPED,END_CLAMPED,END_FIXED,END_FIXED,false); 
 #endif
     shaft.closeOuterBoundary();
