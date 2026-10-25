@@ -300,41 +300,9 @@ template <typename T> LINT OBackground<T>::numBackgroundCells()
 
                                           
 */
+
 /** Offsets from the centre. */
-template <class T> const std::array<IPosition,27> cellCentreOffsets = {
-  IPosition(-1,-1,-1),
-  IPosition(+1,-1,-1),
-  IPosition(+1,+1,-1),
-  IPosition(-1,+1,-1),
-  IPosition(-1,-1,+1),
-  IPosition(+1,-1,+1),
-  IPosition(+1,+1,+1),
-  IPosition(-1,+1,+1),
-
-  IPosition( 0,-1,-1),
-  IPosition(+1, 0,-1),
-  IPosition( 0,+1,-1),
-  IPosition(-1, 0,-1),
-
-  IPosition(-1,-1, 0),
-  IPosition(+1,-1, 0),
-  IPosition(+1,+1, 0),
-  IPosition(-1,+1, 0),
-
-  IPosition( 0,-1,+1),
-  IPosition(+1, 0,+1),
-  IPosition( 0,+1,+1),
-  IPosition(-1, 0,+1),
-
-  IPosition( 0, 0,-1),
-  IPosition( 0,-1, 0),
-  IPosition(+1, 0, 0),
-  IPosition( 0,+1, 0),
-  IPosition(-1, 0, 0),
-  IPosition( 0, 0,+1),
-
-  IPosition( 0, 0, 0)
-};
+extern const std::array<IPosition,27> cellCentreOffsets;
 
 template <class T> LINT OBackground<T>::intCellSize(const int level)
 {
@@ -374,7 +342,7 @@ template <class T> std::array<IPosition,8> OBackground<T>::cell8Coordinates(cons
 
   LINT halfSize = size / 2;
 
-  std::transform(cellCentreOffsets<T>.begin(),cellCentreOffsets<T>.begin() + 8,coord.begin(),
+  std::transform(cellCentreOffsets.begin(),cellCentreOffsets.begin() + 8,coord.begin(),
     [&ocentre,&halfSize](auto v) { return ocentre + v * halfSize; });
 
   return coord;

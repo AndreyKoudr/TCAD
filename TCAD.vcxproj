@@ -129,6 +129,7 @@
     <ClCompile Include="export.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory.cpp" />
+    <ClCompile Include="obackground.cpp" />
     <ClCompile Include="strings.cpp" />
     <ClCompile Include="tmisc.cpp" />
     <ClCompile Include="ttriangles.cpp" />

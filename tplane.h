@@ -159,6 +159,13 @@ template <class T> int segPlaneIntersect(TPoint<T> V1, TPoint<T> V2, TPoint<T> N
   }
 }
 
+/** Project vector on plane. */
+template <class T> void projectVectorOnPlane(TPoint<T> V, TPoint<T> N, T D, TPoint<T> &projection)
+{
+  T lambda = (-D - V * N) / (N * N);
+  projection = V + N * lambda;
+}
+
 template <typename T> struct TPlane {
 
   typedef TPoint<T> vector3;
@@ -207,9 +214,50 @@ template <typename T> struct TPlane {
   }
 
   /** Constructor from 3 points */
-  TPlane(const vector3 &V1, const vector3 &V2, const vector3 &V3, bool& OK)
+  TPlane(const vector3 &V1, const vector3 &V2, const vector3 &V3, bool& ok)
   {
-    OK = tcad::makePlaneOf3Vectors<T>(V1,V2,V3,normal,constant);
+    ok = tcad::makePlaneOf3Vectors<T>(V1,V2,V3,normal,constant);
+  }
+
+  /** Constructor from more than 3 points 
+    (https://stackoverflow.com/questions/1400213/3d-least-squares-plane) */
+  TPlane(const std::vector<vector3> &points, bool &ok)
+  {
+    assert(points.size() >= 3);
+
+    T A[9] = {0};
+    T B[3] = {0};
+
+    for (size_t i = 0; i < points.size(); i++)
+    {
+      A[0 * 3 + 0] += points[i].X * points[i].X; 
+      A[0 * 3 + 1] += points[i].X * points[i].Y; 
+      A[0 * 3 + 2] += points[i].X; 
+
+      A[1 * 3 + 0] += points[i].X * points[i].Y; 
+      A[1 * 3 + 1] += points[i].Y * points[i].Y; 
+      A[1 * 3 + 2] += points[i].Y; 
+
+      A[2 * 3 + 0] += points[i].X; 
+      A[2 * 3 + 1] += points[i].Y; 
+
+      B[0] += points[i].X * points[i].Z;
+      B[1] += points[i].Y * points[i].Z;
+      B[2] += points[i].Z;
+    }
+
+    A[2 * 3 + 2] = T(points.size()); 
+
+    T tolerance = std::numeric_limits<T>::epsilon() * static_cast<T>(10.0);
+
+    ok = solveSystemWithPivoting<T>(3,&A[0],&B[0],tolerance);
+
+    if (ok)
+    {
+      vector3 n(B[0],B[1],T(-1.0));
+      normal = +n;
+      constant = B[2] / (!n);
+    }
   }
 
   /** Tolerant equality */
@@ -268,6 +316,15 @@ template <typename T> struct TPlane {
       return false;
     }
   }
+
+  /** Make projection of point onto plane. */
+  TPoint<T> makeProjection(const TPoint<T> v) const
+  {
+    TPoint<T> p;
+    projectVectorOnPlane<T>(v,normal,constant,p);
+    return p;
+  }
+
 };
  
 }

@@ -53,6 +53,9 @@
     <ClCompile Include="memory.cpp">
       <Filter>AUXILIARY</Filter>
     </ClCompile>
+    <ClCompile Include="obackground.cpp">
+      <Filter>OCTREE</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tbasics.h">
