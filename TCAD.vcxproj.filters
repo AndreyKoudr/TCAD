@@ -56,6 +56,9 @@
     <ClCompile Include="obackground.cpp">
       <Filter>OCTREE</Filter>
     </ClCompile>
+    <ClCompile Include="tbasesurface.cpp">
+      <Filter>SURFACES</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tbasics.h">

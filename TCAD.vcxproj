@@ -131,6 +131,7 @@
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="obackground.cpp" />
     <ClCompile Include="strings.cpp" />
+    <ClCompile Include="tbasesurface.cpp" />
     <ClCompile Include="tmisc.cpp" />
     <ClCompile Include="ttriangles.cpp" />
   </ItemGroup>

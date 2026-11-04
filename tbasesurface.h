@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tmisc.h"
 #include "ttransform.h"
 #include "tbasecurve.h"
+#include "tpointcurve.h"
 #include "ttriangles.h"
 #include "tsystems.h"
 #include "tboundary.h"
@@ -78,6 +79,28 @@ enum Boolean {
   SUBTRACT,
   INTERSECT
 };
+
+// face (surface) type
+enum FaceType {
+  UNDEFINED,
+  INACTIVE,
+  WING,
+  CYLINDER,
+  CYLINDER_TOP,
+  CYLINDER_BOTTOM,
+  CYLINDER_FLANK0,
+  CYLINDER_FLANK1,
+  SPHERE,
+  ELLIPSOID,
+  BOX,
+  SHAFT,
+  CASING,
+
+  FACETYPE_TOTAL
+};
+
+// face type names
+extern std::string facetypeNames[FACETYPE_TOTAL];
 
 /** Outer loop, not hole. */
 template <class T> bool outerLoop(std::vector<std::vector<TPoint<T>>> &loop, T parmtolerance = PARM_TOLERANCE)
@@ -2048,6 +2071,9 @@ public: //!!!
 
   // name for debugging purposes
   std::string name;
+
+  // surface type for calculations
+  FaceType type = UNDEFINED;
 
 protected:
 

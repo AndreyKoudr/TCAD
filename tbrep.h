@@ -394,6 +394,9 @@ public:
     // name for debugging
     nameSurfaces(name);
 
+    // set type for faces
+    typeSurfaces(BOX);
+
     // make boundaries
     prepareOuterBoundary<T>(surfaces,boundariesUV);
   }
@@ -449,6 +452,8 @@ public:
     // contour in XY
     makeAxisymmetricBody(contour,AxisX,AxisY,
       name,angdegfrom,angdegto,numfaces * 2,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
+
+    typeSurfaces(SPHERE);
   }
 
   /** Make ellipsoid with a,b,c as semiaxes. */
@@ -468,6 +473,8 @@ public:
     t.Resize(TPoint<T>(a,b,c));
 
     makeTransform(surfaces,&t);
+
+    typeSurfaces(ELLIPSOID);
   }
 
   /** Make cylinder of radius R of length L around Z with centre at 0,0,0. if 
@@ -521,6 +528,17 @@ public:
     makeAxisymmetricBody(contour,AxisX,AxisY,
       name,angdegfrom,angdegto,numfaces,pointsperface,K1,K2,M1,M2,startU,endU,startV,endV);
 
+    typeSurfaces(CYLINDER);
+
+    if (contour.size() == 3)
+    {
+      for (int i = 0; i < int(numfaces); i++)
+      {
+        surfaces[i]->type = CYLINDER_BOTTOM;
+        surfaces[int(surfaces.size()) - 1 - i]->type = CYLINDER_TOP;
+      }
+    }
+
     // add two side slide faces
     if (makeslice && std::abs(angdegto - angdegfrom - 360.0) > PARM_TOLERANCE && contour.size() == 3)
     {
@@ -542,6 +560,7 @@ public:
 
       TSplineSurface<T> *surface = new TSplineSurface<T>(points,K1,M1,K2,M2,END_FIXED,END_FIXED,END_FIXED,END_FIXED);
       surface->reverseU();
+      surface->type = CYLINDER_FLANK0;
       surfaces.push_back(surface);
 
       t.LoadIdentity();
@@ -549,6 +568,7 @@ public:
       tcad::makeTransform<T>(points,&t);
 
       surface = new TSplineSurface<T>(points,K1,M1,K2,M2,END_FIXED,END_FIXED,END_FIXED,END_FIXED);
+      surface->type = CYLINDER_FLANK1;
       surfaces.push_back(surface);
     }
   }
@@ -790,6 +810,8 @@ public:
 #ifdef DEBUG_BREP
       ::saveSurfacesIges(surfaces,DEBUG_DIR + "Airfoil surfaces 2.iges"); 
 #endif
+
+    typeSurfaces(WING);
 
     // make boundaries
     tcad::closeOuterBoundary<T>(surfaces,boundariesUV,NUM_BOUNDARYDIVS,0.5,0.5,1.0,1.0); //!!!!!!
@@ -1094,6 +1116,15 @@ public:
   void nameSurfaces(std::string prefix)
   {
     tcad::nameSurfaces(surfaces,prefix);
+  }
+
+  /** Set type for all surfaces. */
+  void typeSurfaces(FaceType type)
+  {
+    for (int i = 0; i < int(surfaces.size()); i++)
+    {
+      surfaces[i]->type = type;
+    }
   }
 
   /** Save trimmed surfaces. */
@@ -1424,6 +1455,8 @@ template <class T> bool makeTMPump(T R, T Rshaft, bool periodic, T d,
   if (debug)
     bladecutter.saveSurfacesIges(DEBUG_DIR + "TM pump blade cutter.iges");
 
+  bladecutter.typeSurfaces(CASING);
+
   // minus shaft
   TBrep<T> shaft(tolerance);
 
@@ -1461,6 +1494,9 @@ template <class T> bool makeTMPump(T R, T Rshaft, bool periodic, T d,
   }
 
   shaft.closeOuterBoundary();
+
+  shaft.typeSurfaces(SHAFT);
+  //casing.typeSurfaces(CASING);
 
   if (debug)
     shaft.saveSurfacesIges(DEBUG_DIR + "TM pump shaft.iges");

@@ -72,6 +72,7 @@ public:
   TBezierPatch(const TBezierPatch &other) : TBaseSurface<T>()
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;
@@ -84,6 +85,7 @@ public:
   TBezierPatch &operator = (const TBezierPatch &other)  
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;

@@ -212,6 +212,9 @@ template <class T> void makeAirfoil(std::vector<std::vector<TPoint<T>>> &camberp
     }
   }
 
+  upper->type = WING;
+  lower->type = WING;
+
   surfaces.push_back(upper);
   surfaces.push_back(lower);
 }
@@ -1718,6 +1721,8 @@ template <class T> void makeFlatRoundedTop(TSplineSurface<T> *wall0, TSplineSurf
         leftright.first->reverseU();
         leftright.second->reverseU();
       }
+
+      leftright.first->type = leftright.second->type = surfaces[i]->type;
 
       newsurfaces.push_back(leftright.first);
       newsurfaces.push_back(leftright.second);

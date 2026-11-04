@@ -339,6 +339,9 @@ public:
   bool addTri(TPoint<T> v0, TPoint<T> v1, TPoint<T> v2, T tolerance, T angletolerancedeg = T(0.0), 
     T sliverdeg = T(0.0), bool revert = false);
 
+  /** Add other triangles, no checks. */
+  void addTriangles(TTriangles<T> &tris);
+
   /** Build connectivity array (with unique corners) by exclusion of
     duplicate coords and renumbering node indices (corners).
     a "false" return means that tolerance was too high but was fixed
@@ -747,6 +750,17 @@ template<class T> bool TTriangles<T>::addTri(TPoint<T> v0, TPoint<T> v1, TPoint<
   assert(corners.size() % 3 == 0);
 
   return true;
+}
+
+template<class T> void TTriangles<T>::addTriangles(TTriangles<T> &tris)
+{
+  for (int i = 0; i < tris.numFaces(); i++)
+  {
+    this->addTri(
+      tris.coords[tris.corners[i * 3]],
+      tris.coords[tris.corners[i * 3 + 1]],
+      tris.coords[tris.corners[i * 3 + 2]],0.0);
+  }
 }
 
 template<class T> bool TTriangles<T>::saveSTL(FILE *fp, std::string partname, bool binary) const
@@ -4135,6 +4149,104 @@ template <class T> void subdivideTriangle(int numdivisions, std::vector<std::arr
         barcoords.push_back(corners);
       }
     }
+  }
+}
+
+/** Subdivide triangle for inner points with step. Not very good, as the number of
+  points is constant along E2 == const lines. It should be something like in the 
+  above subdivideTriangle(). tris and subtris are for debugging. */
+template <class T> void makeTrianglePoints(std::array<TPoint<T>,3> &coords, T size, 
+  std::vector<TPoint<T>> &points, TTriangles<T> *tris = nullptr, TTriangles<T> *subtris = nullptr)
+{
+  T len01 = !(coords[1] - coords[0]);
+  T len12 = !(coords[2] - coords[1]);
+  T len20 = !(coords[0] - coords[2]);
+
+  // actual coordinates used for division
+  std::array<TPoint<T>,3> c;
+
+  // side 01 is smallest, do nothing
+  if (len01 <= len12 && len01 <= len20)
+  {
+    c = coords;
+  } else if (len12 <= len01 && len12 <= len20)
+  {
+    // 12 smallest, shift to make 01 smallest
+    c[0] = coords[1];
+    c[1] = coords[2];
+    c[2] = coords[0];
+  } else
+  {
+    // 20 smallest, shift to make 01 smallest
+    c[0] = coords[2];
+    c[1] = coords[0];
+    c[2] = coords[1];
+  }
+
+  // now c contains side 01 as the smallest
+  T lenU = !(c[1] - c[0]);
+  TPoint<T> d02 = c[2] - c[0];
+  TPoint<T> d12 = c[2] - c[1];
+  T lenV = std::max<T>(!d02,!d12);
+
+  // #divisions along 0-1 and from 0-1 side
+  int divsU = int(lenU / size) + 1;
+  int divsV = int(lenV / size) + 1;
+
+  // leave the last point c[2]
+  for (int i = 0; i < divsV; i++)
+  {
+    T V = T(i) / T(divsV);
+    TPoint<T> p0 = c[0] + d02 * V;
+    TPoint<T> p1 = c[1] + d12 * V;
+    TPoint<T> dp = p1 - p0;
+
+    for (int j = 0; j <= divsU; j++)
+    {
+      T U = T(j) / T(divsU);
+      TPoint<T> p = p0 + dp * U;
+
+      points.push_back(p);
+    }
+  }
+
+  points.push_back(c[2]);
+
+  if (tris)
+  {
+    tris->addTri(coords[0],coords[1],coords[2],0.0);
+  }
+  if (subtris)
+  {
+    int count = 0;
+    for (int i = 0; i < divsV - 1; i++)
+    {
+      for (int j = 0; j < divsU; j++)
+      {
+        TPoint<T> p0 = points[count];
+        TPoint<T> p1 = points[count + 1];
+        TPoint<T> p2 = points[count + divsU + 2];
+        TPoint<T> p3 = points[count + divsU + 1];
+        subtris->addTri(p0,p1,p3,0.0);
+        subtris->addTri(p1,p2,p3,0.0);
+        count++;
+      }
+      count++;
+    }
+
+    for (int j = 0; j < divsU; j++)
+    {
+      TPoint<T> p0 = points[count];
+      TPoint<T> p1 = points[count + 1];
+      TPoint<T> p2 = points.back();
+      subtris->addTri(p0,p1,p2,0.0);
+      count++;
+    }
+    count++;
+    // very last point 2
+    count++;
+
+    assert(count == int(points.size()));
   }
 }
 

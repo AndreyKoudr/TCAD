@@ -69,6 +69,7 @@ public:
   TSplineSurface(const TSplineSurface &other) : TBaseSurface<T>()
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;
@@ -95,6 +96,7 @@ public:
   TSplineSurface &operator = (const TSplineSurface &other)  
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;
@@ -1034,6 +1036,8 @@ public:
       END_FREE,END_FREE,END_FREE,END_FREE,COPIED); 
     TSplineSurface *rsurface = new TSplineSurface<T>(rpoints,M1,M2,
       END_FREE,END_FREE,END_FREE,END_FREE,COPIED); 
+
+    lsurface->type = rsurface->type = this->type;
 
     return std::pair<TSplineSurface<T> *,TSplineSurface<T> *>(lsurface,rsurface);
   }

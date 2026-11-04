@@ -60,6 +60,7 @@ public:
   TBezierSurface(const TBezierSurface &other) : TBaseSurface<T>()
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;
@@ -74,6 +75,7 @@ public:
   TBezierSurface &operator = (const TBezierSurface &other)  
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;

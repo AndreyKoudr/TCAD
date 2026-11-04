@@ -58,6 +58,7 @@ public:
   TPointSurface(const TPointSurface &other) : TBaseSurface<T>()
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;
@@ -74,6 +75,7 @@ public:
   TPointSurface &operator = (const TPointSurface &other)  
   {
     this->name = other.name;
+    this->type = other.type;
 
     this->K1 = other.K1;
     this->K2 = other.K2;

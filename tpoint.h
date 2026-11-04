@@ -98,7 +98,12 @@ public:
   void init()
   {
     X = Y = Z = (T) (0.0); 
-    W = (T) (0.0);
+    W = (T) (0.0); //!!!!!!!
+  }
+                              // initialise
+  void init(T x, T y = 0.0, T z = 0.0, T w = 1.0) 
+  {
+    X = x; Y = y; Z = z; W = w; 
   }
 
   TPoint(T x, T y = 0.0, T z = 0.0, T w = 1.0) 

@@ -41,7 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "tbasics.h"
-#include "tpoint.h"
+#include "tpoints.h"
 #include "ttransform.h"
 
 namespace tcad {

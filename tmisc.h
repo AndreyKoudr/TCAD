@@ -1383,24 +1383,32 @@ template <class T> void extendBox(std::pair<TPoint<T>,TPoint<T>> &box, T coef = 
   extendMinMax<T>(box.first,box.second,coef,minsizes);
 }
 
-/** Boxes intersect? */
+/** Boxes intersect? tolerance increases probablity. */
 template <class T> bool boxesOverlap(std::pair<TPoint<T>,TPoint<T>> &box0,
-  std::pair<TPoint<T>,TPoint<T>> &box1)
+  std::pair<TPoint<T>,TPoint<T>> &box1, T tolerance = 0.0)
 {
   bool overlap = 
-    box0.first.X <= box1.second.X &&
-    box1.first.X <= box0.second.X &&
-    box0.first.Y <= box1.second.Y &&
-    box1.first.Y <= box0.second.Y &&
-    box0.first.Z <= box1.second.Z &&
-    box1.first.Z <= box0.second.Z;
+    box0.first.X <= box1.second.X + tolerance &&
+    box1.first.X <= box0.second.X + tolerance &&
+    box0.first.Y <= box1.second.Y + tolerance &&
+    box1.first.Y <= box0.second.Y + tolerance &&
+    box0.first.Z <= box1.second.Z + tolerance &&
+    box1.first.Z <= box0.second.Z + tolerance;
 
-    //box0.first.X < box1.second.X &&
-    //box1.first.X < box0.second.X &&
-    //box0.first.Y < box1.second.Y &&
-    //box1.first.Y < box0.second.Y &&
-    //box0.first.Z < box1.second.Z &&
-    //box1.first.Z < box0.second.Z;
+  return overlap;
+}
+
+/** Boxes overlap? tolerance increases probablity. */
+template <class T> bool boxesOverlap(TPoint<T> &min, TPoint<T> &max,
+  TPoint<T> &omin, TPoint<T> &omax, T tolerance = 0.0)
+{
+  bool overlap = 
+    min.X <= omax.X + tolerance &&
+    omin.X <= max.X + tolerance &&
+    min.Y <= omax.Y + tolerance &&
+    omin.Y <= max.Y + tolerance &&
+    min.Z <= omax.Z + tolerance &&
+    omin.Z <= max.Z + tolerance;
 
   return overlap;
 }
