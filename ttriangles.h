@@ -603,6 +603,11 @@ public:
   bool triangulate(std::vector<TPoint<T>> &loop, T edgelen = -1.0, T sliverAR = 0.1, 
     T tolerance = PARM_TOLERANCE);
 
+  /** Find intersection of a segment with all triangles, backfaced returns true 
+    if tri normal * ray are co-directed. */
+  int segIntersectAll(const TPoint<T> &point0, const TPoint<T> &point1, 
+    T &U, TPoint<T> &intersection, TPoint<T> &normal, bool &backfaced, const T parmtolerance = PARM_TOLERANCE);
+
 private:
 
   // Subdive a sliver tri, 0 is the sharpest node. Conformity of mesh is destroyed!
@@ -4518,13 +4523,6 @@ template <class T> bool triangulate(std::vector<TPoint<T>> &loop, std::vector<st
   return ok;
 }
 
-/** Make triangles from a closed countour by ear cutting (clipping). 
-  It is suppposed to work on parametric coordinates in XY plane. 
-  loop is considered to be closed but the last point is NOT the same as the 
-  start point (but one point before). 
-  edgelen defines a desirable triangle edge length, the best results are achieved
-  when this length is close to the mean length of loop segments. Set edglen to 
-  -1.0 to compute it as average of loop segments. */
 template <class T> bool TTriangles<T>::triangulate(std::vector<TPoint<T>> &loop,  
   T edgelen, T sliverAR, T tolerance)
 {
@@ -4556,5 +4554,27 @@ template <class T> bool TTriangles<T>::triangulate(std::vector<TPoint<T>> &loop,
 //
 //int hshshhs = 0;
 //}
+
+template <class T> int TTriangles<T>::segIntersectAll(const TPoint<T> &point0, const TPoint<T> &point1, 
+  T &U, TPoint<T> &intersection, TPoint<T> &normal, bool &backfaced, const T parmtolerance)
+{
+  for (int i = 0; i < int(numFaces()); i++)
+  {
+    std::array<TPoint<T>,3> c = threeCorners(i);
+
+    backfaced = false;
+    bool bf = false;
+    bool ok = segTriIntersectMT(point0,point1,c,U,intersection,parmtolerance,&bf);
+
+    if (ok)
+    {
+      normal = +((c[1] - c[0]) ^ (c[2] - c[0]));
+      backfaced = bf;
+      return i;
+    }
+  }
+
+  return -1;
+}
 
 }

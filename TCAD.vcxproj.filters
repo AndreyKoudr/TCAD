@@ -190,5 +190,8 @@
     <ClInclude Include="TCAD.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="tyonx.h">
+      <Filter>CURVES</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

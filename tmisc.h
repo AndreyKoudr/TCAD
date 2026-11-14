@@ -1062,7 +1062,7 @@ template <typename T> bool segTriIntersectPrim(const TPoint<T> &point0, const TP
   https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm. */
 template <typename T> bool segTriIntersectMT(const TPoint<T> &point0, const TPoint<T> &point1,
   const std::array<TPoint<T>,3> &triangle, T &U, TPoint<T> &intersection, 
-  const bool check_backface = true, const T parmtolerance = PARM_TOLERANCE)
+  const T parmtolerance = PARM_TOLERANCE, bool *backfaced = nullptr)
 {
   T epsilon = TOLERANCE(T);
 
@@ -1086,8 +1086,10 @@ template <typename T> bool segTriIntersectMT(const TPoint<T> &point0, const TPoi
 
   // backface culling, assuming CCW-wound triangles.
   const TPoint<T> normal = edge1 ^ edge2; // no need to normalize
-  if (check_backface && (normal * ray_vector) > 0.0) 
-    return false;
+  if (backfaced)
+  { 
+    *backfaced = ((normal * ray_vector) > 0.0);
+  }
 
   TPoint<T> ray_cross_e2 = ray_vector ^ edge2;
   T det = edge1 * ray_cross_e2;
@@ -1161,7 +1163,7 @@ template <typename T> bool segTriIntersect(const TPoint<T> &point0, const TPoint
 {
 #ifdef USE_MOLLERTRUMBORE
 
-  return segTriIntersectMT(point0,point1,coords,U,intersection,false,parmtolerance);
+  return segTriIntersectMT(point0,point1,coords,U,intersection,parmtolerance);
 
 #else
   bool ok0 = segTriIntersectPrim(point0,point1,coords,U,intersection,parmtolerance);
@@ -1979,6 +1981,24 @@ template <class T> void getRanges(int n, int numthreads, std::vector<int> &range
     left -= d;
   }
 #endif
+}
+
+/** Build orthonormal basis : vector t1 (X) and vector t2 (Y) around normal 
+  vector n (Z). */
+template <class T> void buildOrthonormalBasis(const TPoint<T>& n, TPoint<T>& t1, TPoint<T>& t2) 
+{
+  // std::copysign(1.0, n.Z) returns +1.0 if n.Z >= 0.0 (including +0.0) and -1.0 if n.Z < 0.0
+  const T sign = std::copysign(1.0,n.Z);
+  const T a = -1.0 / (sign + n.Z);
+  const T b = n.X * n.Y * a;
+
+  t1.X = 1.0 + sign * n.X * n.X * a;
+  t1.Y = sign * b;
+  t1.Z = -sign * n.X;
+
+  t2.X = b;
+  t2.Y = sign + n.Y * n.Y * a;
+  t2.Z = -n.Y;
 }
 
 }

@@ -100,9 +100,10 @@ public:
     X = Y = Z = (T) (0.0); 
     W = (T) (0.0); //!!!!!!!
   }
-                              // initialise
+                              //!!!!!!!! there is smth deeply wrong with this init(), do not call
   void init(T x, T y = 0.0, T z = 0.0, T w = 1.0) 
   {
+    assert(false);
     X = x; Y = y; Z = z; W = w; 
   }
 

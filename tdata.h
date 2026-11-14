@@ -295,7 +295,7 @@ template <class T> std::vector<TPoint<T>> NACA0009 = {
 template <class T> std::vector<TPoint<T>> TMPAirfoil = {
 #if 1
   // half thickness
-  #define PMTH 0.05
+#define PMTH 0.05
   TPoint<T>(1.00000, PMTH * 0.00),
   TPoint<T>(0.90000, PMTH * sin(18.0 * CPI)), 
   TPoint<T>(0.80000, PMTH * sin(36.0 * CPI)),

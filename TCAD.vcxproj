@@ -179,6 +179,7 @@
     <ClInclude Include="ttransform.h" />
     <ClInclude Include="ttriangles.h" />
     <ClInclude Include="tvalues.h" />
+    <ClInclude Include="tyonx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
