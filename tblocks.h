@@ -1037,10 +1037,13 @@ template <class T> void intersectSurfacesThreaded(
 
       if (ok)
       {
+        //!!!!!!!! a bug sometimes happens here when pushing both boundaries at the same time;
+        // maybe reallocation and pointer replacement, have no idea, so enclosed it with mutex
+        seglenmutex.lock();
         (*boundaries0)[i].push_back(boundary0);
         (*boundaries1)[j].push_back(boundary1);
 
-        seglenmutex.lock();
+        //seglenmutex.lock();
         *maxseglen = std::max(*maxseglen,m);
         seglenmutex.unlock();
       }
